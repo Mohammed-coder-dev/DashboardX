@@ -30,6 +30,7 @@
   },
   "homepage": "https://github.com/MohammedAlkindi/DashboardX#readme",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.0",
     "dotenv": "^17.3.1",

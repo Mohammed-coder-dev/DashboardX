@@ -40,6 +40,64 @@ const rawTextPreview    = document.getElementById("rawTextPreview");
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
 
+const settingsBtn     = document.getElementById("settingsBtn");
+const settingsPanel   = document.getElementById("settingsPanel");
+const apiKeyInput     = document.getElementById("apiKeyInput");
+const modelSelect     = document.getElementById("modelSelect");
+const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+const settingsStatus  = document.getElementById("settingsStatus");
+
+// ─── API settings (BYOK) ──────────────────────────────────────
+const KEY_STORAGE   = "dx_api_key";
+const MODEL_STORAGE = "dx_model";
+let serverHasKey = false;
+let modelLabels  = {};
+
+function getApiKey()   { return localStorage.getItem(KEY_STORAGE) || ""; }
+function getModel()    { return localStorage.getItem(MODEL_STORAGE) || ""; }
+function keyMissing()  { return !serverHasKey && !getApiKey(); }
+
+function updateSettingsBtn() {
+  settingsBtn.classList.toggle("needs-key", keyMissing());
+  settingsBtn.textContent = keyMissing() ? "⚙ Add API key" : "⚙ API Settings";
+}
+
+async function initSettings() {
+  try {
+    const res    = await fetch("/api/health");
+    const health = await res.json();
+    serverHasKey = health.serverKey;
+    modelSelect.innerHTML = health.models.map(m =>
+      `<option value="${m.id}">${m.label}${m.id === health.defaultModel ? " (default)" : ""}</option>`).join("");
+    health.models.forEach(m => { modelLabels[m.id] = m.label; });
+    modelSelect.value = getModel() || health.defaultModel;
+  } catch (_) { /* health check failing shouldn't block the UI */ }
+  apiKeyInput.value = getApiKey();
+  updateSettingsBtn();
+  if (keyMissing()) settingsPanel.style.display = "";
+}
+
+settingsBtn.addEventListener("click", () => {
+  settingsPanel.style.display = settingsPanel.style.display === "none" ? "" : "none";
+});
+
+saveSettingsBtn.addEventListener("click", () => {
+  const key = apiKeyInput.value.trim();
+  if (key) localStorage.setItem(KEY_STORAGE, key);
+  else     localStorage.removeItem(KEY_STORAGE);
+  localStorage.setItem(MODEL_STORAGE, modelSelect.value);
+  updateSettingsBtn();
+  settingsStatus.textContent = "Saved ✓";
+  setTimeout(() => { settingsStatus.textContent = ""; settingsPanel.style.display = "none"; }, 900);
+});
+
+initSettings();
+
+function modelChip() {
+  const id = getModel() || modelSelect.value;
+  return (modelLabels[id] || "Claude").toUpperCase();
+}
+
 const FILE_ICONS = {
   xlsx:"📊",xls:"📊",csv:"📋",json:"🗂️",pdf:"📄",
   pptx:"📑",ppt:"📑",docx:"📝",doc:"📝",txt:"🔤",md:"🔤",
@@ -118,6 +176,11 @@ resetBtn.addEventListener("click", resetDashboard);
 
 async function runAnalysis() {
   if (selectedFiles.length === 0) return;
+  if (keyMissing()) {
+    settingsPanel.style.display = "";
+    showError("Add your Anthropic API key in Settings first — it stays in your browser.");
+    return;
+  }
   showScreen("loading");
   hideError();
   animateLoadingSteps();
@@ -131,6 +194,7 @@ async function runAnalysis() {
 
   const formData = new FormData();
   formData.append("question", question);
+  formData.append("model", getModel() || modelSelect.value || "");
 
   if (isMulti) {
     selectedFiles.forEach(f => formData.append("files", f));
@@ -140,7 +204,8 @@ async function runAnalysis() {
 
   try {
     const endpoint = isMulti ? "/api/analyze-multi" : "/api/analyze";
-    const response = await fetch(endpoint, { method:"POST", body:formData });
+    const headers  = getApiKey() ? { "x-anthropic-key": getApiKey() } : {};
+    const response = await fetch(endpoint, { method:"POST", headers, body:formData });
     const data     = await response.json();
     if (!response.ok) throw new Error(data.error || "Analysis failed.");
     await delay(500);
@@ -179,7 +244,7 @@ function renderMultiDashboard(data) {
   dashMeta.innerHTML = `
     <span class="meta-chip">${successCount} ANALYZED</span>
     ${totalFiles - successCount > 0 ? `<span class="meta-chip" style="color:var(--red);">${totalFiles - successCount} FAILED</span>` : ""}
-    <span class="meta-chip">CLAUDE SONNET</span>
+    <span class="meta-chip">${modelChip()}</span>
   `;
 
   // Cross-file summary
@@ -269,7 +334,7 @@ function renderSingleFile(data, isTabbed) {
       ${meta.isTabular ? `<span class="meta-chip">${meta.columns} COLUMNS</span>` : ""}
       ${meta.pages    ? `<span class="meta-chip">${meta.pages} PAGES</span>` : ""}
       <span class="meta-chip file-type-chip">${fileTypeLabel}</span>
-      <span class="meta-chip">CLAUDE SONNET</span>
+      <span class="meta-chip">${(modelLabels[meta.model] || modelChip()).toUpperCase()}</span>
     `;
     crossSummarySection.style.display = "none";
     fileTabs.style.display = "none";

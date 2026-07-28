@@ -16,10 +16,27 @@
       <span class="brand-name">DashboardX</span>
       <span class="brand-tag">Beta</span>
     </div>
-    <span style="font-size:12px;color:var(--text-3);font-family:'DM Mono',monospace;">Part of the X Network</span>
+    <button id="settingsBtn" class="settings-btn" type="button">⚙ API Settings</button>
   </nav>
 
   <main class="main">
+
+    <!-- Settings Panel -->
+    <div id="settingsPanel" class="settings-panel" style="display:none;">
+      <div class="settings-field">
+        <label class="settings-label" for="apiKeyInput">Anthropic API key</label>
+        <input id="apiKeyInput" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+        <p class="settings-hint">Stored only in this browser and sent with each analysis request — never saved on the server. Get one at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+      </div>
+      <div class="settings-field">
+        <label class="settings-label" for="modelSelect">Model</label>
+        <select id="modelSelect" class="settings-input"></select>
+      </div>
+      <div class="settings-actions">
+        <button id="saveSettingsBtn" class="settings-save" type="button">Save</button>
+        <span id="settingsStatus" class="settings-status"></span>
+      </div>
+    </div>
 
     <!-- Upload Screen -->
     <div id="uploadScreen" class="upload-section animate">
