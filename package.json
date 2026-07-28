@@ -1,23 +1,34 @@
 {
   "name": "dashboardx",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Upload a spreadsheet, get statistics, correlations, and AI insights back.",
+  "main": "server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Mohammed-coder-dev/DashboardX.git"
+    "url": "git+https://github.com/MohammedAlkindi/DashboardX.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
+  "keywords": [
+    "dashboard",
+    "data-analysis",
+    "claude",
+    "excel",
+    "ai"
+  ],
+  "author": "Mohammed Alkindi",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Mohammed-coder-dev/DashboardX/issues"
+    "url": "https://github.com/MohammedAlkindi/DashboardX/issues"
   },
-  "homepage": "https://github.com/Mohammed-coder-dev/DashboardX#readme",
+  "homepage": "https://github.com/MohammedAlkindi/DashboardX#readme",
   "dependencies": {
     "cors": "^2.8.6",
     "csv-parser": "^3.2.0",
