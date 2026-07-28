@@ -99,6 +99,82 @@ function modelChip() {
   return (modelLabels[id] || "Claude").toUpperCase();
 }
 
+// Everything the dashboard renders (model output, filenames, shared payloads)
+// is untrusted, so every interpolation into innerHTML goes through esc().
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+// ─── History & sharing ────────────────────────────────────────
+const historySection = document.getElementById("historySection");
+const historyList    = document.getElementById("historyList");
+const shareBtn       = document.getElementById("shareBtn");
+let currentAnalysisId = null;
+
+function getSessionId() {
+  let id = localStorage.getItem("dx_session");
+  if (!id) { id = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem("dx_session", id); }
+  return id;
+}
+
+async function loadHistory() {
+  try {
+    const res  = await fetch(`/api/history?session=${encodeURIComponent(getSessionId())}`);
+    const data = await res.json();
+    if (!data.enabled || data.items.length === 0) { historySection.style.display = "none"; return; }
+    historySection.style.display = "";
+    historyList.innerHTML = data.items.map(item => {
+      const when = new Date(item.created_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+      const icon = item.kind === "multi" ? "🗂️" : (FILE_ICONS[item.filename.split(".").pop().toLowerCase()] || "📄");
+      return `<div class="history-item" data-id="${esc(item.id)}">
+        <span>${icon}</span>
+        <span class="history-item-name">${esc(item.filename)}</span>
+        <span class="history-item-meta">${esc(when)}</span>
+      </div>`;
+    }).join("");
+    historyList.querySelectorAll(".history-item").forEach(el =>
+      el.addEventListener("click", () => openSaved(el.dataset.id)));
+  } catch (_) { historySection.style.display = "none"; }
+}
+
+async function openSaved(id) {
+  showScreen("loading");
+  hideError();
+  try {
+    const res = await fetch(`/api/analysis/${encodeURIComponent(id)}`);
+    const row = await res.json();
+    if (!res.ok) throw new Error(row.error || "Could not load analysis.");
+    currentAnalysisId = row.id;
+    if (row.kind === "multi") renderMultiDashboard(row.payload);
+    else { allFileResults = [row.payload]; renderSingleFile(row.payload, false); }
+    updateShareBtn();
+    showScreen("dashboard");
+  } catch (err) {
+    showScreen("upload");
+    showError(err.message);
+  }
+}
+
+function updateShareBtn() {
+  shareBtn.style.display = currentAnalysisId ? "" : "none";
+}
+
+shareBtn.addEventListener("click", async () => {
+  const link = `${location.origin}/?a=${currentAnalysisId}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    shareBtn.textContent = "✓ Link copied";
+  } catch (_) {
+    prompt("Copy this share link:", link);
+  }
+  setTimeout(() => { shareBtn.textContent = "🔗 Share"; }, 1500);
+});
+
+loadHistory();
+const sharedId = new URLSearchParams(location.search).get("a");
+if (sharedId) openSaved(sharedId);
+
 const FILE_ICONS = {
   xlsx:"📊",xls:"📊",csv:"📋",json:"🗂️",pdf:"📄",
   pptx:"📑",ppt:"📑",docx:"📝",doc:"📝",txt:"🔤",md:"🔤",
@@ -153,7 +229,7 @@ function renderFileList() {
     const size = f.size > 1024*1024 ? `${(f.size/1024/1024).toFixed(1)}MB` : `${(f.size/1024).toFixed(0)}KB`;
     return `<div class="file-chip">
       <span class="file-chip-icon">${icon}</span>
-      <span class="file-chip-name">${f.name}</span>
+      <span class="file-chip-name">${esc(f.name)}</span>
       <span class="file-chip-size">${size}</span>
       <button class="file-chip-remove" onclick="removeFile(${i})">×</button>
     </div>`;
@@ -210,7 +286,8 @@ async function runAnalysis() {
 
   try {
     const endpoint = isMulti ? "/api/analyze-multi" : "/api/analyze";
-    const headers  = getApiKey() ? { "x-anthropic-key": getApiKey() } : {};
+    const headers  = { "x-dx-session": getSessionId() };
+    if (getApiKey()) headers["x-anthropic-key"] = getApiKey();
     const response = await fetch(endpoint, { method:"POST", headers, body:formData });
     const data     = await response.json();
     if (!response.ok) throw new Error(data.error || "Analysis failed.");
@@ -222,6 +299,9 @@ async function runAnalysis() {
       allFileResults = [data];
       renderSingleFile(data, false);
     }
+    currentAnalysisId = data.analysisId || null;
+    updateShareBtn();
+    loadHistory();
     showScreen("dashboard");
   } catch (err) {
     showScreen("upload");
@@ -241,7 +321,7 @@ async function runUrlAnalysis() {
   loadingFileCount.textContent = "Fetching file from URL...";
 
   try {
-    const headers = { "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json", "x-dx-session": getSessionId() };
     if (getApiKey()) headers["x-anthropic-key"] = getApiKey();
     const response = await fetch("/api/analyze-url", {
       method: "POST",
@@ -257,6 +337,9 @@ async function runUrlAnalysis() {
     await delay(500);
     allFileResults = [data];
     renderSingleFile(data, false);
+    currentAnalysisId = data.analysisId || null;
+    updateShareBtn();
+    loadHistory();
     showScreen("dashboard");
   } catch (err) {
     showScreen("upload");
@@ -301,21 +384,21 @@ function renderMultiDashboard(data) {
     if (themes.length > 0) {
       const col = document.createElement("div");
       col.innerHTML = `<div class="cross-col-title">🔗 Common Themes</div>` +
-        themes.map(t => `<div class="cross-item theme"><strong>${t.theme}</strong><p>${t.detail}</p></div>`).join("");
+        themes.map(t => `<div class="cross-item theme"><strong>${esc(t.theme)}</strong><p>${esc(t.detail)}</p></div>`).join("");
       crossGrid.appendChild(col);
     }
     if (diffs.length > 0) {
       const col = document.createElement("div");
       col.innerHTML = `<div class="cross-col-title">↔ Key Differences</div>` +
-        diffs.map(d => `<div class="cross-item diff"><strong>${d.aspect}</strong><p>${d.detail}</p></div>`).join("");
+        diffs.map(d => `<div class="cross-item diff"><strong>${esc(d.aspect)}</strong><p>${esc(d.detail)}</p></div>`).join("");
       crossGrid.appendChild(col);
     }
 
     // Cross insights
     crossInsights.innerHTML = (crossSummary.insights||[]).map(ins =>
-      `<div class="insight-item ${ins.type||"neutral"}" style="margin-bottom:8px;">
-        <div class="insight-title">${ins.title}</div>
-        <div class="insight-detail">${ins.detail}</div>
+      `<div class="insight-item ${esc(ins.type||"neutral")}" style="margin-bottom:8px;">
+        <div class="insight-title">${esc(ins.title)}</div>
+        <div class="insight-detail">${esc(ins.detail)}</div>
       </div>`
     ).join("");
 
@@ -331,7 +414,7 @@ function renderMultiDashboard(data) {
     const icon = FILE_ICONS[ext] || "📄";
     const hasErr = !!f.error;
     return `<button class="tab-btn ${i === 0 ? "active" : ""} ${hasErr ? "tab-error" : ""}"
-      onclick="switchTab(${i})">${icon} ${f.filename}${hasErr ? " ⚠" : ""}</button>`;
+      onclick="switchTab(${i})">${icon} ${esc(f.filename)}${hasErr ? " ⚠" : ""}</button>`;
   }).join("");
 
   // Render first tab
@@ -384,29 +467,29 @@ function renderSingleFile(data, isTabbed) {
   summaryText.textContent = analysis.summary;
 
   insightsList.innerHTML = (analysis.insights||[]).map(ins => `
-    <div class="insight-item ${ins.type||"neutral"}">
-      <div class="insight-title">${ins.title}</div>
-      <div class="insight-detail">${ins.detail}</div>
+    <div class="insight-item ${esc(ins.type||"neutral")}">
+      <div class="insight-title">${esc(ins.title)}</div>
+      <div class="insight-detail">${esc(ins.detail)}</div>
     </div>`).join("");
 
   varListTitle.textContent = meta.isTabular ? "Variable Explanations" : "Key Sections";
   varList.innerHTML = (analysis.variables||[]).map(v => `
     <div class="var-item">
-      <div class="var-name">${v.name}</div>
-      <div class="var-explanation">${v.explanation}</div>
-      <div class="var-notable">→ ${v.notable}</div>
+      <div class="var-name">${esc(v.name)}</div>
+      <div class="var-explanation">${esc(v.explanation)}</div>
+      <div class="var-notable">→ ${esc(v.notable)}</div>
     </div>`).join("");
 
   const topics = analysis.topics || [];
   if (topics.length > 0) {
     topicsSection.style.display = "";
     topicsList.innerHTML = topics.map(t => `
-      <div class="topic-item importance-${t.importance||"medium"}">
+      <div class="topic-item importance-${esc(t.importance||"medium")}">
         <div class="topic-header">
-          <span class="topic-name">${t.name}</span>
-          <span class="topic-importance">${t.importance||"medium"}</span>
+          <span class="topic-name">${esc(t.name)}</span>
+          <span class="topic-importance">${esc(t.importance||"medium")}</span>
         </div>
-        <div class="topic-summary">${t.summary}</div>
+        <div class="topic-summary">${esc(t.summary)}</div>
       </div>`).join("");
   } else {
     topicsSection.style.display = "none";
@@ -417,13 +500,13 @@ function renderSingleFile(data, isTabbed) {
     rawTextSection.style.display = "none";
     statGrid.innerHTML = Object.entries(stats).map(([col, s]) => {
       if (s.type === "numeric") return `<div class="stat-card">
-        <div class="stat-col-name">${col}</div><span class="stat-type-badge numeric">numeric</span>
+        <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge numeric">numeric</span>
         ${statRow("mean",s.mean)}${statRow("median",s.median)}${statRow("min",s.min)}${statRow("max",s.max)}${statRow("std",s.std)}${statRow("count",s.count)}
       </div>`;
       return `<div class="stat-card">
-        <div class="stat-col-name">${col}</div><span class="stat-type-badge categorical">categorical</span>
+        <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge categorical">categorical</span>
         ${statRow("count",s.count)}${statRow("unique",s.unique)}
-        <div class="stat-row"><span class="stat-key">top values</span><span class="stat-val" style="font-size:10px;">${(s.top||[]).join(", ")}</span></div>
+        <div class="stat-row"><span class="stat-key">top values</span><span class="stat-val" style="font-size:10px;">${esc((s.top||[]).join(", "))}</span></div>
       </div>`;
     }).join("");
   } else {
@@ -437,7 +520,7 @@ function renderSingleFile(data, isTabbed) {
     corrList.innerHTML = correlations.map(c => {
       const isPos = c.r >= 0, pct = Math.abs(c.r) * 100;
       return `<div class="corr-item">
-        <div class="corr-cols">${c.colA} ↔ ${c.colB}</div>
+        <div class="corr-cols">${esc(c.colA)} ↔ ${esc(c.colB)}</div>
         <div class="corr-bar-wrap"><div class="corr-bar ${isPos?"positive":"negative"}" style="width:${pct}%"></div></div>
         <div class="corr-val ${isPos?"positive":"negative"}">${c.r>0?"+":""}${c.r}</div>
       </div>`;
@@ -453,7 +536,7 @@ function renderSingleFile(data, isTabbed) {
       card.className = "chart-card animate";
       card.style.animationDelay = `${idx * 0.08}s`;
       const canvasId = `chart-${idx}`;
-      card.innerHTML = `<div class="chart-title">${spec.title}</div><div class="chart-reason">${spec.reason}</div><canvas id="${canvasId}" class="chart-canvas" height="220"></canvas>`;
+      card.innerHTML = `<div class="chart-title">${esc(spec.title)}</div><div class="chart-reason">${esc(spec.reason)}</div><canvas id="${canvasId}" class="chart-canvas" height="220"></canvas>`;
       chartsGrid.appendChild(card);
       setTimeout(() => renderChart(canvasId, spec, chartData, stats), 50);
     });
@@ -512,7 +595,7 @@ function chartOptions(xLabel, yLabel) {
   }};
 }
 
-function statRow(key, val) { return `<div class="stat-row"><span class="stat-key">${key}</span><span class="stat-val">${val}</span></div>`; }
+function statRow(key, val) { return `<div class="stat-row"><span class="stat-key">${esc(key)}</span><span class="stat-val">${esc(val)}</span></div>`; }
 
 function showScreen(name) {
   uploadScreen.style.display    = name==="upload"    ? "" : "none";
@@ -526,9 +609,11 @@ function hideError()    { errorBox.style.display="none"; errorBox.textContent=""
 function resetDashboard() {
   selectedFiles=[]; fileInput.value=""; allFileResults=[]; activeTabIdx=0;
   fileListEl.style.display="none"; dropzoneIcon.textContent="📁";
-  questionInput.value=""; analyzeBtn.disabled=true;
+  questionInput.value=""; urlInput.value=""; analyzeBtn.disabled=true;
   analyzeBtn.textContent="Analyze with Claude →";
   chartInstances.forEach(c=>c.destroy()); chartInstances=[];
+  currentAnalysisId=null; updateShareBtn();
+  if (location.search) history.replaceState(null, "", location.pathname);
   hideError(); showScreen("upload");
 }
 

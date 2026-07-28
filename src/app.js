@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import analyzeRouter from "./routes/analyze.js";
 import healthRouter from "./routes/health.js";
+import historyRouter from "./routes/history.js";
 import { securityHeaders } from "./middleware/security.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
@@ -19,6 +20,7 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(express.static(path.join(__dirname, "..", "public")));
   app.use("/api", healthRouter);
+  app.use("/api", historyRouter);
   app.use("/api", analyzeRouter);
   app.use("/api", notFound);
   app.use(errorHandler);

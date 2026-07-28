@@ -8,6 +8,7 @@ import { buildTabularPrompt, buildTextPrompt, buildCrossSummaryPrompt } from "..
 import { runAnalysis, resolveApiKey, resolveModel } from "../services/anthropic.js";
 import { ANALYSIS_SCHEMA, CROSS_SUMMARY_SCHEMA } from "../schemas.js";
 import { fetchRemoteFile } from "../services/remoteFile.js";
+import { saveAnalysis, validSessionId } from "../services/history.js";
 import { AppError } from "../errors.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 
@@ -60,11 +61,16 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
 
   const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
 
-  res.json({
+  const body = {
     meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model },
     stats, correlations, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
+  };
+  body.analysisId = await saveAnalysis({
+    sessionId: validSessionId(req.get("x-dx-session")), kind: "single",
+    filename: req.file.originalname, fileType: parsed.fileType, model, question, payload: body,
   });
+  res.json(body);
 });
 
 router.post("/analyze-url", rateLimit(), async (req, res) => {
@@ -79,12 +85,17 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
 
   const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
 
-  res.json({
+  const body = {
     meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
       filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl },
     stats, correlations, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
+  };
+  body.analysisId = await saveAnalysis({
+    sessionId: validSessionId(req.get("x-dx-session")), kind: "url",
+    filename: file.originalname, fileType: parsed.fileType, model, question, payload: body,
   });
+  res.json(body);
 });
 
 router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req, res) => {
@@ -125,7 +136,15 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
     }
   }
 
-  res.json({ files: fileResults, crossSummary, totalFiles: req.files.length, successCount: successful.length });
+  const body = { files: fileResults, crossSummary, totalFiles: req.files.length, successCount: successful.length };
+  if (successful.length > 0) {
+    body.analysisId = await saveAnalysis({
+      sessionId: validSessionId(req.get("x-dx-session")), kind: "multi",
+      filename: req.files.map(f => f.originalname).join(", ").slice(0, 200),
+      fileType: "multi", model, question, payload: body,
+    });
+  }
+  res.json(body);
 });
 
 export default router;

@@ -73,6 +73,11 @@
 
       <button id="analyzeBtn" class="analyze-btn" disabled>Analyze with Claude →</button>
       <div id="errorBox" class="error-box" style="display:none;"></div>
+
+      <div id="historySection" class="history-section" style="display:none;">
+        <div class="history-title">Recent analyses</div>
+        <div id="historyList" class="history-list"></div>
+      </div>
     </div>
 
     <!-- Loading Screen -->
@@ -98,7 +103,10 @@
             <div class="dash-title" id="dashTitle">Analysis Complete</div>
             <div class="dash-meta" id="dashMeta"></div>
           </div>
-          <button class="reset-btn" id="resetBtn">← New Files</button>
+          <div class="dash-actions">
+            <button class="reset-btn" id="shareBtn" style="display:none;">🔗 Share</button>
+            <button class="reset-btn" id="resetBtn">← New Files</button>
+          </div>
         </div>
 
         <!-- Cross-file summary (multi-file only) -->
