@@ -6,15 +6,32 @@ import { computeStats } from "../analytics/stats.js";
 import { computeCorrelations } from "../analytics/correlations.js";
 import { buildTabularPrompt, buildTextPrompt, buildCrossSummaryPrompt } from "../prompts.js";
 import { callClaude } from "../services/anthropic.js";
+import { AppError } from "../errors.js";
+import { rateLimit } from "../middleware/rateLimit.js";
+
+const MAX_QUESTION_LENGTH = 2000;
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    ALLOWED_EXTENSIONS.includes(ext) ? cb(null, true) : cb(new Error(`Unsupported file type: ${ext}`));
+    ALLOWED_EXTENSIONS.includes(ext)
+      ? cb(null, true)
+      : cb(new AppError(`Unsupported file type: ${ext}`, { status: 400, code: "unsupported_file_type" }));
   },
 });
+
+export function validateQuestion(raw) {
+  if (raw === undefined || raw === null || raw === "") return "";
+  if (typeof raw !== "string") {
+    throw new AppError("Question must be a string.", { status: 400, code: "invalid_question" });
+  }
+  if (raw.length > MAX_QUESTION_LENGTH) {
+    throw new AppError(`Question is too long (max ${MAX_QUESTION_LENGTH} characters).`, { status: 400, code: "question_too_long" });
+  }
+  return raw.trim();
+}
 
 async function analyzeParsedFile(parsed, question) {
   const { rows, columns, isTabular, rawText } = parsed;
@@ -29,72 +46,60 @@ async function analyzeParsedFile(parsed, question) {
 
 const router = Router();
 
-router.post("/analyze", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded." });
-    const question = req.body.question || "";
-    const parsed   = await parseFile(req.file);
-    const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
+router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => {
+  if (!req.file) throw new AppError("No file uploaded.", { status: 400, code: "no_file" });
+  const question = validateQuestion(req.body.question);
+  const parsed   = await parseFile(req.file);
+  const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
 
-    if (rows.length === 0 && !rawText) return res.status(400).json({ error: "File appears empty." });
+  if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
 
-    const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question);
+  const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question);
 
-    res.json({
-      meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size },
-      stats, correlations, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
-      rawText: isTabular ? null : (rawText||"").slice(0,2000),
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message || "Analysis failed." });
-  }
+  res.json({
+    meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size },
+    stats, correlations, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
+    rawText: isTabular ? null : (rawText||"").slice(0,2000),
+  });
 });
 
-router.post("/analyze-multi", upload.array("files", 10), async (req, res) => {
-  try {
-    if (!req.files || req.files.length === 0) return res.status(400).json({ error: "No files uploaded." });
-    if (req.files.length > 10) return res.status(400).json({ error: "Maximum 10 files allowed." });
+router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req, res) => {
+  if (!req.files || req.files.length === 0) throw new AppError("No files uploaded.", { status: 400, code: "no_file" });
+  const question = validateQuestion(req.body.question);
 
-    const question = req.body.question || "";
+  const fileResults = await Promise.all(req.files.map(async (file) => {
+    try {
+      const parsed = await parseFile(file);
+      const { rows, columns, isTabular, rawText } = parsed;
+      const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question);
 
-    const fileResults = await Promise.all(req.files.map(async (file) => {
-      try {
-        const parsed = await parseFile(file);
-        const { rows, columns, isTabular, rawText } = parsed;
-        const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question);
-
-        return {
-          filename: file.originalname,
-          fileType: parsed.fileType,
-          meta: { sheetName:parsed.sheetName, totalRows:parsed.totalRows, columns:columns.length,
-            fileType:parsed.fileType, isTabular, pages:parsed.pages, filename:file.originalname, size:file.size },
-          stats, correlations, analysis,
-          chartData: isTabular ? rows.slice(0,100) : [],
-          columns,
-          rawText: isTabular ? null : (rawText||"").slice(0,2000),
-          error: null,
-        };
-      } catch (err) {
-        return { filename: file.originalname, fileType: getFileType(file.originalname), error: err.message, meta:{}, stats:{}, correlations:[], analysis:null, chartData:[], columns:[] };
-      }
-    }));
-
-    const successful = fileResults.filter(r => r.analysis !== null);
-    let crossSummary = null;
-    if (successful.length > 1) {
-      try {
-        crossSummary = await callClaude(buildCrossSummaryPrompt(successful, question));
-      } catch (err) {
-        console.error("Cross-summary failed:", err);
-      }
+      return {
+        filename: file.originalname,
+        fileType: parsed.fileType,
+        meta: { sheetName:parsed.sheetName, totalRows:parsed.totalRows, columns:columns.length,
+          fileType:parsed.fileType, isTabular, pages:parsed.pages, filename:file.originalname, size:file.size },
+        stats, correlations, analysis,
+        chartData: isTabular ? rows.slice(0,100) : [],
+        columns,
+        rawText: isTabular ? null : (rawText||"").slice(0,2000),
+        error: null,
+      };
+    } catch (err) {
+      return { filename: file.originalname, fileType: getFileType(file.originalname), error: err.message, meta:{}, stats:{}, correlations:[], analysis:null, chartData:[], columns:[] };
     }
+  }));
 
-    res.json({ files: fileResults, crossSummary, totalFiles: req.files.length, successCount: successful.length });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message || "Multi-file analysis failed." });
+  const successful = fileResults.filter(r => r.analysis !== null);
+  let crossSummary = null;
+  if (successful.length > 1) {
+    try {
+      crossSummary = await callClaude(buildCrossSummaryPrompt(successful, question));
+    } catch (err) {
+      console.error("Cross-summary failed:", err);
+    }
   }
+
+  res.json({ files: fileResults, crossSummary, totalFiles: req.files.length, successCount: successful.length });
 });
 
 export default router;
