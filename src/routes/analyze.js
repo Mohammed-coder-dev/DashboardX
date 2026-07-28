@@ -4,6 +4,7 @@ import multer from "multer";
 import { ALLOWED_EXTENSIONS, getFileType, parseFile } from "../parsers/index.js";
 import { computeStats } from "../analytics/stats.js";
 import { computeCorrelations } from "../analytics/correlations.js";
+import { profileDataset, profileSummaryForPrompt } from "../analytics/profile.js";
 import { buildTabularPrompt, buildTextPrompt, buildCrossSummaryPrompt } from "../prompts.js";
 import { runAnalysis, resolveApiKey, resolveModel } from "../services/anthropic.js";
 import { ANALYSIS_SCHEMA, CROSS_SUMMARY_SCHEMA } from "../schemas.js";
@@ -47,12 +48,13 @@ async function analyzeParsedFile(parsed, question, { apiKey, model }) {
   const tabular      = isTabular && columns.length > 0;
   const stats        = tabular ? computeStats(rows, columns) : {};
   const correlations = tabular ? computeCorrelations(rows, columns, stats) : [];
+  const profile      = tabular ? profileDataset(rows, columns) : null;
   const fallbackText = rawText || rows.map(r => typeof r.content === "string" ? r.content : JSON.stringify(r)).join("\n");
   const prompt       = tabular
-    ? buildTabularPrompt(columns, stats, correlations, rows, question)
+    ? buildTabularPrompt(columns, stats, correlations, rows, question, profileSummaryForPrompt(profile))
     : buildTextPrompt(parsed.fileType, fallbackText, question);
   const analysis = await runAnalysis({ apiKey, model, prompt, schema: ANALYSIS_SCHEMA });
-  return { stats, correlations, analysis };
+  return { stats, correlations, profile, analysis };
 }
 
 const router = Router();
@@ -67,11 +69,11 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
 
-  const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
+  const { stats, correlations, profile, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
 
   const body = {
     meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model },
-    stats, correlations, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
+    stats, correlations, profile, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
   body.analysisId = await saveAnalysis({
@@ -91,12 +93,12 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
 
-  const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
+  const { stats, correlations, profile, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
 
   const body = {
     meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
       filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl },
-    stats, correlations, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
+    stats, correlations, profile, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
   body.analysisId = await saveAnalysis({
@@ -116,14 +118,14 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
     try {
       const parsed = await parseFile(file);
       const { rows, columns, isTabular, rawText } = parsed;
-      const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
+      const { stats, correlations, profile, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
 
       return {
         filename: file.originalname,
         fileType: parsed.fileType,
         meta: { sheetName:parsed.sheetName, totalRows:parsed.totalRows, columns:columns.length,
           fileType:parsed.fileType, isTabular, pages:parsed.pages, filename:file.originalname, size:file.size, model },
-        stats, correlations, analysis,
+        stats, correlations, profile, analysis,
         chartData: isTabular ? rows.slice(0,100) : [],
         columns,
         rawText: isTabular ? null : (rawText||"").slice(0,2000),

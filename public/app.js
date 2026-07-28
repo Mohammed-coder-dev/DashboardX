@@ -35,6 +35,11 @@ const corrList          = document.getElementById("corrList");
 const conclusionText    = document.getElementById("conclusionText");
 const topicsSection     = document.getElementById("topicsSection");
 const topicsList        = document.getElementById("topicsList");
+const qualitySection    = document.getElementById("qualitySection");
+const qualityGrade      = document.getElementById("qualityGrade");
+const qualityMeta       = document.getElementById("qualityMeta");
+const qualityIssues     = document.getElementById("qualityIssues");
+const qualityColumns    = document.getElementById("qualityColumns");
 const rawTextSection    = document.getElementById("rawTextSection");
 const rawTextPreview    = document.getElementById("rawTextPreview");
 
@@ -467,6 +472,7 @@ function renderSingleFile(data, isTabbed) {
     chartsSection.style.display = "none";
     corrSection.style.display = "none";
     topicsSection.style.display = "none";
+    qualitySection.style.display = "none";
     conclusionText.textContent = "";
     return;
   }
@@ -502,6 +508,8 @@ function renderSingleFile(data, isTabbed) {
       <div class="var-explanation">${esc(v.explanation)}</div>
       <div class="var-notable">→ ${esc(v.notable)}</div>
     </div>`).join("");
+
+  renderQuality(data.profile);
 
   const topics = analysis.topics || [];
   if (topics.length > 0) {
@@ -566,6 +574,30 @@ function renderSingleFile(data, isTabbed) {
   } else chartsSection.style.display = "none";
 
   conclusionText.textContent = analysis.conclusion;
+}
+
+// ─── Data quality card ────────────────────────────────────────
+function renderQuality(profile) {
+  if (!profile) { qualitySection.style.display = "none"; return; }
+  qualitySection.style.display = "";
+
+  const tone = ["A", "B"].includes(profile.healthGrade) ? "good" : profile.healthGrade === "C" ? "fair" : "poor";
+  qualityGrade.className = `quality-grade ${tone}`;
+  qualityGrade.textContent = `${profile.healthGrade} · ${profile.healthScore}/100`;
+  qualityMeta.textContent = `${profile.completeness}% complete · ${profile.duplicateRows} duplicate rows`;
+
+  qualityIssues.innerHTML = profile.issues.length === 0
+    ? `<div class="quality-clean">✓ No quality issues detected</div>`
+    : profile.issues.map(i => `
+      <div class="quality-issue ${esc(i.severity)}">
+        <span class="dot"></span><span>${esc(i.message)}</span>
+      </div>`).join("");
+
+  qualityColumns.innerHTML = Object.entries(profile.columns).map(([name, c]) => `
+    <div class="quality-col" title="${esc(name)}">
+      <span class="quality-col-name">${esc(name)}</span>
+      <span class="quality-col-info">${esc(c.type)}${c.missingPct > 0 ? ` · ${c.missingPct}%∅` : ""}</span>
+    </div>`).join("");
 }
 
 // ─── Chart rendering ──────────────────────────────────────────

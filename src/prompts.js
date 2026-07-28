@@ -1,13 +1,14 @@
 // Output shape is enforced by the JSON schemas in schemas.js, so prompts
 // only carry the analytical instructions.
-export function buildTabularPrompt(columns, stats, correlations, sampleRows, question) {
+export function buildTabularPrompt(columns, stats, correlations, sampleRows, question, profileSummary) {
   return `You are DashboardX, an expert data analyst. Analyze this dataset.
 COLUMNS: ${columns.join(", ")}
 STATISTICS: ${JSON.stringify(stats, null, 2)}
 TOP CORRELATIONS: ${JSON.stringify(correlations, null, 2)}
+DATA QUALITY PROFILE: ${profileSummary || "not computed"}
 SAMPLE ROWS: ${JSON.stringify(sampleRows.slice(0, 5), null, 2)}
 USER QUESTION: ${question || "Give me a full analysis."}
-Provide 3-6 insights (with concrete numbers), 3-5 variable explanations, and 2-4 chart suggestions whose x/y reference real column names. Leave topics empty.`;
+Provide 3-6 insights (with concrete numbers), 3-5 variable explanations, and 2-4 chart suggestions whose x/y reference real column names. When the quality profile shows real problems (missing data, mixed types, duplicates, outliers), reflect them in your insights and caveats instead of ignoring them. Leave topics empty.`;
 }
 
 export function buildTextPrompt(fileType, rawText, question) {
