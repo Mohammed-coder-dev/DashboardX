@@ -419,6 +419,7 @@ function animateLoadingSteps() {
 function renderMultiDashboard(data) {
   const { files, crossSummary, totalFiles, successCount } = data;
   allFileResults = files;
+  resetAsk(null, false);
 
   // Topbar
   dashTitle.textContent = `${totalFiles} File Analysis`;
@@ -493,6 +494,7 @@ function renderSingleFile(data, isTabbed) {
   chartInstances = [];
 
   if (data.error) {
+    if (!isTabbed) resetAsk(null, false);
     summaryText.textContent = `Failed to analyze this file: ${data.error}`;
     insightsList.innerHTML = "";
     varList.innerHTML = "";
@@ -539,6 +541,7 @@ function renderSingleFile(data, isTabbed) {
     </div>`).join("");
 
   renderQuality(data.profile);
+  if (!isTabbed) resetAsk(data, true);
 
   const topics = analysis.topics || [];
   if (topics.length > 0) {
@@ -604,6 +607,88 @@ function renderSingleFile(data, isTabbed) {
 
   conclusionText.textContent = analysis.conclusion;
 }
+
+// ─── Follow-up Q&A ────────────────────────────────────────────
+const askSection = document.getElementById("askSection");
+const askThread  = document.getElementById("askThread");
+const askInput   = document.getElementById("askInput");
+const askBtn     = document.getElementById("askBtn");
+let askQA   = [];
+let askData = null;
+
+function resetAsk(data, visible) {
+  askQA = [];
+  askData = data;
+  askThread.innerHTML = "";
+  askInput.value = "";
+  askSection.style.display = visible ? "" : "none";
+}
+
+function renderAskThread(pendingQ, errorMsg) {
+  const items = askQA.map(p => `
+    <div class="ask-item">
+      <div class="ask-q">${esc(p.q)}</div>
+      <div class="ask-a">${esc(p.a)}</div>
+    </div>`);
+  if (pendingQ) {
+    items.push(`
+    <div class="ask-item">
+      <div class="ask-q">${esc(pendingQ)}</div>
+      <div class="ask-a ${errorMsg ? "error" : "pending"}">${esc(errorMsg || "Thinking…")}</div>
+    </div>`);
+  }
+  askThread.innerHTML = items.join("");
+}
+
+async function submitAsk() {
+  const question = askInput.value.trim();
+  if (!question || !askData) return;
+  if (keyMissing()) {
+    settingsPanel.style.display = "";
+    showError("Add your Anthropic API key in Settings first — it stays in your browser.");
+    return;
+  }
+  askBtn.disabled = true;
+  askInput.value = "";
+  renderAskThread(question);
+
+  try {
+    const response = await fetch("/api/ask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-dx-session": getSessionId(),
+        ...(getApiKey() ? { "x-anthropic-key": getApiKey() } : {}),
+      },
+      body: JSON.stringify({
+        question,
+        model: getModel() || modelSelect.value || "",
+        priorQA: askQA.slice(-6),
+        context: {
+          filename: askData.meta?.filename,
+          columns: askData.columns || [],
+          stats: askData.stats || {},
+          correlations: askData.correlations || [],
+          profile: askData.profile || null,
+          sampleRows: (askData.chartData || []).slice(0, 20),
+          rawText: askData.rawText || undefined,
+        },
+      }),
+    });
+    const data = await response.json()
+      .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}).` }));
+    if (!response.ok) throw new Error(data.error || "Could not answer that.");
+    askQA.push({ q: question, a: data.answer });
+    renderAskThread();
+  } catch (err) {
+    renderAskThread(question, err.message);
+  } finally {
+    askBtn.disabled = false;
+  }
+}
+
+askBtn.addEventListener("click", submitAsk);
+askInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitAsk(); });
 
 // ─── Data quality card ────────────────────────────────────────
 function renderQuality(profile) {

@@ -62,22 +62,24 @@ function mapAnthropicError(err) {
   return err;
 }
 
-export async function runAnalysis({ apiKey, model, prompt, schema }) {
+async function createMessage(apiKey, params) {
   // No SDK retries: analyze-multi awaits a file round plus a cross-summary
   // round, and 2 × 120 s must stay inside Vercel's 300 s function budget.
   const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 0 });
-
-  let response;
   try {
-    response = await client.messages.create({
-      model,
-      max_tokens: 16000,
-      output_config: { format: { type: "json_schema", schema } },
-      messages: [{ role: "user", content: prompt }],
-    });
+    return await client.messages.create(params);
   } catch (err) {
     throw mapAnthropicError(err);
   }
+}
+
+export async function runAnalysis({ apiKey, model, prompt, schema }) {
+  const response = await createMessage(apiKey, {
+    model,
+    max_tokens: 16000,
+    output_config: { format: { type: "json_schema", schema } },
+    messages: [{ role: "user", content: prompt }],
+  });
 
   if (response.stop_reason === "refusal") {
     throw new AppError("Claude declined to analyze this content.", { status: 422, code: "analysis_refused" });
@@ -92,4 +94,20 @@ export async function runAnalysis({ apiKey, model, prompt, schema }) {
   } catch {
     throw new AppError("The model returned an unreadable analysis. Try again.", { status: 502, code: "analysis_unparseable" });
   }
+}
+
+export async function runFollowUp({ apiKey, model, prompt }) {
+  const response = await createMessage(apiKey, {
+    model,
+    max_tokens: 2000,
+    messages: [{ role: "user", content: prompt }],
+  });
+  if (response.stop_reason === "refusal") {
+    throw new AppError("Claude declined to answer this question.", { status: 422, code: "answer_refused" });
+  }
+  const text = response.content.filter(b => b.type === "text").map(b => b.text).join("").trim();
+  if (!text) {
+    throw new AppError("The model returned an empty answer. Try again.", { status: 502, code: "empty_answer" });
+  }
+  return text;
 }

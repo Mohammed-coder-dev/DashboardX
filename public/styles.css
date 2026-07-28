@@ -819,3 +819,26 @@ html, body {
 }
 .sheet-chip:hover { border-color: var(--accent); color: var(--accent); }
 .sheet-chip.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); cursor: default; }
+
+/* ─── Follow-up Q&A ─────────────────────────────────────────── */
+.ask-thread { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.ask-item { display: flex; flex-direction: column; gap: 6px; }
+.ask-q { font-size: 13px; font-weight: 600; color: var(--text); }
+.ask-q::before { content: "You — "; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 400; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.ask-a { font-size: 13.5px; line-height: 1.65; color: var(--text-2); white-space: pre-line; }
+.ask-a.pending { color: var(--text-3); font-style: italic; }
+.ask-a.error { color: var(--red); }
+.ask-input-row { display: flex; gap: 8px; }
+.ask-input-row .question-input { flex: 1; margin: 0; }
+.ask-btn {
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ask-btn:disabled { opacity: 0.5; cursor: default; }

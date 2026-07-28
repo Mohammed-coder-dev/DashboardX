@@ -19,6 +19,18 @@ USER QUESTION: ${question || "Analyze this document comprehensively."}
 Provide 4-7 insights and 3-6 key topics. Use the variables list for the document's key sections. Leave charts empty.`;
 }
 
+export function buildFollowUpPrompt(context, question, priorQA) {
+  const qa = (priorQA || []).map(p => `Q: ${p.q}\nA: ${p.a}`).join("\n");
+  return `You are DashboardX, answering a follow-up question about a dataset the user already analyzed.
+DATASET: "${context.filename}" — columns: ${context.columns.join(", ")}
+STATISTICS: ${JSON.stringify(context.stats)}
+CORRELATIONS: ${JSON.stringify(context.correlations)}
+DATA QUALITY: ${context.profileSummary || "not computed"}
+SAMPLE ROWS: ${JSON.stringify(context.sampleRows)}
+${context.rawText ? `DOCUMENT EXCERPT: ${context.rawText}\n` : ""}${qa ? `EARLIER FOLLOW-UPS:\n${qa}\n` : ""}QUESTION: ${question}
+Answer in under 200 words of plain prose (no markdown headers or bullets), grounded in the numbers above. If this context cannot answer the question, say so and name exactly what additional data would be needed.`;
+}
+
 export function buildCrossSummaryPrompt(fileResults, question) {
   const summaries = fileResults.map((r, i) =>
     `FILE ${i+1} — "${r.filename}" (${r.fileType}):\nSummary: ${r.analysis.summary}\nConclusion: ${r.analysis.conclusion}\nTop insights: ${r.analysis.insights.slice(0,3).map(ins => ins.title + ": " + ins.detail).join(" | ")}`

@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import analyzeRouter from "./routes/analyze.js";
+import askRouter from "./routes/ask.js";
 import healthRouter from "./routes/health.js";
 import historyRouter from "./routes/history.js";
 import { securityHeaders } from "./middleware/security.js";
@@ -23,6 +24,7 @@ export function createApp() {
   app.use("/api", healthRouter);
   app.use("/api", historyRouter);
   app.use("/api", analyzeRouter);
+  app.use("/api", askRouter);
   app.use("/api", notFound);
   app.use(errorHandler);
   return app;
