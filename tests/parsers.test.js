@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
 import * as XLSX from "xlsx";
 import { getFileType, parseFile } from "../src/parsers/index.js";
 import { parseSpreadsheet } from "../src/parsers/spreadsheet.js";
 import { parseJSON, parseText, flattenObject } from "../src/parsers/structured.js";
+import { parseOfficeFile } from "../src/parsers/document.js";
 import { AppError } from "../src/errors.js";
 
 describe("getFileType", () => {
@@ -74,6 +77,20 @@ describe("parseText", () => {
 describe("flattenObject", () => {
   it("flattens nested keys with dot paths", () => {
     expect(flattenObject({ a: { b: { c: 1 } }, d: 2 })).toEqual({ "a.b.c": 1, d: 2 });
+  });
+});
+
+describe("parseOfficeFile", () => {
+  it("parses a real docx buffer into numbered lines", async () => {
+    const buffer = readFileSync(fileURLToPath(new URL("./fixtures/minimal.docx", import.meta.url)));
+    const parsed = await parseOfficeFile(buffer, "minimal.docx", "document");
+    expect(parsed.columns).toEqual(["line", "content"]);
+    expect(parsed.sheetName).toBe("Document");
+    expect(parsed.fileType).toBe("document");
+    expect(parsed.isTabular).toBe(false);
+    expect(parsed.totalRows).toBe(2);
+    expect(parsed.rows[0]).toEqual({ line: 1, content: "Quarterly revenue grew 12 percent." });
+    expect(parsed.rawText).toContain("Quarterly revenue grew 12 percent.");
   });
 });
 

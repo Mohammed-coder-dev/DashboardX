@@ -9,14 +9,17 @@ import { runAnalysis, resolveApiKey, resolveModel } from "../services/anthropic.
 import { ANALYSIS_SCHEMA, CROSS_SUMMARY_SCHEMA } from "../schemas.js";
 import { fetchRemoteFile } from "../services/remoteFile.js";
 import { saveAnalysis, validSessionId } from "../services/history.js";
-import { AppError } from "../errors.js";
+import { AppError, normalizeError } from "../errors.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 
 const MAX_QUESTION_LENGTH = 2000;
 
+// Vercel rejects serverless request bodies over ~4.5 MB before the function
+// runs, so the upload cap must sit under that; larger files go through the
+// URL path, which fetches server-side and allows 25 MB.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 },
+  limits: { fileSize: 4 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     ALLOWED_EXTENSIONS.includes(ext)
@@ -38,11 +41,16 @@ export function validateQuestion(raw) {
 
 async function analyzeParsedFile(parsed, question, { apiKey, model }) {
   const { rows, columns, isTabular, rawText } = parsed;
-  const stats        = isTabular && columns.length > 1 ? computeStats(rows, columns) : {};
-  const correlations = isTabular && columns.length > 1 ? computeCorrelations(rows, columns, stats) : [];
-  const prompt       = isTabular && columns.length > 1
+  // columns.length > 0, not > 1: a single-column sheet is still tabular —
+  // the old > 1 check routed it to the text prompt, whose r.content lookup
+  // came back undefined for every row and produced an empty prompt.
+  const tabular      = isTabular && columns.length > 0;
+  const stats        = tabular ? computeStats(rows, columns) : {};
+  const correlations = tabular ? computeCorrelations(rows, columns, stats) : [];
+  const fallbackText = rawText || rows.map(r => typeof r.content === "string" ? r.content : JSON.stringify(r)).join("\n");
+  const prompt       = tabular
     ? buildTabularPrompt(columns, stats, correlations, rows, question)
-    : buildTextPrompt(parsed.fileType, rawText || rows.map(r=>r.content).join("\n"), question);
+    : buildTextPrompt(parsed.fileType, fallbackText, question);
   const analysis = await runAnalysis({ apiKey, model, prompt, schema: ANALYSIS_SCHEMA });
   return { stats, correlations, analysis };
 }
@@ -122,7 +130,7 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
         error: null,
       };
     } catch (err) {
-      return { filename: file.originalname, fileType: getFileType(file.originalname), error: err.message, meta:{}, stats:{}, correlations:[], analysis:null, chartData:[], columns:[] };
+      return { filename: file.originalname, fileType: getFileType(file.originalname), error: normalizeError(err).message, meta:{}, stats:{}, correlations:[], analysis:null, chartData:[], columns:[] };
     }
   }));
 

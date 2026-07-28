@@ -63,7 +63,9 @@ function mapAnthropicError(err) {
 }
 
 export async function runAnalysis({ apiKey, model, prompt, schema }) {
-  const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 1 });
+  // No SDK retries: analyze-multi awaits a file round plus a cross-summary
+  // round, and 2 × 120 s must stay inside Vercel's 300 s function budget.
+  const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 0 });
 
   let response;
   try {

@@ -11,13 +11,29 @@ const MAX_REDIRECTS = 3;
 export function isPrivateAddress(ip) {
   if (net.isIPv4(ip)) {
     const [a, b] = ip.split(".").map(Number);
-    return a === 0 || a === 10 || a === 127 || a === 169 && b === 254 ||
-           a === 172 && b >= 16 && b <= 31 || a === 192 && b === 168;
+    return a === 0 || a === 10 || a === 127 ||
+           (a === 100 && b >= 64 && b <= 127) ||          // CGNAT 100.64/10
+           (a === 169 && b === 254) ||
+           (a === 172 && b >= 16 && b <= 31) ||
+           (a === 192 && (b === 0 || b === 168)) ||       // 192.0.0/24, 192.0.2/24, 192.168/16
+           (a === 198 && (b === 18 || b === 19 || b === 51)) || // benchmarking, TEST-NET-2
+           (a === 203 && b === 0) ||                      // TEST-NET-3
+           a >= 224;                                       // multicast, reserved, broadcast
   }
   if (net.isIPv6(ip)) {
     const lower = ip.toLowerCase();
-    if (lower.startsWith("::ffff:")) return isPrivateAddress(lower.slice(7));
-    return lower === "::1" || lower === "::" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80");
+    if (lower.includes(".")) {
+      // Embedded IPv4: only the standard mapped form is trusted to mean its
+      // IPv4 tail; compatible/NAT64/other forms are rejected outright.
+      if (lower.startsWith("::ffff:")) return isPrivateAddress(lower.slice(7));
+      return true;
+    }
+    return lower === "::1" || lower === "::" ||
+           lower.startsWith("fc") || lower.startsWith("fd") ||   // ULA fc00::/7
+           /^fe[89ab]/.test(lower) ||                            // link-local fe80::/10
+           lower.startsWith("ff") ||                             // multicast
+           lower.startsWith("2001:db8") ||                       // documentation
+           lower.startsWith("64:ff9b");                          // NAT64
   }
   return true;
 }
@@ -137,7 +153,17 @@ export async function fetchRemoteFile(rawUrl) {
     }
 
     const originalname = remoteFilename(url, response.headers.get("content-disposition"));
-    const buffer = await readCapped(response);
+    let buffer;
+    try {
+      buffer = await readCapped(response);
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      // The AbortSignal can also fire mid-body-read, outside the fetch catch.
+      if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+        throw new AppError("Fetching the URL timed out.", { status: 502, code: "fetch_timeout" });
+      }
+      throw err;
+    }
     if (buffer.length === 0) {
       throw new AppError("The URL returned an empty file.", { status: 400, code: "empty_file" });
     }

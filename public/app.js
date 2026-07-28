@@ -143,7 +143,8 @@ async function openSaved(id) {
   hideError();
   try {
     const res = await fetch(`/api/analysis/${encodeURIComponent(id)}`);
-    const row = await res.json();
+    const row = await res.json()
+      .catch(() => ({ error: `Could not load analysis (HTTP ${res.status}).` }));
     if (!res.ok) throw new Error(row.error || "Could not load analysis.");
     currentAnalysisId = row.id;
     if (row.kind === "multi") renderMultiDashboard(row.payload);
@@ -231,7 +232,7 @@ function renderFileList() {
       <span class="file-chip-icon">${icon}</span>
       <span class="file-chip-name">${esc(f.name)}</span>
       <span class="file-chip-size">${size}</span>
-      <button class="file-chip-remove" onclick="removeFile(${i})">×</button>
+      <button class="file-chip-remove" data-idx="${i}" type="button">×</button>
     </div>`;
   }).join("");
 
@@ -251,9 +252,24 @@ function removeFile(idx) {
   renderFileList();
 }
 
+// Delegated handlers instead of inline onclick attributes, so the CSP can
+// drop 'unsafe-inline' for scripts.
+fileListEl.addEventListener("click", (e) => {
+  const btn = e.target.closest(".file-chip-remove");
+  if (btn) removeFile(Number(btn.dataset.idx));
+});
+tabsBar.addEventListener("click", (e) => {
+  const tab = e.target.closest(".tab-btn");
+  if (tab) switchTab(Number(tab.dataset.idx));
+});
+
 // ─── Analyze ──────────────────────────────────────────────────
 analyzeBtn.addEventListener("click", runAnalysis);
 resetBtn.addEventListener("click", resetDashboard);
+
+// Vercel rejects request bodies over ~4.5 MB before the server sees them,
+// so oversized uploads are caught here with a useful message instead.
+const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
 
 async function runAnalysis() {
   if (selectedFiles.length === 0 && urlValue()) return runUrlAnalysis();
@@ -261,6 +277,11 @@ async function runAnalysis() {
   if (keyMissing()) {
     settingsPanel.style.display = "";
     showError("Add your Anthropic API key in Settings first — it stays in your browser.");
+    return;
+  }
+  const totalBytes = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+  if (totalBytes > MAX_REQUEST_BYTES) {
+    showError("Uploads are limited to 4 MB per request — analyze larger files by pasting a link instead.");
     return;
   }
   showScreen("loading");
@@ -289,7 +310,8 @@ async function runAnalysis() {
     const headers  = { "x-dx-session": getSessionId() };
     if (getApiKey()) headers["x-anthropic-key"] = getApiKey();
     const response = await fetch(endpoint, { method:"POST", headers, body:formData });
-    const data     = await response.json();
+    const data     = await response.json()
+      .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}) — the upload may be too large.` }));
     if (!response.ok) throw new Error(data.error || "Analysis failed.");
     await delay(500);
 
@@ -332,7 +354,8 @@ async function runUrlAnalysis() {
         model: getModel() || modelSelect.value || "",
       }),
     });
-    const data = await response.json();
+    const data = await response.json()
+      .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}).` }));
     if (!response.ok) throw new Error(data.error || "Analysis failed.");
     await delay(500);
     allFileResults = [data];
@@ -414,7 +437,7 @@ function renderMultiDashboard(data) {
     const icon = FILE_ICONS[ext] || "📄";
     const hasErr = !!f.error;
     return `<button class="tab-btn ${i === 0 ? "active" : ""} ${hasErr ? "tab-error" : ""}"
-      onclick="switchTab(${i})">${icon} ${esc(f.filename)}${hasErr ? " ⚠" : ""}</button>`;
+      data-idx="${i}" type="button">${icon} ${esc(f.filename)}${hasErr ? " ⚠" : ""}</button>`;
   }).join("");
 
   // Render first tab

@@ -3,21 +3,29 @@ import { isPrivateAddress, assertSafeUrl, remoteFilename } from "../src/services
 
 describe("isPrivateAddress", () => {
   it("flags private and special IPv4 ranges", () => {
-    for (const ip of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.0.1", "169.254.169.254", "0.0.0.0"]) {
+    for (const ip of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.0.1", "169.254.169.254", "0.0.0.0",
+                      "100.64.0.1", "100.127.255.255", "192.0.0.8", "192.0.2.1", "198.18.0.1", "198.51.100.7",
+                      "203.0.113.9", "224.0.0.1", "240.0.0.1", "255.255.255.255"]) {
       expect(isPrivateAddress(ip), ip).toBe(true);
     }
   });
 
   it("allows public IPv4 addresses", () => {
-    for (const ip of ["8.8.8.8", "1.1.1.1", "172.32.0.1", "172.15.0.1", "192.169.0.1"]) {
+    for (const ip of ["8.8.8.8", "1.1.1.1", "172.32.0.1", "172.15.0.1", "192.169.0.1", "100.63.0.1", "100.128.0.1", "198.17.0.1", "223.255.255.1"]) {
       expect(isPrivateAddress(ip), ip).toBe(false);
     }
   });
 
   it("flags IPv6 loopback, ULA, link-local, and mapped-private addresses", () => {
-    for (const ip of ["::1", "::", "fc00::1", "fd12:3456::1", "fe80::1", "::ffff:192.168.1.1"]) {
+    for (const ip of ["::1", "::", "fc00::1", "fd12:3456::1", "fe80::1", "fe9f::1", "feb0::1", "::ffff:192.168.1.1",
+                      "ff02::1", "2001:db8::1", "64:ff9b::808:808"]) {
       expect(isPrivateAddress(ip), ip).toBe(true);
     }
+  });
+
+  it("rejects non-mapped embedded-IPv4 forms outright", () => {
+    expect(isPrivateAddress("::8.8.8.8")).toBe(true);
+    expect(isPrivateAddress("64:ff9b::8.8.8.8")).toBe(true);
   });
 
   it("allows public IPv6 and mapped-public addresses", () => {

@@ -8,7 +8,7 @@ export class AppError extends Error {
 }
 
 const MULTER_MESSAGES = {
-  LIMIT_FILE_SIZE:       { status: 413, code: "file_too_large",   message: "File exceeds the 25 MB limit." },
+  LIMIT_FILE_SIZE:       { status: 413, code: "file_too_large",   message: "File exceeds the 4 MB upload limit — analyze larger files by pasting a link instead." },
   LIMIT_FILE_COUNT:      { status: 400, code: "too_many_files",   message: "Maximum 10 files allowed." },
   LIMIT_UNEXPECTED_FILE: { status: 400, code: "unexpected_field", message: "Unexpected upload field." },
 };

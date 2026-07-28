@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import analyzeRouter from "./routes/analyze.js";
@@ -16,7 +15,9 @@ export function createApp() {
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(securityHeaders);
-  app.use(cors());
+  // No CORS middleware: the API is same-origin only. Open CORS would let any
+  // web page spend the server-side fallback Anthropic key from a visitor's
+  // browser.
   app.use(express.json({ limit: "1mb" }));
   app.use(express.static(path.join(__dirname, "..", "public")));
   app.use("/api", healthRouter);
