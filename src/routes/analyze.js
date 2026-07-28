@@ -7,6 +7,7 @@ import { computeCorrelations } from "../analytics/correlations.js";
 import { buildTabularPrompt, buildTextPrompt, buildCrossSummaryPrompt } from "../prompts.js";
 import { runAnalysis, resolveApiKey, resolveModel } from "../services/anthropic.js";
 import { ANALYSIS_SCHEMA, CROSS_SUMMARY_SCHEMA } from "../schemas.js";
+import { fetchRemoteFile } from "../services/remoteFile.js";
 import { AppError } from "../errors.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 
@@ -61,6 +62,26 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
 
   res.json({
     meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model },
+    stats, correlations, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
+    rawText: isTabular ? null : (rawText||"").slice(0,2000),
+  });
+});
+
+router.post("/analyze-url", rateLimit(), async (req, res) => {
+  const question = validateQuestion(req.body?.question);
+  const apiKey   = resolveApiKey(req);
+  const model    = resolveModel(req.body?.model);
+  const file     = await fetchRemoteFile(req.body?.url);
+  const parsed   = await parseFile(file);
+  const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
+
+  if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
+
+  const { stats, correlations, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
+
+  res.json({
+    meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
+      filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl },
     stats, correlations, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   });

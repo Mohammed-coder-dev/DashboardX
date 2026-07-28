@@ -6,6 +6,7 @@ const dropzone        = document.getElementById("dropzone");
 const dropzoneIcon    = document.getElementById("dropzoneIcon");
 const fileInput       = document.getElementById("fileInput");
 const fileListEl      = document.getElementById("fileList");
+const urlInput        = document.getElementById("urlInput");
 const questionInput   = document.getElementById("questionInput");
 const analyzeBtn      = document.getElementById("analyzeBtn");
 const errorBox        = document.getElementById("errorBox");
@@ -128,12 +129,16 @@ function handleFiles(incoming) {
   renderFileList();
 }
 
+function urlValue() { return urlInput.value.trim(); }
+
+urlInput.addEventListener("input", () => { if (selectedFiles.length === 0) renderFileList(); });
+
 function renderFileList() {
   if (selectedFiles.length === 0) {
     fileListEl.style.display = "none";
     dropzoneIcon.textContent = "📁";
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = "Analyze with Claude →";
+    analyzeBtn.disabled = !urlValue();
+    analyzeBtn.textContent = urlValue() ? "Analyze link with Claude →" : "Analyze with Claude →";
     return;
   }
 
@@ -175,6 +180,7 @@ analyzeBtn.addEventListener("click", runAnalysis);
 resetBtn.addEventListener("click", resetDashboard);
 
 async function runAnalysis() {
+  if (selectedFiles.length === 0 && urlValue()) return runUrlAnalysis();
   if (selectedFiles.length === 0) return;
   if (keyMissing()) {
     settingsPanel.style.display = "";
@@ -216,6 +222,41 @@ async function runAnalysis() {
       allFileResults = [data];
       renderSingleFile(data, false);
     }
+    showScreen("dashboard");
+  } catch (err) {
+    showScreen("upload");
+    showError(err.message);
+  }
+}
+
+async function runUrlAnalysis() {
+  if (keyMissing()) {
+    settingsPanel.style.display = "";
+    showError("Add your Anthropic API key in Settings first — it stays in your browser.");
+    return;
+  }
+  showScreen("loading");
+  hideError();
+  animateLoadingSteps();
+  loadingFileCount.textContent = "Fetching file from URL...";
+
+  try {
+    const headers = { "Content-Type": "application/json" };
+    if (getApiKey()) headers["x-anthropic-key"] = getApiKey();
+    const response = await fetch("/api/analyze-url", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        url: urlValue(),
+        question: questionInput.value.trim(),
+        model: getModel() || modelSelect.value || "",
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Analysis failed.");
+    await delay(500);
+    allFileResults = [data];
+    renderSingleFile(data, false);
     showScreen("dashboard");
   } catch (err) {
     showScreen("upload");
