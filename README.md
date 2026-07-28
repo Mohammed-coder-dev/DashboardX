@@ -1,44 +1,52 @@
 # DashboardX
 
-Upload a spreadsheet — or paste a link to one — and get an instant AI
-dashboard back: statistics, correlations, chart suggestions, and written
-insights. Bring your own Anthropic API key; analyses are saved to history
-and shareable by link.
+[![CI](https://github.com/MohammedAlkindi/DashboardX/actions/workflows/ci.yml/badge.svg)](https://github.com/MohammedAlkindi/DashboardX/actions/workflows/ci.yml)
+
+An analyst's read on any spreadsheet. Upload a file — or paste a link to
+one — and get a grounded dashboard back: a deterministic data-quality
+grade, statistics, correlations, charts, written insights, and follow-up
+answers. Bring your own Anthropic API key; nothing is stored server-side.
+
+**Live demo:** [dashboardx-demo.vercel.app](https://dashboardx-demo.vercel.app)
 
 ## What it does
 
-DashboardX parses spreadsheets (`.xlsx`, `.xls`, `.csv`), documents
-(`.pdf`, `.docx`, `.pptx`), and structured text (`.json`, `.txt`, `.md`),
-computes descriptive statistics and Pearson correlations server-side, then
-asks Claude for schema-guaranteed JSON insights rendered as an interactive
-dashboard. Up to 10 files can be analyzed at once with a cross-file
+DashboardX parses spreadsheets (`.xlsx`, `.xls`, `.csv` — including
+multi-sheet workbooks with a sheet picker), documents (`.pdf`, `.docx`,
+`.pptx`), and structured text (`.json`, `.txt`, `.md`). It profiles the
+data deterministically (missingness, type consistency, IQR outliers,
+duplicates, a weighted health grade), computes descriptive statistics and
+Pearson correlations, then asks Claude for schema-guaranteed JSON insights
+grounded in those numbers. Finished dashboards take follow-up questions
+against the same context. Up to 10 files analyze at once with a cross-file
 synthesis.
 
 ## Architecture
 
 ```
-public/          static frontend (vanilla JS + Chart.js), served by the CDN
+public/          landing (index.html) + app (/app) — vanilla JS + Chart.js
 api/index.js     Vercel serverless entry — all /api/* requests land here
 server.js        local entry (node server.js)
 src/
   app.js         Express app assembly (headers, routes, error handler)
-  routes/        analyze, analyze-multi, analyze-url, history, health
+  routes/        analyze, analyze-multi, analyze-url, ask, history, health
   services/
     anthropic.js Claude service layer — BYOK key resolution, model
                  whitelist, structured outputs, typed error mapping
     remoteFile.js SSRF-guarded https fetching for cloud files
     history.js   Supabase persistence (best-effort, optional)
   parsers/       spreadsheet / json / text / pdf / office parsing
-  analytics/     descriptive stats + correlations (pure functions)
+  analytics/     stats, correlations, quality profiling (pure functions)
   middleware/    rate limiting, security headers, error normalization
   schemas.js     JSON schemas enforced via output_config.format
   prompts.js     prompt builders
 tests/           vitest unit suite
 ```
 
-Request flow: upload (or URL fetch) → parse → stats + correlations →
-Claude (`claude-opus-5` by default; Sonnet 5 and Haiku 4.5 selectable) →
-structured JSON analysis → saved to Supabase (when configured) → rendered.
+Request flow: upload (or URL fetch) → parse → quality profile + stats +
+correlations → Claude (`claude-opus-5` by default; Sonnet 5 and Haiku 4.5
+selectable) → structured JSON analysis → saved to Supabase (when
+configured) → rendered, with follow-up Q&A against the same context.
 
 **Keys:** the user's Anthropic key is sent per request in an
 `x-anthropic-key` header, used for that one call, and never stored or
@@ -84,6 +92,7 @@ single `analyses` table (see `docs/ARCHITECTURE.md`).
 | `/api/analyze` | POST (multipart) | Analyze one uploaded file |
 | `/api/analyze-multi` | POST (multipart) | Up to 10 files + cross-file synthesis |
 | `/api/analyze-url` | POST (JSON) | Analyze a file at an https URL |
+| `/api/ask` | POST (JSON) | Follow-up question against an analysis context |
 | `/api/history?session=` | GET | Recent analyses for a browser session |
 | `/api/analysis/:id` | GET | A saved analysis (share links) |
 
