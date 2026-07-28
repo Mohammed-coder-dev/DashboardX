@@ -3,219 +3,289 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DashboardX — AI Data Intelligence</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
-    integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
-    crossorigin="anonymous"></script>
+  <title>DashboardX — an analyst's read on any spreadsheet</title>
+  <meta name="description" content="Drop in a spreadsheet, add your own Anthropic API key, and get a grounded analysis: a deterministic data-quality grade, real statistics, and AI insights you can question." />
+  <meta name="theme-color" content="#f7f6f2" />
+  <meta property="og:title" content="DashboardX" />
+  <meta property="og:description" content="An analyst's read on any spreadsheet — deterministic profiling plus AI insights, with your own API key. Nothing stored." />
+  <meta property="og:url" content="https://dashboardx-demo.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Ctext x='16' y='21.5' font-family='monospace' font-size='13' font-weight='bold' fill='%23f7f6f2' text-anchor='middle'%3EDX%3C/text%3E%3C/svg%3E" />
+  <script src="/landing.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,600;0,700;1,500&display=swap');
+
+    :root {
+      --paper:    #f7f6f2;
+      --ink:      #1a1916;
+      --graphite: #6b6960;
+      --faint:    #9e9b93;
+      --ledger:   #2563eb;
+      --grid:     #e4e2db;
+      --card:     #ffffff;
+      --moss:     #16a34a;
+      --moss-bg:  #f0fdf4;
+      --amber:    #b45309;
+      --amber-bg: #fef3c7;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+    /* Nav */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 22px 0;
+    }
+    .wordmark { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .mark {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: var(--ledger); color: var(--paper);
+      font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+      display: grid; place-items: center;
+    }
+    .wordmark span { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+    .nav-links { display: flex; align-items: center; gap: 18px; }
+    .nav-links a { font-size: 13.5px; color: var(--graphite); text-decoration: none; }
+    .nav-links a:hover { color: var(--ink); }
+    .btn {
+      display: inline-block;
+      background: var(--ledger); color: #fff !important;
+      font-size: 13.5px; font-weight: 600;
+      padding: 9px 18px; border-radius: 8px; text-decoration: none;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25); }
+
+    /* Hero */
+    header.hero { padding: 72px 0 56px; }
+    .eyebrow {
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--faint); margin-bottom: 20px;
+    }
+    .eyebrow b { color: var(--ledger); font-weight: 500; }
+    h1 {
+      font-size: clamp(34px, 5.4vw, 54px);
+      font-weight: 600; letter-spacing: -0.03em; line-height: 1.12;
+      max-width: 15ch;
+    }
+    h1 em { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; }
+    .sub {
+      margin-top: 22px; max-width: 56ch;
+      font-size: 16.5px; color: var(--graphite); font-weight: 300;
+    }
+    .sub strong { font-weight: 500; color: var(--ink); }
+    .cta-row { margin-top: 30px; display: flex; align-items: center; gap: 20px; }
+    .cta-row .ghost { font-size: 13.5px; color: var(--graphite); text-decoration: none; border-bottom: 1px solid var(--grid); padding-bottom: 1px; }
+    .cta-row .ghost:hover { color: var(--ink); border-color: var(--graphite); }
+    .keyline { margin-top: 14px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--faint); }
+
+    /* Demo strip — a real file becoming a real read */
+    .demo {
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      gap: 18px; align-items: center;
+      margin: 26px 0 0; padding: 28px;
+      background: var(--card);
+      border: 1px solid var(--grid); border-radius: 14px;
+    }
+    .demo-file, .demo-read { min-width: 0; }
+    .demo-label {
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--faint); margin-bottom: 10px;
+    }
+    table.csv {
+      border-collapse: collapse; width: 100%;
+      font-family: 'DM Mono', monospace; font-size: 11.5px;
+    }
+    table.csv th {
+      text-align: left; color: var(--faint); font-weight: 400;
+      border-bottom: 1px solid var(--grid); padding: 3px 10px 5px 0;
+    }
+    table.csv td { padding: 4px 10px 4px 0; color: var(--ink); border-bottom: 1px solid transparent; }
+    table.csv td.gap { color: var(--amber); background: var(--amber-bg); border-radius: 4px; text-align: center; }
+    .demo-arrow { font-size: 18px; color: var(--faint); }
+    .grade-chip {
+      display: inline-flex; align-items: baseline; gap: 8px;
+      font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500;
+      color: var(--moss); background: var(--moss-bg);
+      padding: 5px 12px; border-radius: 8px; margin-bottom: 14px;
+    }
+    .grade-chip span { font-size: 10px; color: var(--graphite); font-weight: 400; }
+    .mini-bars { display: flex; align-items: flex-end; gap: 7px; height: 52px; margin-bottom: 14px; }
+    .mini-bars i {
+      width: 26px; border-radius: 4px 4px 0 0;
+      background: var(--ledger); opacity: 0.85;
+      animation: grow 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    }
+    .mini-bars i:nth-child(1) { height: 58%; animation-delay: 0.55s; }
+    .mini-bars i:nth-child(2) { height: 63%; animation-delay: 0.65s; }
+    .mini-bars i:nth-child(3) { height: 100%; animation-delay: 0.75s; }
+    .mini-bars i:nth-child(4) { height: 39%; background: var(--grid); animation-delay: 0.85s; }
+    .mini-bars i:nth-child(5) { height: 37%; background: var(--grid); animation-delay: 0.95s; }
+    @keyframes grow { from { transform: scaleY(0); transform-origin: bottom; } to { transform: scaleY(1); transform-origin: bottom; } }
+    .demo-insight { font-size: 13px; color: var(--graphite); line-height: 1.55; max-width: 34ch; }
+    .demo-insight b { color: var(--ink); font-weight: 500; }
+
+    /* Sections */
+    section { padding: 56px 0; border-top: 1px solid var(--grid); }
+    h2 {
+      font-size: 13px; font-family: 'DM Mono', monospace; font-weight: 500;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
+      margin-bottom: 34px;
+    }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+    .step-num { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ledger); margin-bottom: 10px; }
+    .step h3, .feat h3 { font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 8px; }
+    .step p, .feat p { font-size: 14px; color: var(--graphite); font-weight: 300; }
+    .feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+    .feat-tag {
+      display: inline-block; font-family: 'DM Mono', monospace; font-size: 10px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--graphite); background: var(--grid);
+      padding: 3px 8px; border-radius: 5px; margin-bottom: 12px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--grid);
+      padding: 30px 0 44px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12.5px; color: var(--faint);
+    }
+    footer a { color: var(--graphite); text-decoration: none; }
+    footer a:hover { color: var(--ink); }
+    footer .foot-links { display: flex; gap: 18px; }
+
+    /* Load sequence */
+    .rise { animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+    .rise.d1 { animation-delay: 0.08s; } .rise.d2 { animation-delay: 0.16s; }
+    .rise.d3 { animation-delay: 0.24s; } .rise.d4 { animation-delay: 0.34s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+    :focus-visible { outline: 2px solid var(--ledger); outline-offset: 2px; border-radius: 4px; }
+    @media (prefers-reduced-motion: reduce) {
+      .rise, .mini-bars i { animation: none; }
+      html { scroll-behavior: auto; }
+    }
+    @media (max-width: 720px) {
+      .demo { grid-template-columns: 1fr; }
+      .demo-arrow { transform: rotate(90deg); justify-self: center; }
+      .steps, .feats { grid-template-columns: 1fr; gap: 26px; }
+      header.hero { padding: 48px 0 40px; }
+    }
+  </style>
 </head>
 <body>
-<div class="app">
+  <div class="wrap">
 
-  <nav class="topbar">
-    <div class="topbar-brand">
-      <div class="brand-mark">DX</div>
-      <span class="brand-name">DashboardX</span>
-      <span class="brand-tag">Beta</span>
-    </div>
-    <button id="settingsBtn" class="settings-btn" type="button">⚙ API Settings</button>
-  </nav>
-
-  <main class="main">
-
-    <!-- Settings Panel -->
-    <div id="settingsPanel" class="settings-panel" style="display:none;">
-      <div class="settings-field">
-        <label class="settings-label" for="apiKeyInput">Anthropic API key</label>
-        <input id="apiKeyInput" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
-        <p class="settings-hint">Stored only in this browser and sent with each analysis request — never saved on the server. Get one at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+    <nav>
+      <a class="wordmark" href="/"><span class="mark">DX</span><span>DashboardX</span></a>
+      <div class="nav-links">
+        <a href="https://github.com/MohammedAlkindi/DashboardX">GitHub</a>
+        <a class="btn" href="/app">Open the app</a>
       </div>
-      <div class="settings-field">
-        <label class="settings-label" for="modelSelect">Model</label>
-        <select id="modelSelect" class="settings-input"></select>
+    </nav>
+
+    <header class="hero">
+      <p class="eyebrow rise"><b>Bring your own key</b> · nothing stored server-side</p>
+      <h1 class="rise d1">An <em>analyst's read</em> on any spreadsheet.</h1>
+      <p class="sub rise d2">DashboardX profiles your data deterministically — missing values,
+        mixed types, duplicates, outliers — then has Claude explain what actually matters.
+        <strong>Your API key stays in your browser</strong>; your files are parsed in memory and
+        never written to disk.</p>
+      <div class="cta-row rise d3">
+        <a class="btn" href="/app">Open the app</a>
+        <a class="ghost" href="#how">How it works</a>
       </div>
-      <div class="settings-actions">
-        <button id="saveSettingsBtn" class="settings-save" type="button">Save</button>
-        <span id="settingsStatus" class="settings-status"></span>
-      </div>
-    </div>
+      <p class="keyline rise d3">works with .xlsx · .csv · .json · .pdf · .docx · .pptx</p>
 
-    <!-- Upload Screen -->
-    <div id="uploadScreen" class="upload-section animate">
-      <h1 class="upload-headline">Turn any file<br>into intelligence.</h1>
-      <p class="upload-sub">Upload up to 10 files at once — Excel, CSV, JSON, PDF, PowerPoint, Word, or text. Each file is analyzed individually, then synthesized together.</p>
-
-      <div class="file-type-pills">
-        <span class="pill">📊 Excel</span>
-        <span class="pill">📋 CSV</span>
-        <span class="pill">🗂️ JSON</span>
-        <span class="pill">📄 PDF</span>
-        <span class="pill">📑 PowerPoint</span>
-        <span class="pill">📝 Word</span>
-        <span class="pill">🔤 Text</span>
-      </div>
-
-      <div class="dropzone" id="dropzone">
-        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
-        <span class="dropzone-icon" id="dropzoneIcon">📁</span>
-        <div class="dropzone-title">Drop files here or click to browse</div>
-        <div class="dropzone-sub">Up to 10 files · 4 MB per upload — bigger files via the link box below</div>
-        <div id="fileList" class="file-list" style="display:none;"></div>
-      </div>
-
-      <div class="url-input-wrap">
-        <input id="urlInput" class="question-input" type="url"
-          placeholder="…or paste an https:// link to a file in the cloud" spellcheck="false" />
-      </div>
-
-      <div class="question-input-wrap">
-        <input id="questionInput" class="question-input" type="text"
-          placeholder="Optional: Ask a question about your files..." />
-      </div>
-
-      <button id="analyzeBtn" class="analyze-btn" disabled>Analyze with Claude →</button>
-      <div id="errorBox" class="error-box" style="display:none;"></div>
-
-      <div id="historySection" class="history-section" style="display:none;">
-        <div class="history-title">Recent analyses</div>
-        <div id="historyList" class="history-list"></div>
-      </div>
-    </div>
-
-    <!-- Loading Screen -->
-    <div id="loadingScreen" style="display:none;">
-      <div class="loading-wrap">
-        <div class="spinner"></div>
-        <div class="loading-steps">
-          <div class="loading-step active" id="step1">PARSING FILES</div>
-          <div class="loading-step" id="step2">EXTRACTING CONTENT</div>
-          <div class="loading-step" id="step3">RUNNING AI ANALYSIS</div>
-          <div class="loading-step" id="step4">BUILDING DASHBOARD</div>
+      <div class="demo rise d4" aria-label="Example: a CSV file turned into a graded analysis">
+        <div class="demo-file">
+          <p class="demo-label">sales_q1.csv</p>
+          <table class="csv">
+            <tr><th>month</th><th>region</th><th>revenue</th></tr>
+            <tr><td>2024-01</td><td>GCC</td><td>48,200</td></tr>
+            <tr><td>2024-02</td><td>GCC</td><td>51,900</td></tr>
+            <tr><td>2024-03</td><td>GCC</td><td>67,400</td></tr>
+            <tr><td>2024-02</td><td>EU</td><td class="gap">∅</td></tr>
+            <tr><td>2024-03</td><td>EU</td><td>30,800</td></tr>
+          </table>
         </div>
-        <div id="loadingFileCount" style="font-size:12px;color:var(--text-3);font-family:'DM Mono',monospace;margin-top:8px;"></div>
+        <div class="demo-arrow" aria-hidden="true">→</div>
+        <div class="demo-read">
+          <p class="demo-label">the read</p>
+          <div class="grade-chip">B · 84/100 <span>1 missing value in revenue</span></div>
+          <div class="mini-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <p class="demo-insight"><b>GCC revenue grew 30% into March</b> while EU held flat —
+            though the missing February figure caps confidence in the EU trend.</p>
+        </div>
       </div>
-    </div>
+    </header>
 
-    <!-- Dashboard Screen -->
-    <div id="dashboardScreen" style="display:none;">
-      <div class="dashboard">
-
-        <div class="dash-topbar animate">
-          <div>
-            <div class="dash-title" id="dashTitle">Analysis Complete</div>
-            <div class="dash-meta" id="dashMeta"></div>
-          </div>
-          <div class="dash-actions">
-            <button class="reset-btn" id="shareBtn" style="display:none;">🔗 Share</button>
-            <button class="reset-btn" id="resetBtn">← New Files</button>
-          </div>
+    <section id="how">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <p class="step-num">01</p>
+          <h3>Add your Anthropic key</h3>
+          <p>Stored in your browser's local storage, sent only alongside your own requests.
+            Get one at console.anthropic.com — the server never keeps it.</p>
         </div>
-
-        <!-- Sheet picker (multi-sheet workbooks) -->
-        <div id="sheetBar" class="sheet-bar" style="display:none;"></div>
-
-        <!-- Cross-file summary (multi-file only) -->
-        <div id="crossSummarySection" style="display:none;" class="animate animate-delay-1">
-          <div class="cross-summary-card">
-            <div class="cross-summary-label">🔗 Cross-File Synthesis</div>
-            <div class="cross-summary-text" id="crossSummaryText"></div>
-            <div class="cross-grid" id="crossGrid"></div>
-            <div id="crossInsights"></div>
-            <div class="cross-conclusion" id="crossConclusion"></div>
-          </div>
+        <div class="step">
+          <p class="step-num">02</p>
+          <h3>Drop a file or paste a link</h3>
+          <p>Spreadsheets, PDFs, Word, PowerPoint, JSON. Multi-sheet workbooks get a sheet
+            picker; cloud files fetch by URL up to 25 MB.</p>
         </div>
-
-        <!-- File tabs (multi-file) -->
-        <div id="fileTabs" style="display:none;" class="animate animate-delay-2">
-          <div class="tabs-bar" id="tabsBar"></div>
+        <div class="step">
+          <p class="step-num">03</p>
+          <h3>Read, then interrogate</h3>
+          <p>Statistics, correlations, a data-quality grade, charts, and written insights —
+            then ask follow-up questions grounded in the same numbers.</p>
         </div>
-
-        <!-- Per-file dashboard -->
-        <div id="fileDashboard">
-
-          <div class="summary-card animate animate-delay-2">
-            <div class="summary-label">File Summary</div>
-            <div class="summary-text" id="summaryText"></div>
-          </div>
-
-          <div id="qualitySection" style="display:none;" class="animate animate-delay-2">
-            <div class="card">
-              <div class="quality-header">
-                <div class="card-title">Data Quality</div>
-                <div class="quality-badges">
-                  <span id="qualityGrade" class="quality-grade"></span>
-                  <span id="qualityMeta" class="quality-meta"></span>
-                </div>
-              </div>
-              <div id="qualityIssues" class="quality-issues"></div>
-              <div id="qualityColumns" class="quality-columns"></div>
-            </div>
-          </div>
-
-          <div id="topicsSection" style="display:none;" class="animate animate-delay-2">
-            <div class="card">
-              <div class="card-title">Key Topics</div>
-              <div class="topics-list" id="topicsList"></div>
-            </div>
-          </div>
-
-          <div class="grid-2 animate animate-delay-3">
-            <div class="card">
-              <div class="card-title">Key Insights</div>
-              <div class="insights-list" id="insightsList"></div>
-            </div>
-            <div class="card">
-              <div class="card-title" id="varListTitle">Variable Explanations</div>
-              <div class="var-list" id="varList"></div>
-            </div>
-          </div>
-
-          <div id="statsSection" class="card animate animate-delay-3">
-            <div class="card-title">Statistical Summary</div>
-            <div class="stat-grid" id="statGrid"></div>
-          </div>
-
-          <div id="rawTextSection" style="display:none;" class="card animate animate-delay-3">
-            <div class="card-title">Content Preview</div>
-            <pre class="raw-text-preview" id="rawTextPreview"></pre>
-          </div>
-
-          <div id="chartsSection">
-            <div class="card-title" style="margin-bottom:16px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);">Charts</div>
-            <div class="charts-grid" id="chartsGrid"></div>
-          </div>
-
-          <div id="corrSection" style="display:none;">
-            <div class="card">
-              <div class="card-title">Correlations</div>
-              <div class="corr-list" id="corrList"></div>
-            </div>
-          </div>
-
-          <div class="conclusion-card animate animate-delay-4">
-            <div class="conclusion-label">Analytical Conclusion</div>
-            <div class="conclusion-text" id="conclusionText"></div>
-          </div>
-
-          <div id="askSection" class="animate animate-delay-4" style="display:none;">
-            <div class="card">
-              <div class="card-title">Ask a follow-up</div>
-              <div id="askThread" class="ask-thread"></div>
-              <div class="ask-input-row">
-                <input id="askInput" class="question-input" type="text"
-                  placeholder="e.g. What is driving the outliers in this data?" />
-                <button id="askBtn" class="ask-btn" type="button">Ask</button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
       </div>
-    </div>
+    </section>
 
-  </main>
-</div>
-<script src="app.js"></script>
+    <section>
+      <h2>Why it holds up</h2>
+      <div class="feats">
+        <div class="feat">
+          <span class="feat-tag">computed, not guessed</span>
+          <h3>Deterministic profiling</h3>
+          <p>Missingness, type consistency, IQR outliers, duplicate rows, and a weighted
+            health grade are calculated in code — the AI reads them, it doesn't invent them.</p>
+        </div>
+        <div class="feat">
+          <span class="feat-tag">schema-enforced</span>
+          <h3>Grounded insights</h3>
+          <p>Claude answers against the computed statistics and quality profile, and its
+            output is constrained to a strict JSON schema — no free-form hallucinated reports.</p>
+        </div>
+        <div class="feat">
+          <span class="feat-tag">byok</span>
+          <h3>Private by design</h3>
+          <p>No accounts, no server-side keys, files parsed in memory, immutable share links
+            you create on purpose. The code is open — read it.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>MIT — built on the Anthropic API</span>
+      <div class="foot-links">
+        <a href="https://github.com/MohammedAlkindi/DashboardX">GitHub</a>
+        <a href="/app">Open the app</a>
+      </div>
+    </footer>
+
+  </div>
 </body>
 </html>

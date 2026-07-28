@@ -20,7 +20,9 @@ export function createApp() {
   // web page spend the server-side fallback Anthropic key from a visitor's
   // browser.
   app.use(express.json({ limit: "1mb" }));
-  app.use(express.static(path.join(__dirname, "..", "public")));
+  // extensions lets /app resolve to app.html locally, matching Vercel's
+  // cleanUrls behavior in production.
+  app.use(express.static(path.join(__dirname, "..", "public"), { extensions: ["html"] }));
   app.use("/api", healthRouter);
   app.use("/api", historyRouter);
   app.use("/api", analyzeRouter);

@@ -169,7 +169,7 @@ function updateShareBtn() {
 }
 
 shareBtn.addEventListener("click", async () => {
-  const link = `${location.origin}/?a=${currentAnalysisId}`;
+  const link = `${location.origin}/app?a=${currentAnalysisId}`;
   try {
     await navigator.clipboard.writeText(link);
     shareBtn.textContent = "✓ Link copied";
