@@ -140,5 +140,5 @@ export function profileSummaryForPrompt(profile) {
     .map(([name, c]) => `${name}: ${c.type}${c.missingPct > 0 ? `, ${c.missingPct}% missing` : ""}${c.outliers ? `, ${c.outliers} outliers` : ""}`)
     .join(" | ");
   const issues = profile.issues.map(i => i.message).join("; ") || "none";
-  return `Health ${profile.healthGrade} (${profile.healthScore}/100), ${profile.rows} rows, ${profile.duplicateRows} duplicate rows. Columns — ${cols}. Issues — ${issues}.`;
+  return `Health ${profile.healthGrade} (${profile.healthScore}/100), ${profile.rows} rows, ${profile.duplicateRows} duplicate rows. Columns — ${cols}. Issues — ${issues}.`.slice(0, 4000);
 }

@@ -32,6 +32,30 @@ describe("validateContext", () => {
     expect(ctx.rawText.length).toBe(4000);
     expect(ctx.stats).toEqual({});
   });
+
+  it("caps serialized bytes, not just element counts", () => {
+    const huge = "z".repeat(60_000);
+    const ctx = validateContext({
+      columns: ["a".repeat(5000)],
+      stats: { blob: huge },
+      correlations: [{ colA: huge, colB: "b", r: 1 }],
+      profile: { padding: huge },
+      sampleRows: [{ cell: huge }, { ok: 1 }],
+    });
+    expect(ctx.columns[0].length).toBe(100);
+    expect(ctx.stats).toEqual({});
+    expect(ctx.correlations).toEqual([]);
+    expect(ctx.profile).toBeNull();
+    expect(ctx.sampleRows).toEqual([]);
+  });
+
+  it("shrinks sample rows instead of dropping them when a subset fits", () => {
+    const bigCell = "w".repeat(15_000);
+    const rows = [{ small: 1 }, { small: 2 }, { big: bigCell }, { big: bigCell }, { big: bigCell }];
+    const ctx = validateContext({ columns: ["small"], sampleRows: rows });
+    expect(ctx.sampleRows.length).toBeGreaterThan(0);
+    expect(ctx.sampleRows.length).toBeLessThan(5);
+  });
 });
 
 describe("validatePriorQA", () => {
