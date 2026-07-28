@@ -17,11 +17,11 @@ export function getFileType(filename) {
   return "unknown";
 }
 
-export async function parseFile(file) {
+export async function parseFile(file, { sheet } = {}) {
   const fileType = getFileType(file.originalname);
   try {
     switch (fileType) {
-      case "spreadsheet": return parseSpreadsheet(file.buffer, file.originalname);
+      case "spreadsheet": return parseSpreadsheet(file.buffer, file.originalname, sheet);
       case "json":        return parseJSON(file.buffer);
       case "text":        return parseText(file.buffer);
       case "pdf":         return await parsePDF(file.buffer);

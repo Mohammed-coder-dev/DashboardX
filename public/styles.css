@@ -796,3 +796,26 @@ html, body {
 }
 .quality-col-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quality-col-info { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-3); white-space: nowrap; }
+
+/* ─── Sheet picker ──────────────────────────────────────────── */
+.sheet-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 16px; }
+.sheet-bar-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-right: 4px;
+}
+.sheet-chip {
+  font-size: 12px;
+  padding: 5px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.sheet-chip:hover { border-color: var(--accent); color: var(--accent); }
+.sheet-chip.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); cursor: default; }

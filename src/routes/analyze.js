@@ -29,6 +29,14 @@ const upload = multer({
   },
 });
 
+export function validateSheet(raw) {
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  if (typeof raw !== "string" || raw.length > 128) {
+    throw new AppError("Invalid sheet name.", { status: 400, code: "invalid_sheet" });
+  }
+  return raw;
+}
+
 export function validateQuestion(raw) {
   if (raw === undefined || raw === null || raw === "") return "";
   if (typeof raw !== "string") {
@@ -64,7 +72,8 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
   const question = validateQuestion(req.body.question);
   const apiKey   = resolveApiKey(req);
   const model    = resolveModel(req.body.model);
-  const parsed   = await parseFile(req.file);
+  const sheet    = validateSheet(req.body.sheet);
+  const parsed   = await parseFile(req.file, { sheet });
   const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
@@ -72,7 +81,7 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
   const { stats, correlations, profile, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
 
   const body = {
-    meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model },
+    meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model },
     stats, correlations, profile, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
@@ -87,8 +96,9 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
   const question = validateQuestion(req.body?.question);
   const apiKey   = resolveApiKey(req);
   const model    = resolveModel(req.body?.model);
+  const sheet    = validateSheet(req.body?.sheet);
   const file     = await fetchRemoteFile(req.body?.url);
-  const parsed   = await parseFile(file);
+  const parsed   = await parseFile(file, { sheet });
   const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
@@ -96,7 +106,7 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
   const { stats, correlations, profile, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
 
   const body = {
-    meta: { sheetName, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
+    meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
       filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl },
     stats, correlations, profile, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),

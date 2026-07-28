@@ -152,8 +152,10 @@ async function openSaved(id) {
       .catch(() => ({ error: `Could not load analysis (HTTP ${res.status}).` }));
     if (!res.ok) throw new Error(row.error || "Could not load analysis.");
     currentAnalysisId = row.id;
+    lastSource = null;
     if (row.kind === "multi") renderMultiDashboard(row.payload);
     else { allFileResults = [row.payload]; renderSingleFile(row.payload, false); }
+    sheetBar.style.display = "none";
     updateShareBtn();
     showScreen("dashboard");
   } catch (err) {
@@ -191,6 +193,9 @@ let selectedFiles  = [];
 let chartInstances = [];
 let allFileResults = [];
 let activeTabIdx   = 0;
+// What produced the current dashboard, so sheet chips can re-run it.
+// null when it came from history/share (no re-runnable source).
+let lastSource     = null;
 
 // ─── File handling ────────────────────────────────────────────
 fileInput.addEventListener("change", (e) => handleFiles([...e.target.files]));
@@ -269,15 +274,33 @@ tabsBar.addEventListener("click", (e) => {
 });
 
 // ─── Analyze ──────────────────────────────────────────────────
-analyzeBtn.addEventListener("click", runAnalysis);
+analyzeBtn.addEventListener("click", () => runAnalysis());
 resetBtn.addEventListener("click", resetDashboard);
+
+const sheetBar = document.getElementById("sheetBar");
+
+function renderSheetBar(meta) {
+  const sheets = meta?.sheets || [];
+  if (sheets.length < 2 || !lastSource) { sheetBar.style.display = "none"; return; }
+  sheetBar.style.display = "";
+  sheetBar.innerHTML = `<span class="sheet-bar-label">Sheets</span>` + sheets.map(s => `
+    <button class="sheet-chip ${s === meta.sheetName ? "active" : ""}" data-sheet="${esc(s)}" type="button">${esc(s)}</button>`).join("");
+}
+
+sheetBar.addEventListener("click", (e) => {
+  const chip = e.target.closest(".sheet-chip");
+  if (!chip || chip.classList.contains("active") || !lastSource) return;
+  const sheet = chip.dataset.sheet;
+  if (lastSource.kind === "url") runUrlAnalysis(sheet);
+  else runAnalysis(sheet);
+});
 
 // Vercel rejects request bodies over ~4.5 MB before the server sees them,
 // so oversized uploads are caught here with a useful message instead.
 const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
 
-async function runAnalysis() {
-  if (selectedFiles.length === 0 && urlValue()) return runUrlAnalysis();
+async function runAnalysis(sheet) {
+  if (selectedFiles.length === 0 && urlValue()) return runUrlAnalysis(sheet);
   if (selectedFiles.length === 0) return;
   if (keyMissing()) {
     settingsPanel.style.display = "";
@@ -303,6 +326,7 @@ async function runAnalysis() {
   const formData = new FormData();
   formData.append("question", question);
   formData.append("model", getModel() || modelSelect.value || "");
+  if (sheet && !isMulti) formData.append("sheet", sheet);
 
   if (isMulti) {
     selectedFiles.forEach(f => formData.append("files", f));
@@ -320,12 +344,14 @@ async function runAnalysis() {
     if (!response.ok) throw new Error(data.error || "Analysis failed.");
     await delay(500);
 
+    lastSource = isMulti ? null : { kind: "upload" };
     if (isMulti) {
       renderMultiDashboard(data);
     } else {
       allFileResults = [data];
       renderSingleFile(data, false);
     }
+    renderSheetBar(isMulti ? null : data.meta);
     currentAnalysisId = data.analysisId || null;
     updateShareBtn();
     loadHistory();
@@ -336,7 +362,7 @@ async function runAnalysis() {
   }
 }
 
-async function runUrlAnalysis() {
+async function runUrlAnalysis(sheet) {
   if (keyMissing()) {
     settingsPanel.style.display = "";
     showError("Add your Anthropic API key in Settings first — it stays in your browser.");
@@ -357,14 +383,17 @@ async function runUrlAnalysis() {
         url: urlValue(),
         question: questionInput.value.trim(),
         model: getModel() || modelSelect.value || "",
+        sheet: sheet || undefined,
       }),
     });
     const data = await response.json()
       .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}).` }));
     if (!response.ok) throw new Error(data.error || "Analysis failed.");
     await delay(500);
+    lastSource = { kind: "url" };
     allFileResults = [data];
     renderSingleFile(data, false);
+    renderSheetBar(data.meta);
     currentAnalysisId = data.analysisId || null;
     updateShareBtn();
     loadHistory();
@@ -633,8 +662,18 @@ function renderChart(canvasId, spec, data, stats) {
       const pts=data.map(r=>({x:Number(r[xCol]),y:Number(r[yCol])})).filter(p=>!isNaN(p.x)&&!isNaN(p.y)).slice(0,200);
       cfg = { type:"scatter", data:{ datasets:[{label:`${xCol} vs ${yCol}`,data:pts,backgroundColor:"#2563eb44",borderColor:"#2563eb",borderWidth:1,pointRadius:4}] }, options:chartOptions(xCol,yCol) };
     } else if (type === "line" && yCol) {
-      const pts=data.map((r,i)=>({x:i,y:Number(r[yCol])})).filter(p=>!isNaN(p.y)).slice(0,100);
-      cfg = { type:"line", data:{ labels:pts.map(p=>p.x), datasets:[{label:yCol,data:pts.map(p=>p.y),borderColor:"#2563eb",backgroundColor:"#2563eb11",borderWidth:2,pointRadius:2,fill:true,tension:0.3}] }, options:chartOptions("index",yCol) };
+      const dateX = xCol && data.some(r => /^\d{4}-\d{2}-\d{2}/.test(String(r[xCol] ?? "")));
+      let labels, values, xLabel;
+      if (dateX) {
+        const pts = data.map(r => ({ x: String(r[xCol]), y: Number(r[yCol]) }))
+          .filter(p => /^\d{4}-\d{2}-\d{2}/.test(p.x) && !isNaN(p.y))
+          .sort((a, b) => a.x.localeCompare(b.x)).slice(0, 100);
+        labels = pts.map(p => p.x); values = pts.map(p => p.y); xLabel = xCol;
+      } else {
+        const pts = data.map((r, i) => ({ x: i, y: Number(r[yCol]) })).filter(p => !isNaN(p.y)).slice(0, 100);
+        labels = pts.map(p => p.x); values = pts.map(p => p.y); xLabel = "index";
+      }
+      cfg = { type:"line", data:{ labels, datasets:[{label:yCol,data:values,borderColor:"#2563eb",backgroundColor:"#2563eb11",borderWidth:2,pointRadius:2,fill:true,tension:0.3}] }, options:chartOptions(xLabel,yCol) };
     }
     if (cfg) chartInstances.push(new Chart(ctx, cfg));
   } catch (e) {
@@ -668,6 +707,7 @@ function resetDashboard() {
   analyzeBtn.textContent="Analyze with Claude →";
   chartInstances.forEach(c=>c.destroy()); chartInstances=[];
   currentAnalysisId=null; updateShareBtn();
+  lastSource=null; sheetBar.style.display="none";
   if (location.search) history.replaceState(null, "", location.pathname);
   hideError(); showScreen("upload");
 }

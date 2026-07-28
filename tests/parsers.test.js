@@ -38,8 +38,47 @@ describe("parseSpreadsheet", () => {
     const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     const parsed = parseSpreadsheet(buffer, "weather.xlsx");
     expect(parsed.sheetName).toBe("Weather");
+    expect(parsed.sheets).toEqual(["Weather"]);
     expect(parsed.columns).toEqual(["city", "temp"]);
     expect(parsed.rows[0].city).toBe("Muscat");
+  });
+
+  function multiSheetWorkbook() {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ q: "Q1", rev: 10 }]), "Revenue");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ dept: "Eng", n: 7 }, { dept: "Sales", n: 4 }]), "Headcount");
+    return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+  }
+
+  it("lists all sheets and defaults to the first", () => {
+    const parsed = parseSpreadsheet(multiSheetWorkbook(), "book.xlsx");
+    expect(parsed.sheets).toEqual(["Revenue", "Headcount"]);
+    expect(parsed.sheetName).toBe("Revenue");
+  });
+
+  it("parses a requested sheet by name", () => {
+    const parsed = parseSpreadsheet(multiSheetWorkbook(), "book.xlsx", "Headcount");
+    expect(parsed.sheetName).toBe("Headcount");
+    expect(parsed.totalRows).toBe(2);
+    expect(parsed.columns).toEqual(["dept", "n"]);
+  });
+
+  it("rejects unknown sheet names with a 400 that lists options", () => {
+    expect(() => parseSpreadsheet(multiSheetWorkbook(), "book.xlsx", "Nope"))
+      .toThrowError(expect.objectContaining({ status: 400, code: "unknown_sheet" }));
+  });
+
+  it("normalizes Excel date cells to ISO strings", () => {
+    const ws = XLSX.utils.json_to_sheet([
+      { day: new Date(Date.UTC(2024, 0, 15)), sales: 100 },
+      { day: new Date(Date.UTC(2024, 0, 16, 9, 30)), sales: 120 },
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "S");
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx", cellDates: true });
+    const parsed = parseSpreadsheet(buffer, "dates.xlsx");
+    expect(parsed.rows[0].day).toBe("2024-01-15");
+    expect(parsed.rows[1].day).toMatch(/^2024-01-16 09:3\d$/);
   });
 });
 
