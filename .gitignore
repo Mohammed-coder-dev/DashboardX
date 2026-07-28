@@ -6,3 +6,5 @@ Thumbs.db
 .vscode/
 .vercel
 .env*
+!.env.example
+coverage/

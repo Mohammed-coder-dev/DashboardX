@@ -1,4 +1,4 @@
-# AnalyzeX Development Roadmap
+# DashboardX Development Roadmap
 
 This roadmap outlines the evolution from prototype to full AI data analysis platform.
 
