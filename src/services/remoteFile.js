@@ -83,7 +83,9 @@ export function remoteFilename(url, contentDisposition) {
   if (!name) {
     try { name = decodeURIComponent(path.posix.basename(url.pathname)); } catch { name = path.posix.basename(url.pathname); }
   }
-  name = path.basename(name);
+  // Not path.basename: on Linux a backslash is a legal filename character,
+  // so "..\..\evil.csv" would sail through — strip both separator styles.
+  name = name.split(/[\\/]/).pop() || "";
   const ext = path.extname(name).toLowerCase();
   if (!ALLOWED_EXTENSIONS.includes(ext)) {
     throw new AppError(
