@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { RateLimiterMemory } from "rate-limiter-flexible";
-import { runFollowUp, resolveApiKey, resolveModel } from "../services/anthropic.js";
-import { buildFollowUpPrompt } from "../prompts.js";
+import { runAnalysis, runFollowUp, resolveApiKey, resolveModel } from "../services/anthropic.js";
+import { buildFollowUpPrompt, buildTabularPrompt, buildTextPrompt } from "../prompts.js";
 import { profileSummaryForPrompt } from "../analytics/profile.js";
+import { ANALYSIS_SCHEMA } from "../schemas.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 import { AppError } from "../errors.js";
 import { validateQuestion } from "./analyze.js";
@@ -51,6 +52,10 @@ export function validateContext(raw) {
     profile: raw.profile && typeof raw.profile === "object" && !Array.isArray(raw.profile)
       ? capJson(raw.profile, 30_000, null)
       : null,
+    evidence: Array.isArray(raw.evidence)
+      ? capJson(raw.evidence.slice(0, 20), 30_000, [])
+      : [],
+    fileType: typeof raw.fileType === "string" ? raw.fileType.slice(0, 40) : "text",
     sampleRows: Array.isArray(raw.sampleRows) ? shrinkRows(raw.sampleRows.slice(0, 20), 40_000) : [],
     rawText,
   };
@@ -83,6 +88,29 @@ router.post("/ask", rateLimit(askLimiter), async (req, res) => {
     prompt: buildFollowUpPrompt({ ...context, profileSummary }, question, priorQA),
   });
   res.json({ answer, model });
+});
+
+// Adds AI interpretation to results the deterministic pipeline already
+// produced, so a keyless analysis can be explained afterwards without
+// re-uploading the file. Requires a key — that is the point of the endpoint.
+router.post("/explain", rateLimit(askLimiter), async (req, res) => {
+  const apiKey   = resolveApiKey(req);
+  const model    = resolveModel(req.body?.model);
+  const question = validateQuestion(req.body?.question);
+  const context  = validateContext(req.body?.context);
+
+  let profileSummary = null;
+  if (context.profile) {
+    try { profileSummary = profileSummaryForPrompt(context.profile); } catch { profileSummary = null; }
+  }
+
+  const prompt = context.columns.length > 0
+    ? buildTabularPrompt(context.columns, context.stats, context.correlations,
+        context.sampleRows, question, profileSummary, context.evidence)
+    : buildTextPrompt(context.fileType, context.rawText, question);
+
+  const analysis = await runAnalysis({ apiKey, model, prompt, schema: ANALYSIS_SCHEMA });
+  res.json({ analysis, model });
 });
 
 export default router;

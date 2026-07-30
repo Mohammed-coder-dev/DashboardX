@@ -855,3 +855,23 @@ html, body {
   flex-shrink: 0;
 }
 .ask-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ─── Keyless analysis / explain CTA ───────────────────────────── */
+.explain-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 18px 22px; margin-bottom: 20px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+}
+.explain-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+.explain-sub { font-size: 12.5px; color: var(--text-secondary); max-width: 560px; }
+.explain-btn { width: auto; padding: 10px 18px; font-size: 13px; flex-shrink: 0; }
+.ai-badge {
+  font-size: 10px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-tertiary); border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px 8px; margin-left: 8px; vertical-align: middle;
+}
+.settings-optional { font-size: 11px; color: var(--text-tertiary); font-weight: 400; margin-left: 6px; }
+.settings-remember { margin-top: 8px; font-size: 12px; }
+@media (max-width: 640px) {
+  .explain-bar { flex-direction: column; align-items: stretch; }
+}

@@ -3,12 +3,13 @@ import { config } from "../config.js";
 import { AppError } from "../errors.js";
 
 export const SUPPORTED_MODELS = {
-  "claude-opus-5":    "Claude Opus 5",
-  "claude-sonnet-5":  "Claude Sonnet 5",
-  "claude-haiku-4-5": "Claude Haiku 4.5",
+  "claude-opus-5":    { label: "Claude Opus 5",    note: "most capable · higher cost, slower" },
+  "claude-sonnet-5":  { label: "Claude Sonnet 5",  note: "balanced capability, speed and cost" },
+  "claude-haiku-4-5": { label: "Claude Haiku 4.5", note: "fastest · lowest cost" },
 };
 
-export const DEFAULT_MODEL = "claude-opus-5";
+// Sonnet is the balanced default; Opus and Haiku remain a click away.
+export const DEFAULT_MODEL = "claude-sonnet-5";
 
 export function resolveModel(raw) {
   if (raw === undefined || raw === null || raw === "") return DEFAULT_MODEL;
@@ -21,13 +22,19 @@ export function resolveModel(raw) {
   return raw;
 }
 
-// The key is used for this one request and never stored or logged.
-export function resolveApiKey(req) {
+/**
+ * Resolve the per-request API key. Used for this one request, never stored or
+ * logged. With `required: false` an absent key resolves to null so the caller
+ * can run the deterministic pipeline; a key that is present but malformed is
+ * still rejected either way, because silently ignoring it would be confusing.
+ */
+export function resolveApiKey(req, { required = true } = {}) {
   const header = (req.get("x-anthropic-key") || "").trim();
   const key = header || config.anthropicApiKey;
   if (!key) {
+    if (!required) return null;
     throw new AppError(
-      "No API key. Add your Anthropic API key in Settings — it stays in your browser and is only forwarded with your requests.",
+      "This feature needs an Anthropic API key. Add yours in AI settings — it is sent only with your requests, never stored.",
       { status: 401, code: "missing_api_key" },
     );
   }

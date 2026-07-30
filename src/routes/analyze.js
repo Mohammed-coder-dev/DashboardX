@@ -88,11 +88,17 @@ async function analyzeParsedFile(parsed, question, { apiKey, model, target = nul
   // column falls back to untargeted evidence instead of failing the batch.
   const effectiveTarget = tabular && target && columns.includes(target) ? target : null;
   const evidence     = tabular ? buildEvidence(rows, columns, stats, { target: effectiveTarget }) : [];
-  const fallbackText = rawText || rows.map(r => typeof r.content === "string" ? r.content : JSON.stringify(r)).join("\n");
-  const prompt       = tabular
-    ? buildTabularPrompt(columns, stats, correlations, rows, question, profileSummaryForPrompt(profile), evidence)
-    : buildTextPrompt(parsed.fileType, fallbackText, question);
-  const analysis = await runAnalysis({ apiKey, model, prompt, schema: ANALYSIS_SCHEMA });
+
+  // The deterministic pipeline above is the product; AI interpretation is an
+  // optional layer that only runs when a key accompanied the request.
+  let analysis = null;
+  if (apiKey) {
+    const fallbackText = rawText || rows.map(r => typeof r.content === "string" ? r.content : JSON.stringify(r)).join("\n");
+    const prompt = tabular
+      ? buildTabularPrompt(columns, stats, correlations, rows, question, profileSummaryForPrompt(profile), evidence)
+      : buildTextPrompt(parsed.fileType, fallbackText, question);
+    analysis = await runAnalysis({ apiKey, model, prompt, schema: ANALYSIS_SCHEMA });
+  }
   return { stats, correlations, profile, evidence, target: effectiveTarget, analysis };
 }
 
@@ -101,7 +107,7 @@ const router = Router();
 router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => {
   if (!req.file) throw new AppError("No file uploaded.", { status: 400, code: "no_file" });
   const question = validateQuestion(req.body.question);
-  const apiKey   = resolveApiKey(req);
+  const apiKey   = resolveApiKey(req, { required: false });
   const model    = resolveModel(req.body.model);
   const sheet    = validateSheet(req.body.sheet);
   const parsed   = await parseFile(req.file, { sheet });
@@ -113,7 +119,7 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
   const { stats, correlations, profile, evidence, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model, target });
 
   const body = {
-    meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model,
+    meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model, aiIncluded: Boolean(analysis),
       target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION },
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
@@ -130,7 +136,7 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
 
 router.post("/analyze-url", rateLimit(), async (req, res) => {
   const question = validateQuestion(req.body?.question);
-  const apiKey   = resolveApiKey(req);
+  const apiKey   = resolveApiKey(req, { required: false });
   const model    = resolveModel(req.body?.model);
   const sheet    = validateSheet(req.body?.sheet);
   const file     = await fetchRemoteFile(req.body?.url);
@@ -144,7 +150,7 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
 
   const body = {
     meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
-      filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl,
+      filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl, aiIncluded: Boolean(analysis),
       target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION },
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
@@ -162,7 +168,7 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
 router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req, res) => {
   if (!req.files || req.files.length === 0) throw new AppError("No files uploaded.", { status: 400, code: "no_file" });
   const question = validateQuestion(req.body.question);
-  const apiKey   = resolveApiKey(req);
+  const apiKey   = resolveApiKey(req, { required: false });
   const model    = resolveModel(req.body.model);
   // One target across files; files lacking that column produce untargeted
   // evidence rather than failing (see analyzeParsedFile).
@@ -192,11 +198,14 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
     }
   }));
 
-  const successful = fileResults.filter(r => r.analysis !== null);
+  // "Successful" means the file parsed and produced deterministic results —
+  // with no key supplied, every successful file simply has analysis: null.
+  const successful = fileResults.filter(r => r.error === null);
+  const aiAnalyzed = successful.filter(r => r.analysis !== null);
   let crossSummary = null;
-  if (successful.length > 1) {
+  if (apiKey && aiAnalyzed.length > 1) {
     try {
-      crossSummary = await runAnalysis({ apiKey, model, prompt: buildCrossSummaryPrompt(successful, question), schema: CROSS_SUMMARY_SCHEMA });
+      crossSummary = await runAnalysis({ apiKey, model, prompt: buildCrossSummaryPrompt(aiAnalyzed, question), schema: CROSS_SUMMARY_SCHEMA });
     } catch (err) {
       console.error("Cross-summary failed:", err.message);
     }

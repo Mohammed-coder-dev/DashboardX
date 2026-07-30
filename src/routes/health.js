@@ -8,7 +8,7 @@ router.get("/health", (req, res) => {
   res.json({
     status: "ok",
     serverKey: Boolean(config.anthropicApiKey),
-    models: Object.entries(SUPPORTED_MODELS).map(([id, label]) => ({ id, label })),
+    models: Object.entries(SUPPORTED_MODELS).map(([id, m]) => ({ id, label: m.label, note: m.note })),
     defaultModel: DEFAULT_MODEL,
   });
 });

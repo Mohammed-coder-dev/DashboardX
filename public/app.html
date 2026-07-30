@@ -29,9 +29,13 @@
     <!-- Settings Panel -->
     <div id="settingsPanel" class="settings-panel" style="display:none;">
       <div class="settings-field">
-        <label class="settings-label" for="apiKeyInput">Anthropic API key</label>
+        <label class="settings-label" for="apiKeyInput">Anthropic API key <span class="settings-optional">optional — unlocks AI interpretation</span></label>
         <input id="apiKeyInput" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
-        <p class="settings-hint">Stored only in this browser and sent with each analysis request — never saved on the server. Get one at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+        <p class="settings-hint">Kept in this browser tab by default and sent with each request to this app's backend, which forwards it to Anthropic. It is never stored on the server or written to logs. Get one at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+        <label class="save-toggle settings-remember" for="rememberKeyToggle">
+          <input type="checkbox" id="rememberKeyToggle" />
+          <span>Remember this key on this device (stores it in this browser until you remove it)</span>
+        </label>
       </div>
       <div class="settings-field">
         <label class="settings-label" for="modelSelect">Model</label>
@@ -142,8 +146,17 @@
         <!-- Per-file dashboard -->
         <div id="fileDashboard">
 
-          <div class="summary-card animate animate-delay-2">
-            <div class="summary-label">File Summary</div>
+          <!-- Shown instead of the AI sections when the analysis ran without a key -->
+          <div id="explainBar" class="explain-bar animate animate-delay-2" style="display:none;">
+            <div>
+              <div class="explain-title">Deterministic results ready</div>
+              <div class="explain-sub" id="explainSub">Statistics, quality checks and evidence below were computed locally on the server — no AI involved yet.</div>
+            </div>
+            <button id="explainBtn" class="analyze-btn explain-btn" type="button">Explain with Claude →</button>
+          </div>
+
+          <div class="summary-card animate animate-delay-2" id="summaryCard">
+            <div class="summary-label">AI Summary <span class="ai-badge">AI-generated interpretation</span></div>
             <div class="summary-text" id="summaryText"></div>
           </div>
 
@@ -201,7 +214,7 @@
             </div>
           </div>
 
-          <div class="conclusion-card animate animate-delay-4">
+          <div class="conclusion-card animate animate-delay-4" id="conclusionSection">
             <div class="conclusion-label">Analytical Conclusion</div>
             <div class="conclusion-text" id="conclusionText"></div>
           </div>

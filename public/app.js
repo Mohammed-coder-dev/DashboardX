@@ -42,6 +42,11 @@ const qualityIssues     = document.getElementById("qualityIssues");
 const qualityColumns    = document.getElementById("qualityColumns");
 const rawTextSection    = document.getElementById("rawTextSection");
 const rawTextPreview    = document.getElementById("rawTextPreview");
+const conclusionSection = document.getElementById("conclusionSection");
+const explainBar        = document.getElementById("explainBar");
+const explainSub        = document.getElementById("explainSub");
+const explainBtn        = document.getElementById("explainBtn");
+const summaryCard       = document.getElementById("summaryCard");
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -56,16 +61,27 @@ const settingsStatus  = document.getElementById("settingsStatus");
 // ─── API settings (BYOK) ──────────────────────────────────────
 const KEY_STORAGE   = "dx_api_key";
 const MODEL_STORAGE = "dx_model";
+const rememberKeyToggle = document.getElementById("rememberKeyToggle");
 let serverHasKey = false;
 let modelLabels  = {};
 
-function getApiKey()   { return localStorage.getItem(KEY_STORAGE) || ""; }
+// The key lives in sessionStorage (this tab, until it closes) unless the user
+// explicitly asks to remember it on this device.
+function getApiKey() {
+  return sessionStorage.getItem(KEY_STORAGE) || localStorage.getItem(KEY_STORAGE) || "";
+}
+function storeApiKey(key, remember) {
+  sessionStorage.removeItem(KEY_STORAGE);
+  localStorage.removeItem(KEY_STORAGE);
+  if (!key) return;
+  (remember ? localStorage : sessionStorage).setItem(KEY_STORAGE, key);
+}
 function getModel()    { return localStorage.getItem(MODEL_STORAGE) || ""; }
 function keyMissing()  { return !serverHasKey && !getApiKey(); }
 
 function updateSettingsBtn() {
   settingsBtn.classList.toggle("needs-key", keyMissing());
-  settingsBtn.textContent = keyMissing() ? "⚙ Add API key" : "⚙ API Settings";
+  settingsBtn.textContent = keyMissing() ? "⚙ Add API key for AI" : "⚙ AI settings";
 }
 
 async function initSettings() {
@@ -74,13 +90,13 @@ async function initSettings() {
     const health = await res.json();
     serverHasKey = health.serverKey;
     modelSelect.innerHTML = health.models.map(m =>
-      `<option value="${m.id}">${m.label}${m.id === health.defaultModel ? " (default)" : ""}</option>`).join("");
+      `<option value="${m.id}">${m.label}${m.note ? ` — ${m.note}` : ""}${m.id === health.defaultModel ? " (default)" : ""}</option>`).join("");
     health.models.forEach(m => { modelLabels[m.id] = m.label; });
     modelSelect.value = getModel() || health.defaultModel;
   } catch (_) { /* health check failing shouldn't block the UI */ }
   apiKeyInput.value = getApiKey();
+  if (rememberKeyToggle) rememberKeyToggle.checked = Boolean(localStorage.getItem(KEY_STORAGE));
   updateSettingsBtn();
-  if (keyMissing()) settingsPanel.style.display = "";
 }
 
 settingsBtn.addEventListener("click", () => {
@@ -88,9 +104,7 @@ settingsBtn.addEventListener("click", () => {
 });
 
 saveSettingsBtn.addEventListener("click", () => {
-  const key = apiKeyInput.value.trim();
-  if (key) localStorage.setItem(KEY_STORAGE, key);
-  else     localStorage.removeItem(KEY_STORAGE);
+  storeApiKey(apiKeyInput.value.trim(), rememberKeyToggle?.checked === true);
   localStorage.setItem(MODEL_STORAGE, modelSelect.value);
   updateSettingsBtn();
   settingsStatus.textContent = "Saved ✓";
@@ -247,7 +261,7 @@ function renderFileList() {
     fileListEl.style.display = "none";
     dropzoneIcon.textContent = "📁";
     analyzeBtn.disabled = !urlValue();
-    analyzeBtn.textContent = urlValue() ? "Analyze link with Claude →" : "Analyze with Claude →";
+    analyzeBtn.textContent = urlValue() ? "Analyze link →" : "Analyze data →";
     return;
   }
 
@@ -274,8 +288,8 @@ function renderFileList() {
 
   analyzeBtn.disabled = false;
   analyzeBtn.textContent = selectedFiles.length === 1
-    ? "Analyze with Claude →"
-    : `Analyze ${selectedFiles.length} files with Claude →`;
+    ? "Analyze data →"
+    : `Analyze ${selectedFiles.length} files →`;
 }
 
 function removeFile(idx) {
@@ -324,11 +338,6 @@ const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
 async function runAnalysis(sheet) {
   if (selectedFiles.length === 0 && urlValue()) return runUrlAnalysis(sheet);
   if (selectedFiles.length === 0) return;
-  if (keyMissing()) {
-    settingsPanel.style.display = "";
-    showError("Add your Anthropic API key in Settings first — it stays in your browser.");
-    return;
-  }
   const totalBytes = selectedFiles.reduce((sum, f) => sum + f.size, 0);
   if (totalBytes > MAX_REQUEST_BYTES) {
     showError("Uploads are limited to 4 MB per request — analyze larger files by pasting a link instead.");
@@ -430,6 +439,8 @@ async function runUrlAnalysis(sheet) {
 }
 
 function animateLoadingSteps() {
+  // Honest step label: no AI runs when no key is configured.
+  steps[2].textContent = keyMissing() ? "COMPUTING EVIDENCE" : "RUNNING AI ANALYSIS";
   steps.forEach(s => s.classList.remove("active"));
   steps[0].classList.add("active");
   [900, 1800, 2700].forEach((d, i) => {
@@ -549,26 +560,39 @@ function renderSingleFile(data, isTabbed) {
     fileTabs.style.display = "none";
   }
 
-  summaryText.textContent = analysis.summary;
+  // AI sections render only when an interpretation exists; without a key the
+  // deterministic sections below stand on their own behind an explain CTA.
+  const hasAI = Boolean(analysis);
+  explainBar.style.display = hasAI ? "none" : "";
+  summaryCard.style.display = hasAI ? "" : "none";
+  if (!hasAI) {
+    const isDoc = !meta.isTabular;
+    explainSub.textContent = isDoc
+      ? "This document type has limited deterministic analysis (an excerpt is shown below). Adding an Anthropic API key enables full AI reading, insights and follow-up questions."
+      : "Statistics, quality checks and evidence below were computed deterministically — no AI involved yet. Add an interpretation when you want one.";
+    explainBtn.textContent = keyMissing() ? "Add API key to explain →" : "Explain with Claude →";
+  }
 
-  insightsList.innerHTML = (analysis.insights||[]).map(ins => `
+  summaryText.textContent = hasAI ? analysis.summary : "";
+
+  insightsList.innerHTML = hasAI ? (analysis.insights||[]).map(ins => `
     <div class="insight-item ${esc(ins.type||"neutral")}">
       <div class="insight-title">${esc(ins.title)}</div>
       <div class="insight-detail">${esc(ins.detail)}</div>
-    </div>`).join("");
+    </div>`).join("") : "";
 
   varListTitle.textContent = meta.isTabular ? "Variable Explanations" : "Key Sections";
-  varList.innerHTML = (analysis.variables||[]).map(v => `
+  varList.innerHTML = hasAI ? (analysis.variables||[]).map(v => `
     <div class="var-item">
       <div class="var-name">${esc(v.name)}</div>
       <div class="var-explanation">${esc(v.explanation)}</div>
       <div class="var-notable">→ ${esc(v.notable)}</div>
-    </div>`).join("");
+    </div>`).join("") : "";
 
   renderQuality(data.profile);
   if (!isTabbed) resetAsk(data, true);
 
-  const topics = analysis.topics || [];
+  const topics = (hasAI && analysis.topics) || [];
   if (topics.length > 0) {
     topicsSection.style.display = "";
     topicsList.innerHTML = topics.map(t => `
@@ -640,7 +664,7 @@ function renderSingleFile(data, isTabbed) {
     }).join("");
   } else corrSection.style.display = "none";
 
-  const charts = analysis.charts || [];
+  const charts = (hasAI && analysis.charts) || [];
   if (charts.length > 0 && meta.isTabular) {
     chartsSection.style.display = "";
     chartsGrid.innerHTML = "";
@@ -655,7 +679,8 @@ function renderSingleFile(data, isTabbed) {
     });
   } else chartsSection.style.display = "none";
 
-  conclusionText.textContent = analysis.conclusion;
+  conclusionText.textContent = hasAI ? analysis.conclusion : "";
+  conclusionSection.style.display = hasAI ? "" : "none";
 }
 
 // ─── Follow-up Q&A ────────────────────────────────────────────
@@ -695,7 +720,7 @@ async function submitAsk() {
   if (!question || !askData) return;
   if (keyMissing()) {
     settingsPanel.style.display = "";
-    showError("Add your Anthropic API key in Settings first — it stays in your browser.");
+    renderAskThread(question, "Follow-up questions need an Anthropic API key — add yours in AI settings. It is sent only with your requests and never stored on the server.");
     return;
   }
   askBtn.disabled = true;
@@ -738,6 +763,50 @@ async function submitAsk() {
 }
 
 askBtn.addEventListener("click", submitAsk);
+
+// ─── Explain with Claude (adds AI to a keyless analysis) ─────────
+explainBtn?.addEventListener("click", async () => {
+  if (keyMissing()) { settingsPanel.style.display = ""; return; }
+  const current = allFileResults[activeTabIdx] || allFileResults[0];
+  if (!current || current.error) return;
+  explainBtn.disabled = true;
+  explainBtn.textContent = "Explaining…";
+  try {
+    const response = await fetch("/api/explain", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-dx-session": getSessionId(),
+        "x-anthropic-key": getApiKey(),
+      },
+      body: JSON.stringify({
+        model: getModel() || modelSelect.value || "",
+        question: questionInput.value.trim(),
+        context: {
+          filename: current.meta?.filename,
+          fileType: current.meta?.fileType,
+          columns: current.columns || [],
+          stats: current.stats || {},
+          correlations: current.correlations || [],
+          evidence: current.evidence || [],
+          profile: current.profile || null,
+          sampleRows: (current.chartData || []).slice(0, 20),
+          rawText: current.rawText || undefined,
+        },
+      }),
+    });
+    const data = await response.json().catch(() => ({ error: "Unexpected response." }));
+    if (!response.ok) throw new Error(data.error || "Explanation failed.");
+    current.analysis = data.analysis;
+    if (current.meta) current.meta.aiIncluded = true;
+    renderSingleFile(current, allFileResults.length > 1);
+  } catch (err) {
+    explainSub.textContent = err.message;
+  } finally {
+    explainBtn.disabled = false;
+    explainBtn.textContent = "Explain with Claude →";
+  }
+});
 askInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitAsk(); });
 
 // ─── Data quality card ────────────────────────────────────────
