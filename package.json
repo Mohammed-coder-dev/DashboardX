@@ -43,7 +43,7 @@
     "officeparser": "^6.0.4",
     "pdf2json": "^4.0.2",
     "rate-limiter-flexible": "^10.0.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

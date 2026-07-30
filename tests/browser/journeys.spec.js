@@ -30,7 +30,11 @@ test.describe("the root URL is the application", () => {
 
   test("links to about, privacy and docs", async ({ page }) => {
     await page.goto("/");
-    for (const [label, heading] of [["About", /About|analyst/i], ["Privacy", /Privacy/i], ["Docs", /Using the app/i]]) {
+    for (const [label, heading] of [
+      ["About", /Evidence-backed analysis for spreadsheets/i],
+      ["Privacy", /Saved analyses \(opt-in\)/i],
+      ["Docs", /Using the app/i],
+    ]) {
       await page.goto("/");
       await page.getByRole("link", { name: label, exact: true }).click();
       await expect(page.locator("body")).toContainText(heading);

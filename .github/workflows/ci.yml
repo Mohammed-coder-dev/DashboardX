@@ -5,8 +5,17 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel superseded runs on the same ref; the browser job is slow.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  test:
+  verify:
+    name: Lint, unit and API tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,4 +24,110 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm test
+
+      # Syntax gate for every shipped server file. public/app.js is a classic
+      # script, so it is parsed with a script-goal parser inside the unit suite
+      # (tests/frontend-script.test.js) rather than with `node --check`, which
+      # would accept module-only syntax the browser rejects.
+      - name: Lint (syntax check)
+        run: |
+          FILES=$(git ls-files 'src/**/*.js' 'api/*.js' server.js)
+          for f in $FILES; do node --check "$f" || exit 1; done
+          echo "checked $(echo "$FILES" | wc -l) files"
+
+      - name: Unit and API integration tests
+        run: npm test
+
+      # The app is static assets plus one serverless function, so "build" means
+      # it must boot and actually serve — which is what production requires.
+      - name: Build validation
+        run: |
+          node -e "import('./src/app.js').then(m => { m.createApp(); console.log('app builds'); })"
+          PORT=3399 node server.js & SERVER=$!
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3399/api/health > /dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:3399/api/health | grep -q '"status":"ok"'
+          curl -sf http://127.0.0.1:3399/ | grep -q 'dropzone'
+          curl -sf http://127.0.0.1:3399/samples/team-sales.csv | head -1 | grep -q 'region'
+          kill $SERVER
+
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Dependency audit (fail on high or critical)
+        run: npm audit --audit-level=high
+
+      - name: No committed secrets
+        run: |
+          # Any real Anthropic key shape outside the deliberate test placeholder.
+          if git grep -nE 'sk-ant-[A-Za-z0-9_-]{24,}' -- . ':!tests' ':!*.md'; then
+            echo "::error::possible API key committed"; exit 1
+          fi
+          if git ls-files | grep -qE '^\.env$|^\.env\.local$'; then
+            echo "::error::env file committed"; exit 1
+          fi
+          echo "no secrets found"
+
+      - name: Brand consistency
+        run: |
+          # dx_ survives only in the storage migration (public/app.js) and its
+          # test; historical names survive only in the changelog.
+          if git grep -nE 'DashboardX|AnalyzeX|dashboardx-demo' -- . \
+              ':!CHANGELOG.md' ':!public/app.js' ':!package-lock.json'; then
+            echo "::error::stale brand reference"; exit 1
+          fi
+          echo "brand is consistent"
+
+  browser:
+    name: Browser journeys
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Playwright journeys (desktop + mobile)
+        run: npm run test:browser
+        env:
+          CI: "true"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  release-version:
+    name: Release version validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Version is semver and has a changelog entry
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "package version: $VERSION"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::version '$VERSION' is not a plain semver triple"; exit 1
+          fi
+          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$VERSION]' section"; exit 1
+          fi
+          echo "version and changelog agree"
