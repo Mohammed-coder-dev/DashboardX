@@ -875,3 +875,21 @@ html, body {
 @media (max-width: 640px) {
   .explain-bar { flex-direction: column; align-items: stretch; }
 }
+
+/* ─── Topbar nav + doc pages ───────────────────────────────────── */
+.topbar-nav { display: flex; align-items: center; gap: 18px; }
+.topbar-link {
+  font-size: 13px; color: var(--text-2); text-decoration: none;
+  padding: 4px 2px; border-bottom: 1.5px solid transparent;
+}
+.topbar-link:hover { color: var(--text); border-bottom-color: var(--accent); }
+.doc-page { max-width: 720px; }
+.doc-title { font-family: 'Fraunces', serif; font-size: 30px; letter-spacing: -0.02em; margin-bottom: 6px; }
+.doc-updated { color: var(--text-2); font-size: 13.5px; margin-bottom: 28px; }
+.doc-page h2 { font-size: 16px; font-weight: 600; margin: 26px 0 8px; }
+.doc-page ul { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--text-2); font-size: 13.5px; }
+.doc-page li strong, .doc-page li em { color: var(--text); }
+.doc-page p { color: var(--text-2); font-size: 13.5px; }
+.doc-page code { font-family: 'DM Mono', monospace; font-size: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+.doc-page a { color: var(--accent); }
+@media (max-width: 640px) { .topbar-nav { gap: 10px; } .topbar-link { font-size: 12px; } }

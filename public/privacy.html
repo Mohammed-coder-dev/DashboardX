@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy — DashboardX</title>
+  <meta name="description" content="What this app processes, what it stores, and what leaves your machine — stated precisely." />
+  <meta name="theme-color" content="#f7f6f2" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Ctext x='16' y='21.5' font-family='monospace' font-size='13' font-weight='bold' fill='%23f7f6f2' text-anchor='middle'%3EDX%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
+        <div class="brand-mark">DX</div>
+        <span class="brand-name">DashboardX</span>
+      </a>
+    </div>
+    <div class="topbar-nav">
+      <a class="topbar-link" href="/">App</a>
+      <a class="topbar-link" href="/about">About</a>
+      <a class="topbar-link" href="/docs">Docs</a>
+    </div>
+  </nav>
+
+  <main class="main doc-page">
+    <h1 class="doc-title">Privacy</h1>
+    <p class="doc-updated">This page describes what actually happens to your data, precisely. When behavior and wording disagree, that is a bug — please report it.</p>
+
+    <h2>Your files</h2>
+    <ul>
+      <li>Uploaded files are processed <strong>in memory</strong> on the server for the duration of the request and are not written to durable storage. PDF parsing uses a temporary file that is deleted immediately after extraction.</li>
+      <li>Files fetched by URL are subject to the same handling.</li>
+      <li>Nothing about a file is retained after the response is sent — <em>unless you opt in to saving that analysis</em> (below).</li>
+    </ul>
+
+    <h2>Your API key</h2>
+    <ul>
+      <li>The app works without a key: parsing, statistics, quality checks, correlations and evidence are computed deterministically server-side.</li>
+      <li>If you add an Anthropic API key, it is kept in this browser — in <strong>session storage by default</strong> (cleared when the tab closes), or in local storage only if you tick "Remember this key on this device".</li>
+      <li>When you run an AI feature, the key is <strong>transmitted with that request to this app's backend, which forwards it to Anthropic</strong>. It is used for that request only. It is never stored server-side, never written to logs, and never included in saved analyses or error messages.</li>
+      <li>We do not claim the key "never leaves your browser" — it necessarily travels with each AI request. It is not retained anywhere along the way.</li>
+    </ul>
+
+    <h2>What is sent to Anthropic</h2>
+    <ul>
+      <li>Only when you use AI features, and only with your key: column names, computed statistics, correlations, evidence objects, the data-quality summary, a small labelled sample of rows (or a text excerpt for documents), and your question.</li>
+      <li>With no key configured, nothing is sent to Anthropic.</li>
+    </ul>
+
+    <h2>Saved analyses (opt-in)</h2>
+    <ul>
+      <li>By default, <strong>nothing is stored server-side</strong>. Every analysis is transient.</li>
+      <li>If you tick "Save this analysis to history and enable a share link", the result is stored in the app's database: an anonymous session identifier, the filename, file type, chosen model, your question, and the full analysis payload — statistics, evidence, AI text if any, and up to 100 sample rows of your data. Your API key is never part of it.</li>
+      <li>Saved analyses are retained until you delete them from the history list. Anyone with a share link can view that saved analysis; deletion requires the browser session that saved it.</li>
+    </ul>
+
+    <h2>Everything else</h2>
+    <ul>
+      <li>No analytics, tracking pixels, or third-party scripts other than the charting library.</li>
+      <li>A random session identifier is kept in your browser's local storage to group your saved analyses; it is sent only to this app.</li>
+      <li>Requests are rate-limited by IP address in memory; addresses are not durably logged.</li>
+    </ul>
+  </main>
+</div>
+</body>
+</html>

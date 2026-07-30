@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docs — DashboardX</title>
+  <meta name="description" content="How to use the app: supported files, keyless analysis, evidence, AI interpretation, saving and sharing." />
+  <meta name="theme-color" content="#f7f6f2" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Ctext x='16' y='21.5' font-family='monospace' font-size='13' font-weight='bold' fill='%23f7f6f2' text-anchor='middle'%3EDX%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
+        <div class="brand-mark">DX</div>
+        <span class="brand-name">DashboardX</span>
+      </a>
+    </div>
+    <div class="topbar-nav">
+      <a class="topbar-link" href="/">App</a>
+      <a class="topbar-link" href="/about">About</a>
+      <a class="topbar-link" href="/privacy">Privacy</a>
+    </div>
+  </nav>
+
+  <main class="main doc-page">
+    <h1 class="doc-title">Using the app</h1>
+
+    <h2>Analyze a file</h2>
+    <ul>
+      <li>Drop up to 10 files on the <a href="/">home page</a>, or paste an <code>https://</code> link to a file. Supported: <code>.xlsx</code> <code>.xls</code> <code>.csv</code> <code>.json</code> <code>.txt</code> <code>.md</code> <code>.pdf</code> <code>.pptx</code> <code>.ppt</code> <code>.docx</code> <code>.doc</code>.</li>
+      <li>Uploads are capped at 4&nbsp;MB per request; larger files (to 25&nbsp;MB) go through the link box, which fetches server-side.</li>
+      <li>Multi-sheet workbooks get a sheet picker after the first run.</li>
+    </ul>
+
+    <h2>No API key required</h2>
+    <ul>
+      <li>"Analyze data" runs the deterministic pipeline: statistics per column, a data-quality grade, pairwise-complete correlations with sample sizes, date profiles, and structured evidence.</li>
+      <li>Adding an Anthropic API key (⚙ in the top bar) unlocks <em>Explain with Claude</em>, cross-file synthesis, and follow-up questions. Deterministic numbers stay exactly the same either way.</li>
+      <li>For documents (PDF, Word, PowerPoint), keyless mode shows the extracted text and counts; AI reading requires a key.</li>
+    </ul>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Every material finding is a structured object: claim, metric, columns, method, sample size <code>n</code>, coverage, strength, and caveat. AI text may explain these objects but cannot add numbers of its own.</li>
+      <li>Optionally pick a <strong>target column</strong> on the dashboard to focus evidence on one outcome: group comparisons, correlations with the target, missingness impact, and trends over time.</li>
+    </ul>
+
+    <h2>Save, share, export</h2>
+    <ul>
+      <li>Nothing is stored unless you tick <em>Save this analysis</em> before running — see <a href="/privacy">Privacy</a> for exactly what a saved analysis contains.</li>
+      <li>Saved analyses appear under Recent analyses, produce a share link, and can be deleted there.</li>
+      <li>Any result can be exported as JSON or as a printable report, saved or not.</li>
+    </ul>
+
+    <h2>More</h2>
+    <p>Architecture, API reference and self-hosting instructions live in the repository:
+      <a href="https://github.com/MohammedAlkindi/DashboardX" rel="noopener">github.com/MohammedAlkindi/DashboardX</a>.</p>
+  </main>
+</div>
+</body>
+</html>
