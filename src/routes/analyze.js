@@ -17,11 +17,27 @@ import { rateLimit } from "../middleware/rateLimit.js";
 const MAX_QUESTION_LENGTH = 2000;
 
 // Vercel rejects serverless request bodies over ~4.5 MB before the function
-// runs, so the upload cap must sit under that; larger files go through the
-// URL path, which fetches server-side and allows 25 MB.
+// runs, so the aggregate budget — not just the per-file limit — is what
+// actually matters. Multer caps each file; this caps the whole request so a
+// 10-file upload of 4 MB each cannot slip past a per-file check.
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+export function assertAggregateUploadSize(files) {
+  const total = (files || []).reduce((sum, f) => sum + (f?.size || 0), 0);
+  if (total > MAX_UPLOAD_BYTES) {
+    throw new AppError(
+      `Uploads are limited to ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB per request in total. Analyze a larger file by pasting a link instead.`,
+      { status: 413, code: "upload_too_large" },
+    );
+  }
+  return total;
+}
+
+// Per-file limit; the aggregate guard above is what protects the request
+// budget. Larger files go through the URL path, which fetches server-side.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 4 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     ALLOWED_EXTENSIONS.includes(ext)
@@ -106,6 +122,7 @@ const router = Router();
 
 router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => {
   if (!req.file) throw new AppError("No file uploaded.", { status: 400, code: "no_file" });
+  assertAggregateUploadSize([req.file]);
   const question = validateQuestion(req.body.question);
   const apiKey   = resolveApiKey(req, { required: false });
   const model    = resolveModel(req.body.model);
@@ -167,6 +184,7 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
 
 router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req, res) => {
   if (!req.files || req.files.length === 0) throw new AppError("No files uploaded.", { status: 400, code: "no_file" });
+  assertAggregateUploadSize(req.files);
   const question = validateQuestion(req.body.question);
   const apiKey   = resolveApiKey(req, { required: false });
   const model    = resolveModel(req.body.model);

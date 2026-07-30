@@ -75,6 +75,8 @@
         <div id="fileList" class="file-list" style="display:none;"></div>
       </div>
 
+      <button id="sampleBtn" class="sample-btn" type="button">✨ Try sample data — no upload, no API key needed</button>
+
       <div class="url-input-wrap">
         <input id="urlInput" class="question-input" type="url"
           placeholder="…or paste an https:// link to a file in the cloud" spellcheck="false" />
@@ -91,7 +93,7 @@
       </label>
       <p class="save-toggle-hint" id="saveToggleHint" style="display:none;">The result (statistics, insights and sample rows — never your API key) will be stored server-side so you can reopen and share it.</p>
 
-      <button id="analyzeBtn" class="analyze-btn" disabled>Analyze with Claude →</button>
+      <button id="analyzeBtn" class="analyze-btn" disabled>Analyze data →</button>
       <div id="errorBox" class="error-box" style="display:none;"></div>
 
       <div id="historySection" class="history-section" style="display:none;">
@@ -124,6 +126,8 @@
             <div class="dash-meta" id="dashMeta"></div>
           </div>
           <div class="dash-actions">
+            <button class="reset-btn" id="exportJsonBtn">⬇ JSON</button>
+            <button class="reset-btn" id="exportReportBtn">🖨 Report</button>
             <button class="reset-btn" id="shareBtn" style="display:none;">🔗 Share</button>
             <button class="reset-btn" id="resetBtn">← New Files</button>
           </div>
@@ -131,6 +135,13 @@
 
         <!-- Sheet picker (multi-sheet workbooks) -->
         <div id="sheetBar" class="sheet-bar" style="display:none;"></div>
+
+        <!-- Optional target column for focused evidence -->
+        <div id="targetBar" class="sheet-bar" style="display:none;">
+          <label class="sheet-bar-label" for="targetSelect">Target column</label>
+          <select id="targetSelect" class="target-select"></select>
+          <span class="target-hint">Focus the evidence on one outcome — group differences, correlations, trends.</span>
+        </div>
 
         <!-- Cross-file summary (multi-file only) -->
         <div id="crossSummarySection" style="display:none;" class="animate animate-delay-1">
@@ -158,6 +169,11 @@
               <div class="explain-sub" id="explainSub">Statistics, quality checks and evidence below were computed locally on the server — no AI involved yet.</div>
             </div>
             <button id="explainBtn" class="analyze-btn explain-btn" type="button">Explain with Claude →</button>
+          </div>
+
+          <div id="evidenceSection" class="animate animate-delay-2" style="display:none;">
+            <div class="card-title">Evidence <span class="ai-badge">deterministic</span></div>
+            <div id="evidenceList" class="evidence-list"></div>
           </div>
 
           <div class="summary-card animate animate-delay-2" id="summaryCard">

@@ -893,3 +893,37 @@ html, body {
 .doc-page code { font-family: 'DM Mono', monospace; font-size: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
 .doc-page a { color: var(--accent); }
 @media (max-width: 640px) { .topbar-nav { gap: 10px; } .topbar-link { font-size: 12px; } }
+
+/* ─── Evidence panel ───────────────────────────────────────────── */
+.evidence-list { display: flex; flex-direction: column; gap: 10px; }
+.evidence-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+}
+.evidence-head { display: flex; align-items: baseline; gap: 9px; }
+.evidence-claim { font-size: 13.5px; color: var(--text); }
+.evidence-strength {
+  font-family: 'DM Mono', monospace; font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.05em; padding: 2px 7px; border-radius: 4px; flex-shrink: 0;
+  border: 1px solid;
+}
+.evidence-strength.strong   { color: var(--green); background: var(--green-bg);  border-color: #bbf7d0; }
+.evidence-strength.moderate { color: var(--accent); background: var(--accent-bg); border-color: #bfdbfe; }
+.evidence-strength.weak     { color: var(--text-3); background: var(--surface-2); border-color: var(--border); }
+.evidence-meta { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--text-3); margin-top: 5px; }
+.evidence-caveat { font-size: 11.5px; color: var(--amber); margin-top: 4px; }
+
+/* ─── Target selector + sample button ──────────────────────────── */
+.target-select {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12.5px;
+}
+.target-hint { font-size: 11.5px; color: var(--text-3); }
+.sample-btn {
+  width: 100%; margin-top: 12px; padding: 11px;
+  background: var(--surface); color: var(--text-2);
+  border: 1px dashed var(--border-2); border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.15s;
+}
+.sample-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.sample-btn:disabled { opacity: 0.5; cursor: not-allowed; }

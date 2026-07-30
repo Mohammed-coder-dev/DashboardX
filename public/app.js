@@ -47,6 +47,13 @@ const explainBar        = document.getElementById("explainBar");
 const explainSub        = document.getElementById("explainSub");
 const explainBtn        = document.getElementById("explainBtn");
 const summaryCard       = document.getElementById("summaryCard");
+const evidenceSection   = document.getElementById("evidenceSection");
+const evidenceList      = document.getElementById("evidenceList");
+const targetBar         = document.getElementById("targetBar");
+const targetSelect      = document.getElementById("targetSelect");
+const sampleBtn         = document.getElementById("sampleBtn");
+const exportJsonBtn     = document.getElementById("exportJsonBtn");
+const exportReportBtn   = document.getElementById("exportReportBtn");
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -232,6 +239,8 @@ let activeTabIdx   = 0;
 // What produced the current dashboard, so sheet chips can re-run it.
 // null when it came from history/share (no re-runnable source).
 let lastSource     = null;
+let lastSheet      = null;
+let currentTarget  = null;
 
 // ─── File handling ────────────────────────────────────────────
 fileInput.addEventListener("change", (e) => handleFiles([...e.target.files]));
@@ -310,7 +319,7 @@ tabsBar.addEventListener("click", (e) => {
 });
 
 // ─── Analyze ──────────────────────────────────────────────────
-analyzeBtn.addEventListener("click", () => runAnalysis());
+analyzeBtn.addEventListener("click", () => { currentTarget = null; runAnalysis(); });
 resetBtn.addEventListener("click", resetDashboard);
 
 const sheetBar = document.getElementById("sheetBar");
@@ -340,7 +349,7 @@ async function runAnalysis(sheet) {
   if (selectedFiles.length === 0) return;
   const totalBytes = selectedFiles.reduce((sum, f) => sum + f.size, 0);
   if (totalBytes > MAX_REQUEST_BYTES) {
-    showError("Uploads are limited to 4 MB per request — analyze larger files by pasting a link instead.");
+    showError("Uploads are limited to 4 MB per request in total — analyze a larger file by pasting a link instead.");
     return;
   }
   showScreen("loading");
@@ -354,10 +363,12 @@ async function runAnalysis(sheet) {
     loadingFileCount.textContent = `Analyzing ${selectedFiles.length} files in parallel...`;
   }
 
+  lastSheet = sheet || null;
   const formData = new FormData();
   formData.append("question", question);
   formData.append("model", getModel() || modelSelect.value || "");
   if (sheet && !isMulti) formData.append("sheet", sheet);
+  if (currentTarget) formData.append("target", currentTarget);
 
   if (isMulti) {
     selectedFiles.forEach(f => formData.append("files", f));
@@ -417,6 +428,7 @@ async function runUrlAnalysis(sheet) {
         question: questionInput.value.trim(),
         model: getModel() || modelSelect.value || "",
         sheet: sheet || undefined,
+        target: currentTarget || undefined,
         save: saveToggle?.checked === true,
       }),
     });
@@ -589,6 +601,8 @@ function renderSingleFile(data, isTabbed) {
       <div class="var-notable">→ ${esc(v.notable)}</div>
     </div>`).join("") : "";
 
+  renderEvidence(data.evidence || []);
+  renderTargetBar(data);
   renderQuality(data.profile);
   if (!isTabbed) resetAsk(data, true);
 
@@ -684,6 +698,143 @@ function renderSingleFile(data, isTabbed) {
 }
 
 // ─── Follow-up Q&A ────────────────────────────────────────────
+// ─── Evidence panel (deterministic) ───────────────────────────
+const STRENGTH_CLASS = { "very strong": "strong", strong: "strong", moderate: "moderate", weak: "weak", negligible: "weak" };
+
+function renderEvidence(evidence) {
+  if (!evidence.length) { evidenceSection.style.display = "none"; return; }
+  evidenceSection.style.display = "";
+  evidenceList.innerHTML = evidence.map(e => `
+    <div class="evidence-item">
+      <div class="evidence-head">
+        <span class="evidence-strength ${STRENGTH_CLASS[e.strength] || "weak"}">${esc(e.strength)}</span>
+        <span class="evidence-claim">${esc(e.claim)}</span>
+      </div>
+      <div class="evidence-meta">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage · engine v${esc(e.engineVersion)}</div>
+      ${e.caveat ? `<div class="evidence-caveat">⚠ ${esc(e.caveat)}</div>` : ""}
+    </div>`).join("");
+}
+
+// ─── Target column selector ───────────────────────────────────
+function renderTargetBar(data) {
+  const { meta, columns, stats } = data;
+  // Re-running with a target needs a re-runnable source and a tabular file.
+  if (!lastSource || !meta?.isTabular || !columns?.length || allFileResults.length > 1) {
+    targetBar.style.display = "none";
+    return;
+  }
+  targetBar.style.display = "";
+  const numeric = columns.filter(c => stats?.[c]?.type === "numeric");
+  const rest    = columns.filter(c => !numeric.includes(c) && c !== "line");
+  targetSelect.innerHTML = `<option value="">No target — dataset-wide evidence</option>` +
+    numeric.map(c => `<option value="${esc(c)}">${esc(c)} (numeric)</option>`).join("") +
+    rest.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  targetSelect.value = meta.target || "";
+}
+
+targetSelect?.addEventListener("change", () => {
+  if (!lastSource) return;
+  currentTarget = targetSelect.value || null;
+  if (lastSource.kind === "url") runUrlAnalysis(lastSheet);
+  else runAnalysis(lastSheet);
+});
+
+// ─── Exports ──────────────────────────────────────────────────
+function activeResult() {
+  return allFileResults[activeTabIdx] || allFileResults[0] || null;
+}
+
+function exportBaseName() {
+  const name = activeResult()?.meta?.filename || "analysis";
+  return name.replace(/\.[^.]+$/, "").replace(/[^\w-]+/g, "_").slice(0, 60) || "analysis";
+}
+
+exportJsonBtn?.addEventListener("click", () => {
+  const current = activeResult();
+  if (!current) return;
+  const payload = { exportedAt: new Date().toISOString(), ...current };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${exportBaseName()}-analysis.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+
+exportReportBtn?.addEventListener("click", () => {
+  const current = activeResult();
+  if (!current || current.error) return;
+  const win = window.open("", "_blank");
+  if (!win) { alert("Allow pop-ups to export the printable report."); return; }
+  win.document.write(buildReportHtml(current));
+  win.document.close();
+});
+
+function buildReportHtml(data) {
+  const { meta = {}, stats = {}, correlations = [], evidence = [], profile, analysis } = data;
+  const statRows = Object.entries(stats).map(([col, s]) => {
+    const detail = s.type === "numeric"
+      ? `mean ${s.mean} · median ${s.median} · min ${s.min} · max ${s.max} · std ${s.std} · ${s.coverage}% coverage${s.invalid ? ` · ${s.invalid} invalid` : ""}`
+      : s.type === "date"
+        ? `${s.earliest || "—"} → ${s.latest || "—"} · ${s.validCount} valid${s.trend ? ` · trend ${s.trend}` : ""}`
+        : `${s.unique} unique · top: ${(s.top || []).slice(0, 3).map(t => `${t.value} (${t.percentage}%)`).join(", ")}`;
+    return `<tr><td>${esc(col)}</td><td>${esc(s.type)}</td><td>${esc(s.missing ?? 0)}</td><td>${esc(detail)}</td></tr>`;
+  }).join("");
+  const evidenceRows = evidence.map(e => `
+    <div class="ev"><strong>[${esc(e.strength)}]</strong> ${esc(e.claim)}
+      <div class="muted">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage</div>
+      ${e.caveat ? `<div class="muted">⚠ ${esc(e.caveat)}</div>` : ""}</div>`).join("") || `<p class="muted">None met the reporting thresholds.</p>`;
+  const corrRows = correlations.map(c =>
+    `<tr><td>${esc(c.columnA ?? c.colA)} ↔ ${esc(c.columnB ?? c.colB)}</td><td>${esc(c.coefficient ?? c.r)}</td><td>${esc(c.method || "pearson")}</td><td>${esc(c.n ?? "—")}</td><td>${esc(c.coverage ?? "—")}%</td></tr>`).join("");
+  const issues = (profile?.issues || []).map(i => `<li>[${esc(i.severity)}] ${esc(i.message)}</li>`).join("");
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Analysis report — ${esc(meta.filename || "dataset")}</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 800px; margin: 32px auto; padding: 0 24px; color: #1a1916; line-height: 1.55; }
+    h1 { font-size: 22px; margin-bottom: 2px; } h2 { font-size: 15px; margin: 26px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; } td, th { border: 1px solid #ddd; padding: 5px 8px; text-align: left; vertical-align: top; }
+    .muted { color: #6b6960; font-size: 11.5px; } .ev { margin-bottom: 10px; font-size: 13px; }
+    .meta { color: #6b6960; font-size: 12px; margin-bottom: 4px; }
+    .badge { display: inline-block; border: 1px solid #ccc; border-radius: 4px; padding: 0 6px; font-size: 10.5px; color: #6b6960; margin-left: 6px; }
+    .noprint { margin: 18px 0; } @media print { .noprint { display: none; } }
+  </style></head><body>
+  <h1>Analysis report — ${esc(meta.filename || "dataset")}</h1>
+  <div class="meta">${esc(meta.totalRows ?? "—")} rows · ${esc(meta.columns ?? "—")} columns${meta.target ? ` · target: ${esc(meta.target)}` : ""} · analysis schema v${esc(meta.schemaVersion || "—")} · evidence engine v${esc(meta.evidenceEngine || "—")}</div>
+  <div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div>
+  <h2>Evidence <span class="badge">deterministic</span></h2>${evidenceRows}
+  ${profile ? `<h2>Data quality <span class="badge">deterministic</span></h2>
+  <p>Health ${esc(profile.healthGrade)} (${esc(profile.healthScore)}/100) · completeness ${esc(profile.completeness)}% · ${esc(profile.duplicateRows)} duplicate rows</p>
+  ${issues ? `<ul class="muted">${issues}</ul>` : ""}` : ""}
+  <h2>Column statistics <span class="badge">deterministic</span></h2>
+  <table><tr><th>Column</th><th>Type</th><th>Missing</th><th>Detail</th></tr>${statRows}</table>
+  ${corrRows ? `<h2>Correlations <span class="badge">deterministic</span></h2>
+  <table><tr><th>Pair</th><th>Coefficient</th><th>Method</th><th>n</th><th>Coverage</th></tr>${corrRows}</table>` : ""}
+  ${analysis ? `<h2>AI interpretation <span class="badge">AI-generated</span></h2>
+  <p>${esc(analysis.summary || "")}</p>
+  ${(analysis.insights || []).map(i => `<div class="ev"><strong>${esc(i.title)}</strong><div>${esc(i.detail)}</div></div>`).join("")}
+  <p>${esc(analysis.conclusion || "")}</p>` : `<h2>AI interpretation</h2><p class="muted">Not included — this analysis ran deterministically without an API key.</p>`}
+  <p class="muted">Generated ${new Date().toISOString().slice(0, 10)}. Deterministic sections are computed; AI sections are model-generated interpretation of that computed evidence.</p>
+  </body></html>`;
+}
+
+// ─── Try sample data ──────────────────────────────────────────
+sampleBtn?.addEventListener("click", async () => {
+  try {
+    sampleBtn.disabled = true;
+    const res = await fetch("/samples/team-sales.csv");
+    if (!res.ok) throw new Error("Sample data is unavailable right now.");
+    const blob = await res.blob();
+    selectedFiles = [new File([blob], "team-sales-sample.csv", { type: "text/csv" })];
+    renderFileList();
+    currentTarget = null;
+    runAnalysis();
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    sampleBtn.disabled = false;
+  }
+});
+
+
 const askSection = document.getElementById("askSection");
 const askThread  = document.getElementById("askThread");
 const askInput   = document.getElementById("askInput");
