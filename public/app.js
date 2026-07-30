@@ -562,14 +562,29 @@ function renderSingleFile(data, isTabbed) {
     statsSection.style.display = "";
     rawTextSection.style.display = "none";
     statGrid.innerHTML = Object.entries(stats).map(([col, s]) => {
-      if (s.type === "numeric") return `<div class="stat-card">
+      if (s.type === "numeric") {
+        const coverage = s.coverage !== undefined
+          ? statRow("coverage", `${s.coverage}%${s.invalid ? ` (${s.invalid} invalid)` : ""}`)
+          : "";
+        return `<div class="stat-card">
         <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge numeric">numeric</span>
-        ${statRow("mean",s.mean)}${statRow("median",s.median)}${statRow("min",s.min)}${statRow("max",s.max)}${statRow("std",s.std)}${statRow("count",s.count)}
+        ${statRow("mean",s.mean)}${statRow("median",s.median)}${statRow("min",s.min)}${statRow("max",s.max)}${statRow("std",s.std)}${statRow("count",s.count)}${coverage}
       </div>`;
+      }
+      if (s.type === "date") return `<div class="stat-card">
+        <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge categorical">date</span>
+        ${statRow("valid",s.validCount)}${statRow("earliest",s.earliest||"—")}${statRow("latest",s.latest||"—")}${statRow("range",s.rangeDays != null ? s.rangeDays + " days" : "—")}${s.trend ? statRow("trend", s.trend) : ""}
+      </div>`;
+      // Categorical top values are { value, count, percentage } objects ranked
+      // by frequency; render the leading levels with their share.
+      const topText = (s.top || [])
+        .slice(0, 5)
+        .map(t => typeof t === "object" && t !== null ? `${t.value} (${t.percentage}%)` : String(t))
+        .join(", ");
       return `<div class="stat-card">
-        <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge categorical">categorical</span>
+        <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge categorical">${esc(s.role || "categorical")}</span>
         ${statRow("count",s.count)}${statRow("unique",s.unique)}
-        <div class="stat-row"><span class="stat-key">top values</span><span class="stat-val" style="font-size:10px;">${esc((s.top||[]).join(", "))}</span></div>
+        <div class="stat-row"><span class="stat-key">most common</span><span class="stat-val" style="font-size:10px;">${esc(topText)}</span></div>
       </div>`;
     }).join("");
   } else {
@@ -581,11 +596,21 @@ function renderSingleFile(data, isTabbed) {
   if (correlations && correlations.length > 0) {
     corrSection.style.display = "";
     corrList.innerHTML = correlations.map(c => {
-      const isPos = c.r >= 0, pct = Math.abs(c.r) * 100;
+      // Support both the current shape (columnA/coefficient/n/coverage) and the
+      // legacy colA/r shape still present in previously shared analyses.
+      const r = c.coefficient ?? c.r;
+      const colA = c.columnA ?? c.colA;
+      const colB = c.columnB ?? c.colB;
+      const isPos = r >= 0, pct = Math.abs(r) * 100;
+      const evidence = c.n !== undefined
+        ? `<div class="corr-meta">${esc(c.strength || "")} · ${esc(c.method || "pearson")} · n=${c.n} · ${c.coverage}% coverage${c.smallSample ? " · small sample" : ""}</div>`
+        : "";
+      const caveat = c.caveat ? `<div class="corr-caveat">⚠ ${esc(c.caveat)}</div>` : "";
       return `<div class="corr-item">
-        <div class="corr-cols">${esc(c.colA)} ↔ ${esc(c.colB)}</div>
+        <div class="corr-cols">${esc(colA)} ↔ ${esc(colB)}</div>
         <div class="corr-bar-wrap"><div class="corr-bar ${isPos?"positive":"negative"}" style="width:${pct}%"></div></div>
-        <div class="corr-val ${isPos?"positive":"negative"}">${c.r>0?"+":""}${c.r}</div>
+        <div class="corr-val ${isPos?"positive":"negative"}">${r>0?"+":""}${r}</div>
+        ${evidence}${caveat}
       </div>`;
     }).join("");
   } else corrSection.style.display = "none";

@@ -1,14 +1,34 @@
 // Output shape is enforced by the JSON schemas in schemas.js, so prompts
 // only carry the analytical instructions.
-export function buildTabularPrompt(columns, stats, correlations, sampleRows, question, profileSummary) {
-  return `You are DashboardX, an expert data analyst. Analyze this dataset.
+import { representativeSample } from "./analytics/sample.js";
+
+/**
+ * Render the representative sample with the reason each row was selected, so
+ * the model treats it as a deliberate cross-section rather than a preview it
+ * should generalise from.
+ */
+function renderSample(sample) {
+  if (!sample || sample.rows.length === 0) return "none";
+  const labelled = sample.rows.map((row, i) => ({
+    selectedBecause: sample.selections[i]?.reasons.join(", ") ?? "sample",
+    row,
+  }));
+  return `${sample.rows.length} of ${sample.totalRows} rows, chosen to span boundaries, central values, missing cells, outliers and category examples:
+${JSON.stringify(labelled, null, 2)}`;
+}
+
+export function buildTabularPrompt(columns, stats, correlations, rows, question, profileSummary) {
+  const sample = Array.isArray(rows) ? representativeSample(rows, columns, stats) : rows;
+  return `You are DashboardX, an expert data analyst. Explain this dataset's computed evidence.
 COLUMNS: ${columns.join(", ")}
 STATISTICS: ${JSON.stringify(stats, null, 2)}
-TOP CORRELATIONS: ${JSON.stringify(correlations, null, 2)}
+CORRELATIONS: ${JSON.stringify(correlations, null, 2)}
 DATA QUALITY PROFILE: ${profileSummary || "not computed"}
-SAMPLE ROWS: ${JSON.stringify(sampleRows.slice(0, 5), null, 2)}
+REPRESENTATIVE ROWS: ${renderSample(sample)}
 USER QUESTION: ${question || "Give me a full analysis."}
-Provide 3-6 insights (with concrete numbers), 3-5 variable explanations, and 2-4 chart suggestions whose x/y reference real column names. When the quality profile shows real problems (missing data, mixed types, duplicates, outliers), reflect them in your insights and caveats instead of ignoring them. Leave topics empty.`;
+Provide 3-6 insights (with concrete numbers), 3-5 variable explanations, and 2-4 chart suggestions whose x/y reference real column names. Leave topics empty.
+
+Ground every number in the statistics, correlations and evidence above — they are already computed, so quote them rather than recalculating from the sample rows. The representative rows are a deliberate cross-section, not a random preview: never infer a total, average or distribution from them. Report a correlation only with its sample size and note when a relationship rests on few paired observations or low coverage. Say "associated with", not "causes", unless the dataset itself establishes ordering. When the quality profile shows real problems (missing data, mixed types, duplicates, outliers), reflect them in your insights and caveats instead of ignoring them.`;
 }
 
 export function buildTextPrompt(fileType, rawText, question) {

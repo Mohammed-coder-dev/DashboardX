@@ -1,3 +1,5 @@
+import { numericValues } from "./values.js";
+
 const DATE_PATTERNS = [
   /^\d{4}-\d{2}-\d{2}([T ].*)?$/,          // ISO date / datetime
   /^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}$/, // 12/31/2024, 31-12-24
@@ -55,9 +57,9 @@ export function profileColumn(rawValues) {
     type = typeConsistency >= 0.8 ? dominant : "mixed";
   }
 
-  const outliers = type === "numeric"
-    ? countOutliers(present.map(Number).filter(n => !isNaN(n)))
-    : 0;
+  // numericValues (not raw Number()) so blanks and booleans never enter the
+  // outlier sample as 0 or 1.
+  const outliers = type === "numeric" ? countOutliers(numericValues(present)) : 0;
 
   return {
     type,

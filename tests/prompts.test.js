@@ -6,7 +6,7 @@ describe("buildTabularPrompt", () => {
     const prompt = buildTabularPrompt(
       ["region", "sales"],
       { sales: { type: "numeric", mean: 5 } },
-      [{ colA: "a", colB: "b", r: 0.9 }],
+      [{ columnA: "a", columnB: "b", coefficient: 0.9 }],
       [{ region: "GCC", sales: 5 }],
       "Which region wins?",
     );
@@ -16,11 +16,23 @@ describe("buildTabularPrompt", () => {
     expect(prompt).toContain("Which region wins?");
   });
 
-  it("caps sample rows at 5", () => {
-    const rows = Array.from({ length: 50 }, (_, i) => ({ marker: `row-${i}` }));
-    const prompt = buildTabularPrompt(["marker"], {}, [], rows, "");
-    expect(prompt).toContain("row-4");
-    expect(prompt).not.toContain("row-5\"");
+  it("sends a bounded representative sample, not the first N rows", () => {
+    // On a sorted export the first rows are the smallest values of one group;
+    // the sample must reach the far end of the dataset instead.
+    const rows = Array.from({ length: 200 }, (_, i) => ({ marker: `row-${i}`, v: i }));
+    const prompt = buildTabularPrompt(["marker", "v"], {}, [], rows, "");
+    expect(prompt).toContain("row-0");
+    expect(prompt).toContain("row-199");
+    expect(prompt).toContain("selectedBecause");
+    // Bounded: nowhere near all 200 rows are embedded.
+    const embedded = (prompt.match(/"row-\d+"/g) || []).length;
+    expect(embedded).toBeLessThanOrEqual(20);
+  });
+
+  it("instructs the model to explain computed evidence, not rediscover it", () => {
+    const prompt = buildTabularPrompt(["a"], {}, [], [{ a: 1 }], "");
+    expect(prompt).toContain("already computed");
+    expect(prompt).toMatch(/never infer a total, average or distribution/);
   });
 
   it("uses a default question when none is given", () => {

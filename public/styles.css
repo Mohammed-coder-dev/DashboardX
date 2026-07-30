@@ -388,7 +388,7 @@ html, body {
 /* ─── Correlations ───────────────────────────────────────────── */
 .corr-list { display: flex; flex-direction: column; gap: 8px; }
 
-.corr-item { display: flex; align-items: center; gap: 10px; }
+.corr-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 0; }
 
 .corr-cols {
   font-family: 'DM Mono', monospace; font-size: 11px;
@@ -404,6 +404,8 @@ html, body {
 .corr-val { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; width: 48px; text-align: right; }
 .corr-val.positive { color: var(--green); }
 .corr-val.negative { color: var(--red); }
+.corr-meta { flex-basis: 100%; font-size: 10.5px; color: var(--text-tertiary); margin-top: 2px; }
+.corr-caveat { flex-basis: 100%; font-size: 10.5px; color: var(--amber, #b45309); margin-top: 2px; }
 
 /* ─── Charts ─────────────────────────────────────────────────── */
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
