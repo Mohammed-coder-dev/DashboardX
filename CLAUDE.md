@@ -3,38 +3,56 @@
 > Project-specific context layered on top of the global standards in `~/.claude/CLAUDE.md`.
 
 ## What it does
-Upload a spreadsheet (or paste an https link to one) and get an AI dashboard
-back: stats, correlations, charts, and written insights. Bring-your-own
-Anthropic key; history and share links via Supabase.
+Turns spreadsheets and structured files into traceable findings: statistics,
+data-quality diagnostics, correlations and structured evidence — all computed
+deterministically, with **no API key required**. AI interpretation is an
+optional layer over that evidence, using the visitor's own Anthropic key.
 
 ## Stack
 Node 20+ ESM, Express 5, vanilla JS frontend (Chart.js), @anthropic-ai/sdk,
-@supabase/supabase-js, vitest. Deployed on Vercel (static `public/` +
-serverless `api/index.js`).
+@supabase/supabase-js, vitest, Playwright. Deployed on Vercel (static `public/`
++ serverless `api/index.js`).
 
 ## Commands
 ```bash
-npm ci          # install
-npm run dev     # local server with watch, http://localhost:3000
-npm test        # vitest unit suite — must pass before any commit
-npm start       # plain local server
+npm ci                # install
+npm run dev           # local server with watch, http://localhost:3000
+npm test              # vitest: unit + API integration — must pass before any commit
+npm run test:browser  # Playwright journeys (desktop + mobile)
+npm run test:all      # both
 ```
 
 ## Layout
 `src/routes` → `src/services` (anthropic, remoteFile, history) →
-`src/parsers` / `src/analytics` (pure). Errors are AppError instances
-normalized by `src/middleware/errorHandler.js`; JSON output shapes are
-enforced by `src/schemas.js` via structured outputs.
+`src/parsers` / `src/analytics` (pure). Errors are `AppError`s normalized by
+`src/middleware/errorHandler.js`; AI output shapes are enforced by
+`src/schemas.js` via structured outputs.
+
+`src/analytics/values.js` is the coercion layer everything numeric goes through.
+
+## Invariants — do not regress these
+- **Numbers are computed, never generated.** The model explains evidence that
+  already exists; it may not produce, estimate or recalculate a statistic.
+- **Never call `Number()` on a cell.** Use `toFiniteNumber` — `Number(null)`,
+  `Number("")` and `Number("   ")` are all `0`, which silently turns blanks
+  into observations. A genuine zero must survive.
+- **Correlations filter pairwise** and always report `n` and coverage.
+- **Claim strength is bounded by support**, not just by the headline number.
+- **The deterministic path never requires a key.** Only `/ask` and `/explain`
+  demand one.
+- **Persistence is opt-in per request.** A configured Supabase is capability,
+  not consent — never save because credentials happen to exist.
+- **API keys never reach the server's storage or logs**, never appear in a
+  saved payload, and never appear in an error message.
+- `src/analytics/` and `src/parsers/` stay pure and deterministic.
+- **`public/app.js` is a classic script** — no `import`/`export`/`import.meta`.
+  `node --check` won't catch it (package.json is `type: module`), the browser
+  will. `tests/frontend-script.test.js` guards it.
+- Everything rendered goes through `esc()` before `innerHTML`.
+- Tests never need a real key: the Anthropic SDK is mocked throughout.
 
 ## Conventions
-- Conventional commits, one logical change each.
-- External API calls only through `src/services/`; never call fetch/SDKs
-  from routes directly.
-- User API keys pass through per request (`x-anthropic-key`) — never store,
-  log, or echo them.
-- Every error reaching the client goes through `normalizeError` as
-  `{ error, code }`.
-- New pure logic goes in `parsers/`, `analytics/`, or service helpers with
-  unit tests in `tests/`.
-- Supabase is optional: guard new persistence features behind
-  `historyEnabled()` and degrade gracefully.
+Conventional commits, one logical change each. No AI co-author trailers —
+Mohammed is the sole author on this repository. Bump
+`EVIDENCE_ENGINE_VERSION` / `ANALYSIS_SCHEMA_VERSION` when their meaning
+changes. Release process in `docs/RELEASING.md`.
