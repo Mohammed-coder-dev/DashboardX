@@ -4,6 +4,7 @@ import multer from "multer";
 import { ALLOWED_EXTENSIONS, getFileType, parseFile } from "../parsers/index.js";
 import { computeStats } from "../analytics/stats.js";
 import { computeCorrelations } from "../analytics/correlations.js";
+import { ANALYSIS_SCHEMA_VERSION, buildEvidence, EVIDENCE_ENGINE_VERSION } from "../analytics/evidence.js";
 import { profileDataset, profileSummaryForPrompt } from "../analytics/profile.js";
 import { buildTabularPrompt, buildTextPrompt, buildCrossSummaryPrompt } from "../prompts.js";
 import { runAnalysis, resolveApiKey, resolveModel } from "../services/anthropic.js";
@@ -37,6 +38,23 @@ export function validateSheet(raw) {
   return raw;
 }
 
+export function validateTarget(raw) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  if (typeof raw !== "string" || raw.length > 200) {
+    throw new AppError("Invalid target column.", { status: 400, code: "invalid_target" });
+  }
+  return raw;
+}
+
+/** The target must name a real column of the parsed file. */
+function resolveTarget(target, columns) {
+  if (target === null) return null;
+  if (!columns.includes(target)) {
+    throw new AppError(`Target column "${target}" is not in this file.`, { status: 400, code: "unknown_target" });
+  }
+  return target;
+}
+
 export function validateQuestion(raw) {
   if (raw === undefined || raw === null || raw === "") return "";
   if (typeof raw !== "string") {
@@ -48,7 +66,7 @@ export function validateQuestion(raw) {
   return raw.trim();
 }
 
-async function analyzeParsedFile(parsed, question, { apiKey, model }) {
+async function analyzeParsedFile(parsed, question, { apiKey, model, target = null }) {
   const { rows, columns, isTabular, rawText } = parsed;
   // columns.length > 0, not > 1: a single-column sheet is still tabular —
   // the old > 1 check routed it to the text prompt, whose r.content lookup
@@ -57,12 +75,16 @@ async function analyzeParsedFile(parsed, question, { apiKey, model }) {
   const stats        = tabular ? computeStats(rows, columns) : {};
   const correlations = tabular ? computeCorrelations(rows, columns, stats) : [];
   const profile      = tabular ? profileDataset(rows, columns) : null;
+  // Multi-file requests reuse one target across files, so a file without that
+  // column falls back to untargeted evidence instead of failing the batch.
+  const effectiveTarget = tabular && target && columns.includes(target) ? target : null;
+  const evidence     = tabular ? buildEvidence(rows, columns, stats, { target: effectiveTarget }) : [];
   const fallbackText = rawText || rows.map(r => typeof r.content === "string" ? r.content : JSON.stringify(r)).join("\n");
   const prompt       = tabular
-    ? buildTabularPrompt(columns, stats, correlations, rows, question, profileSummaryForPrompt(profile))
+    ? buildTabularPrompt(columns, stats, correlations, rows, question, profileSummaryForPrompt(profile), evidence)
     : buildTextPrompt(parsed.fileType, fallbackText, question);
   const analysis = await runAnalysis({ apiKey, model, prompt, schema: ANALYSIS_SCHEMA });
-  return { stats, correlations, profile, analysis };
+  return { stats, correlations, profile, evidence, target: effectiveTarget, analysis };
 }
 
 const router = Router();
@@ -77,12 +99,14 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
   const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
+  const target = isTabular ? resolveTarget(validateTarget(req.body.target), columns) : null;
 
-  const { stats, correlations, profile, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
+  const { stats, correlations, profile, evidence, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model, target });
 
   const body = {
-    meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model },
-    stats, correlations, profile, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
+    meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model,
+      target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION },
+    stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
   body.analysisId = await saveAnalysis({
@@ -102,13 +126,15 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
   const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
+  const target = isTabular ? resolveTarget(validateTarget(req.body?.target), columns) : null;
 
-  const { stats, correlations, profile, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
+  const { stats, correlations, profile, evidence, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model, target });
 
   const body = {
     meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
-      filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl },
-    stats, correlations, profile, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
+      filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl,
+      target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION },
+    stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
   body.analysisId = await saveAnalysis({
@@ -123,26 +149,31 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
   const question = validateQuestion(req.body.question);
   const apiKey   = resolveApiKey(req);
   const model    = resolveModel(req.body.model);
+  // One target across files; files lacking that column produce untargeted
+  // evidence rather than failing (see analyzeParsedFile).
+  const target   = validateTarget(req.body.target);
 
   const fileResults = await Promise.all(req.files.map(async (file) => {
     try {
       const parsed = await parseFile(file);
       const { rows, columns, isTabular, rawText } = parsed;
-      const { stats, correlations, profile, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model });
+      const { stats, correlations, profile, evidence, target: fileTarget, analysis } =
+        await analyzeParsedFile(parsed, question, { apiKey, model, target });
 
       return {
         filename: file.originalname,
         fileType: parsed.fileType,
         meta: { sheetName:parsed.sheetName, totalRows:parsed.totalRows, columns:columns.length,
-          fileType:parsed.fileType, isTabular, pages:parsed.pages, filename:file.originalname, size:file.size, model },
-        stats, correlations, profile, analysis,
+          fileType:parsed.fileType, isTabular, pages:parsed.pages, filename:file.originalname, size:file.size, model,
+          target: fileTarget, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION },
+        stats, correlations, profile, evidence, analysis,
         chartData: isTabular ? rows.slice(0,100) : [],
         columns,
         rawText: isTabular ? null : (rawText||"").slice(0,2000),
         error: null,
       };
     } catch (err) {
-      return { filename: file.originalname, fileType: getFileType(file.originalname), error: normalizeError(err).message, meta:{}, stats:{}, correlations:[], analysis:null, chartData:[], columns:[] };
+      return { filename: file.originalname, fileType: getFileType(file.originalname), error: normalizeError(err).message, meta:{}, stats:{}, correlations:[], evidence:[], analysis:null, chartData:[], columns:[] };
     }
   }));
 
