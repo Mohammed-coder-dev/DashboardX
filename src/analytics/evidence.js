@@ -153,6 +153,24 @@ function missingnessImpactEvidence(rows, target, column) {
   });
 }
 
+/** Minimum non-missing values before a distribution is worth reporting. */
+const MIN_DISTRIBUTION_SAMPLE = 8;
+/** Below this coverage a distribution describes a sliver, not the dataset. */
+const MIN_DISTRIBUTION_COVERAGE = 25;
+
+const STRENGTH_LADDER = ["very strong", "strong", "moderate", "weak", "negligible"];
+
+/**
+ * Weaken a strength rating by `steps` rungs. Used where a headline number is
+ * real but rests on a small or unrepresentative slice — a level holding 100% of
+ * six values in a 93%-empty column is not a strong finding about the dataset.
+ */
+function weaken(strength, steps) {
+  const index = STRENGTH_LADDER.indexOf(strength);
+  if (index === -1 || steps <= 0) return strength;
+  return STRENGTH_LADDER[Math.min(STRENGTH_LADDER.length - 1, index + steps)];
+}
+
 /** Share of the leading level for prominent categorical columns. */
 function distributionEvidence(rows, columns, stats, target) {
   const out = [];
@@ -160,18 +178,29 @@ function distributionEvidence(rows, columns, stats, target) {
   for (const column of candidates) {
     const s = stats[column];
     if (s?.type !== "categorical" || s.role !== "category" || !s.top?.length) continue;
+    // A mostly-empty column has no distribution worth claiming.
+    if (s.validCount < MIN_DISTRIBUTION_SAMPLE || s.coverage < MIN_DISTRIBUTION_COVERAGE) continue;
     const leader = s.top[0];
     if (leader.percentage < 20) continue;
+
+    const base = leader.percentage >= 60 ? "strong" : leader.percentage >= 35 ? "moderate" : "weak";
+    // Coverage bounds confidence: the share is exact, but it only describes the
+    // rows that actually had a value.
+    const strength = weaken(base, s.coverage < 50 ? 2 : s.coverage < 80 ? 1 : 0);
+    const levels = `${s.unique} level${s.unique === 1 ? "" : "s"}`;
+
     out.push(evidenceObject({
-      claim: `${column} is dominated by "${leader.value}" (${leader.percentage}% of ${s.validCount} values across ${s.unique} levels)`,
+      claim: `${column} is dominated by "${leader.value}" (${leader.percentage}% of ${s.validCount} values across ${levels})`,
       metric: "category_share",
       value: leader.percentage,
       columns: [column],
       method: "frequency count over non-missing values",
       sampleSize: s.validCount,
       coverage: s.coverage,
-      strength: leader.percentage >= 60 ? "strong" : leader.percentage >= 35 ? "moderate" : "weak",
-      caveat: s.missing > 0 ? `${s.missing} rows have no ${column}` : null,
+      strength,
+      caveat: s.missing > 0
+        ? `${s.missing} of ${rows.length} rows have no ${column}, so this describes ${s.coverage}% of the data`
+        : null,
     }));
   }
   return out;

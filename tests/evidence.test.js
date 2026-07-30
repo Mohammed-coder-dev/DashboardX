@@ -135,6 +135,36 @@ describe("buildEvidence", () => {
       expect(share.claim).toContain("active");
     });
 
+    it("ignores a distribution in a mostly-empty column", () => {
+      // 6 values in 91 rows: the 100% share is arithmetically true but says
+      // nothing about the dataset, so it must not be reported at all.
+      const rows = Array.from({ length: 91 }, (_, i) => ({
+        notes: i % 15 === 0 ? "priority account" : null,
+      }));
+      const evidence = evidenceFor(rows, ["notes"]);
+      expect(evidence.filter((e) => e.metric === "category_share")).toEqual([]);
+    });
+
+    it("weakens a distribution whose coverage is partial", () => {
+      // 60% coverage, and the present values are unanimous: real, but bounded.
+      const rows = Array.from({ length: 40 }, (_, i) => ({
+        tier: i < 24 ? "gold" : null,
+      }));
+      const [share] = evidenceFor(rows, ["tier"]).filter((e) => e.metric === "category_share");
+      expect(share).toBeDefined();
+      expect(share.value).toBe(100);
+      // 100% share would be "strong"; 60% coverage drops it one rung.
+      expect(share.strength).toBe("moderate");
+      expect(share.caveat).toContain("60% of the data");
+    });
+
+    it("pluralises the level count correctly", () => {
+      const single = Array.from({ length: 20 }, () => ({ flag: "only" }));
+      const [share] = evidenceFor(single, ["flag"]).filter((e) => e.metric === "category_share");
+      expect(share.claim).toContain("1 level)");
+      expect(share.claim).not.toContain("1 levels");
+    });
+
     it("reports chronological volume changes", () => {
       const rows = [];
       for (let m = 1; m <= 6; m++) {
