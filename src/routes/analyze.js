@@ -46,6 +46,15 @@ export function validateTarget(raw) {
   return raw;
 }
 
+/**
+ * Persistence is opt-in per request. Absent, blank or anything other than an
+ * explicit affirmative means "do not store" — a configured Supabase is
+ * capability, not consent.
+ */
+export function persistRequested(raw) {
+  return raw === true || raw === "true" || raw === "1" || raw === "on";
+}
+
 /** The target must name a real column of the parsed file. */
 function resolveTarget(target, columns) {
   if (target === null) return null;
@@ -109,10 +118,13 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
-  body.analysisId = await saveAnalysis({
-    sessionId: validSessionId(req.get("x-dx-session")), kind: "single",
-    filename: req.file.originalname, fileType: parsed.fileType, model, question, payload: body,
-  });
+  body.analysisId = persistRequested(req.body.save)
+    ? await saveAnalysis({
+        sessionId: validSessionId(req.get("x-dx-session")), kind: "single",
+        filename: req.file.originalname, fileType: parsed.fileType, model, question, payload: body,
+      })
+    : null;
+  body.meta.saved = Boolean(body.analysisId);
   res.json(body);
 });
 
@@ -137,10 +149,13 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
-  body.analysisId = await saveAnalysis({
-    sessionId: validSessionId(req.get("x-dx-session")), kind: "url",
-    filename: file.originalname, fileType: parsed.fileType, model, question, payload: body,
-  });
+  body.analysisId = persistRequested(req.body?.save)
+    ? await saveAnalysis({
+        sessionId: validSessionId(req.get("x-dx-session")), kind: "url",
+        filename: file.originalname, fileType: parsed.fileType, model, question, payload: body,
+      })
+    : null;
+  body.meta.saved = Boolean(body.analysisId);
   res.json(body);
 });
 
@@ -188,13 +203,14 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
   }
 
   const body = { files: fileResults, crossSummary, totalFiles: req.files.length, successCount: successful.length };
-  if (successful.length > 0) {
-    body.analysisId = await saveAnalysis({
-      sessionId: validSessionId(req.get("x-dx-session")), kind: "multi",
-      filename: req.files.map(f => f.originalname).join(", ").slice(0, 200),
-      fileType: "multi", model, question, payload: body,
-    });
-  }
+  body.analysisId = successful.length > 0 && persistRequested(req.body.save)
+    ? await saveAnalysis({
+        sessionId: validSessionId(req.get("x-dx-session")), kind: "multi",
+        filename: req.files.map(f => f.originalname).join(", ").slice(0, 200),
+        fileType: "multi", model, question, payload: body,
+      })
+    : null;
+  body.saved = Boolean(body.analysisId);
   res.json(body);
 });
 

@@ -62,3 +62,29 @@ export async function getAnalysis(id) {
   if (!data) throw new AppError("Analysis not found.", { status: 404, code: "not_found" });
   return data;
 }
+
+/**
+ * Delete a saved analysis. Scoped to the session that saved it, so a share
+ * link alone never grants deletion. Requires the session-scoped delete policy
+ * (see docs/ARCHITECTURE.md); without it Supabase reports zero rows removed
+ * and this surfaces as not_found rather than silently claiming success.
+ */
+export async function deleteAnalysis(id, sessionId) {
+  if (!UUID_RE.test(String(id))) {
+    throw new AppError("Invalid analysis id.", { status: 400, code: "invalid_id" });
+  }
+  if (!sessionId) {
+    throw new AppError("A session id is required to delete an analysis.", { status: 400, code: "missing_session" });
+  }
+  const { data, error } = await getClient()
+    .from("analyses")
+    .delete()
+    .eq("id", id)
+    .eq("session_id", sessionId)
+    .select("id");
+  if (error) throw new AppError("Could not delete analysis.", { status: 502, code: "history_unavailable" });
+  if (!data || data.length === 0) {
+    throw new AppError("Analysis not found for this session.", { status: 404, code: "not_found" });
+  }
+  return true;
+}

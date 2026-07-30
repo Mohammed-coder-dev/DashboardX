@@ -76,6 +76,12 @@
           placeholder="Optional: Ask a question about your files..." />
       </div>
 
+      <label class="save-toggle" for="saveToggle">
+        <input type="checkbox" id="saveToggle" />
+        <span>Save this analysis to history and enable a share link</span>
+      </label>
+      <p class="save-toggle-hint" id="saveToggleHint" style="display:none;">The result (statistics, insights and sample rows — never your API key) will be stored server-side so you can reopen and share it.</p>
+
       <button id="analyzeBtn" class="analyze-btn" disabled>Analyze with Claude →</button>
       <div id="errorBox" class="error-box" style="display:none;"></div>
 

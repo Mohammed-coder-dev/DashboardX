@@ -115,7 +115,14 @@ function esc(value) {
 const historySection = document.getElementById("historySection");
 const historyList    = document.getElementById("historyList");
 const shareBtn       = document.getElementById("shareBtn");
+const saveToggle     = document.getElementById("saveToggle");
+const saveToggleHint = document.getElementById("saveToggleHint");
 let currentAnalysisId = null;
+
+// Persistence is opt-in per analysis; surface what opting in means.
+saveToggle?.addEventListener("change", () => {
+  if (saveToggleHint) saveToggleHint.style.display = saveToggle.checked ? "" : "none";
+});
 
 function getSessionId() {
   let id = localStorage.getItem("dx_session");
@@ -136,10 +143,25 @@ async function loadHistory() {
         <span>${icon}</span>
         <span class="history-item-name">${esc(item.filename)}</span>
         <span class="history-item-meta">${esc(when)}</span>
+        <button class="history-delete" data-id="${esc(item.id)}" title="Delete this saved analysis" aria-label="Delete ${esc(item.filename)} from history">✕</button>
       </div>`;
     }).join("");
     historyList.querySelectorAll(".history-item").forEach(el =>
       el.addEventListener("click", () => openSaved(el.dataset.id)));
+    historyList.querySelectorAll(".history-delete").forEach(btn =>
+      btn.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        if (!confirm("Delete this saved analysis? Its share link will stop working.")) return;
+        try {
+          const res = await fetch(`/api/history/${encodeURIComponent(btn.dataset.id)}`, {
+            method: "DELETE",
+            headers: { "x-dx-session": getSessionId() },
+          });
+          if (!res.ok) throw new Error();
+          if (currentAnalysisId === btn.dataset.id) { currentAnalysisId = null; updateShareBtn(); }
+          loadHistory();
+        } catch (_) { alert("Could not delete this analysis."); }
+      }));
   } catch (_) { historySection.style.display = "none"; }
 }
 
@@ -334,6 +356,8 @@ async function runAnalysis(sheet) {
     formData.append("file", selectedFiles[0]);
   }
 
+  formData.append("save", saveToggle?.checked ? "true" : "false");
+
   try {
     const endpoint = isMulti ? "/api/analyze-multi" : "/api/analyze";
     const headers  = { "x-dx-session": getSessionId() };
@@ -384,6 +408,7 @@ async function runUrlAnalysis(sheet) {
         question: questionInput.value.trim(),
         model: getModel() || modelSelect.value || "",
         sheet: sheet || undefined,
+        save: saveToggle?.checked === true,
       }),
     });
     const data = await response.json()

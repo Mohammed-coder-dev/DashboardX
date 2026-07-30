@@ -1,6 +1,38 @@
 import { describe, it, expect } from "vitest";
-import { validateQuestion } from "../src/routes/analyze.js";
+import { persistRequested, validateQuestion, validateTarget } from "../src/routes/analyze.js";
 import { validSessionId } from "../src/services/history.js";
+
+describe("persistRequested", () => {
+  it("treats only an explicit affirmative as consent", () => {
+    expect(persistRequested(true)).toBe(true);
+    expect(persistRequested("true")).toBe(true);
+    expect(persistRequested("1")).toBe(true);
+    expect(persistRequested("on")).toBe(true);
+  });
+
+  it("defaults to no persistence for everything else", () => {
+    for (const value of [undefined, null, "", false, "false", "0", "off", "yes", 1, {}]) {
+      expect(persistRequested(value), `${JSON.stringify(value)} must not opt in`).toBe(false);
+    }
+  });
+});
+
+describe("validateTarget", () => {
+  it("returns null when no target was chosen", () => {
+    expect(validateTarget(undefined)).toBeNull();
+    expect(validateTarget(null)).toBeNull();
+    expect(validateTarget("")).toBeNull();
+  });
+
+  it("passes through a plausible column name", () => {
+    expect(validateTarget("revenue")).toBe("revenue");
+  });
+
+  it("rejects non-strings and oversized names", () => {
+    expect(() => validateTarget(42)).toThrowError(expect.objectContaining({ code: "invalid_target" }));
+    expect(() => validateTarget("x".repeat(201))).toThrowError(expect.objectContaining({ code: "invalid_target" }));
+  });
+});
 
 describe("validateQuestion", () => {
   it("returns empty string for absent questions", () => {
