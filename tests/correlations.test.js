@@ -141,6 +141,25 @@ describe("computeCorrelations", () => {
       expect(result.caveat).toContain("non-linear");
     });
 
+    it("does not let one outlier hide a monotonic relationship", () => {
+      // 24 points rise together, then one extreme x drags Pearson toward zero
+      // while the ranks stay almost perfectly ordered. Leading with Pearson
+      // would report nothing at all for a genuinely strong relationship.
+      const rows = Array.from({ length: 24 }, (_, i) => ({ x: i + 1, y: (i + 1) * 3 }));
+      rows.push({ x: 50_000, y: 40 });
+      const [result] = correlate(rows, ["x", "y"]);
+      expect(result).toBeDefined();
+      expect(Math.abs(result.pearson)).toBeLessThan(0.3);
+      expect(result.method).toBe("spearman");
+      expect(result.coefficient).toBeGreaterThan(0.8);
+      expect(result.caveat).toContain("non-linear");
+    });
+
+    it("still leads with Pearson when the two broadly agree", () => {
+      const rows = Array.from({ length: 30 }, (_, i) => ({ x: i, y: i * 2 + (i % 3) }));
+      expect(correlate(rows, ["x", "y"])[0].method).toBe("pearson");
+    });
+
     it("averages tied ranks instead of using input order", () => {
       expect(rankValues([10, 20, 20, 30])).toEqual([1, 2.5, 2.5, 4]);
       expect(rankValues([5, 5, 5])).toEqual([2, 2, 2]);

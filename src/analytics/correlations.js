@@ -12,6 +12,12 @@ export const MIN_PAIRS = 3;
 export const SMALL_SAMPLE_MAX = 12;
 /** Weaker relationships than this are not surfaced as findings. */
 export const MIN_REPORTED = 0.3;
+/**
+ * Gap between |Spearman| and |Pearson| that counts as the two methods telling
+ * materially different stories. Used both to pick the headline method and to
+ * attach the non-linearity caveat, so the two always agree.
+ */
+export const METHOD_DISAGREEMENT = 0.2;
 const MAX_RESULTS = 10;
 
 function pearson(xs, ys) {
@@ -90,10 +96,15 @@ export function computeCorrelations(rows, columns, stats = {}, options = {}) {
 
       const pearsonR = pearson(xs, ys);
       const spearmanR = method === "pearson" ? null : spearman(xs, ys);
-      // Spearman is the fallback when Pearson is undefined (a constant series)
-      // but ranks still vary; otherwise Pearson is the headline coefficient.
-      const primaryMethod = pearsonR !== null ? "pearson" : (spearmanR !== null ? "spearman" : null);
-      if (primaryMethod === null) continue;
+      if (pearsonR === null && spearmanR === null) continue;
+      // Report the method that best characterises the pair, not Pearson by
+      // default. A single extreme outlier can drag Pearson to ~0 while the
+      // ranks stay almost perfectly ordered; leading with Pearson there would
+      // hide a real monotonic relationship rather than describe it. The
+      // disagreement itself is surfaced as a caveat below.
+      const primaryMethod = pearsonR === null ? "spearman"
+        : spearmanR === null ? "pearson"
+        : (Math.abs(spearmanR) - Math.abs(pearsonR) >= METHOD_DISAGREEMENT ? "spearman" : "pearson");
       const coefficient = primaryMethod === "pearson" ? pearsonR : spearmanR;
       if (Math.abs(coefficient) < minReported) continue;
 
@@ -102,7 +113,8 @@ export function computeCorrelations(rows, columns, stats = {}, options = {}) {
       const caveats = [];
       if (smallSample) caveats.push(`only ${n} paired observations`);
       if (coverage < 60 && totalRows > 0) caveats.push(`${coverage}% of rows had both values`);
-      if (spearmanR !== null && pearsonR !== null && Math.abs(spearmanR - pearsonR) >= 0.2) {
+      if (spearmanR !== null && pearsonR !== null
+          && Math.abs(Math.abs(spearmanR) - Math.abs(pearsonR)) >= METHOD_DISAGREEMENT) {
         caveats.push("Pearson and Spearman disagree, suggesting a non-linear or outlier-driven pattern");
       }
 
