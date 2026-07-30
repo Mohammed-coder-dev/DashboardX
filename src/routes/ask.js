@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { RateLimiterMemory } from "rate-limiter-flexible";
+import { config } from "../config.js";
 import { runAnalysis, runFollowUp, resolveApiKey, resolveModel } from "../services/anthropic.js";
 import { buildFollowUpPrompt, buildTabularPrompt, buildTextPrompt } from "../prompts.js";
 import { profileSummaryForPrompt } from "../analytics/profile.js";
@@ -10,7 +11,7 @@ import { validateQuestion } from "./analyze.js";
 
 // Follow-ups are cheaper than full analyses, so they get their own
 // more generous limiter.
-const askLimiter = new RateLimiterMemory({ points: 20, duration: 60 });
+const askLimiter = new RateLimiterMemory({ points: config.rateLimitAskPoints, duration: 60 });
 
 // Serialized-size cap, not just an element-count cap: everything here is
 // stringified into the model prompt, so each part gets a byte budget and

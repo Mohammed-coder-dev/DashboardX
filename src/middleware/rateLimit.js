@@ -1,9 +1,10 @@
 import { RateLimiterMemory } from "rate-limiter-flexible";
+import { config } from "../config.js";
 import { AppError } from "../errors.js";
 
 // Per-instance in-memory limiter: on serverless each instance keeps its own
 // counters, so this bounds abuse per warm instance rather than globally.
-const analyzeLimiter = new RateLimiterMemory({ points: 10, duration: 60 });
+const analyzeLimiter = new RateLimiterMemory({ points: config.rateLimitPoints, duration: 60 });
 
 export function rateLimit(limiter = analyzeLimiter) {
   return async (req, res, next) => {
