@@ -143,7 +143,7 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
   };
   body.analysisId = persistRequested(req.body.save)
     ? await saveAnalysis({
-        sessionId: validSessionId(req.get("x-dx-session")), kind: "single",
+        sessionId: validSessionId(req.get("x-ridge-session")), kind: "single",
         filename: req.file.originalname, fileType: parsed.fileType, model, question, payload: body,
       })
     : null;
@@ -174,7 +174,7 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
   };
   body.analysisId = persistRequested(req.body?.save)
     ? await saveAnalysis({
-        sessionId: validSessionId(req.get("x-dx-session")), kind: "url",
+        sessionId: validSessionId(req.get("x-ridge-session")), kind: "url",
         filename: file.originalname, fileType: parsed.fileType, model, question, payload: body,
       })
     : null;
@@ -232,7 +232,7 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
   const body = { files: fileResults, crossSummary, totalFiles: req.files.length, successCount: successful.length };
   body.analysisId = successful.length > 0 && persistRequested(req.body.save)
     ? await saveAnalysis({
-        sessionId: validSessionId(req.get("x-dx-session")), kind: "multi",
+        sessionId: validSessionId(req.get("x-ridge-session")), kind: "multi",
         filename: req.files.map(f => f.originalname).join(", ").slice(0, 200),
         fileType: "multi", model, question, payload: body,
       })

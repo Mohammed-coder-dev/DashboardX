@@ -224,7 +224,7 @@ describe("persistence is opt-in", () => {
   it("does not save when the save flag is absent", async () => {
     const res = await fetch(`${base}/api/analyze`, {
       method: "POST",
-      headers: { "x-dx-session": "session-abcdefgh" },
+      headers: { "x-ridge-session": "session-abcdefgh" },
       body: csvForm(),
     });
     const body = await res.json();
@@ -236,7 +236,7 @@ describe("persistence is opt-in", () => {
   it("does not save when the save flag is explicitly false", async () => {
     await fetch(`${base}/api/analyze`, {
       method: "POST",
-      headers: { "x-dx-session": "session-abcdefgh" },
+      headers: { "x-ridge-session": "session-abcdefgh" },
       body: csvForm({ save: "false" }),
     });
     expect(saveAnalysisMock).not.toHaveBeenCalled();
@@ -246,7 +246,7 @@ describe("persistence is opt-in", () => {
     saveAnalysisMock.mockResolvedValue("11111111-2222-3333-4444-555555555555");
     const res = await fetch(`${base}/api/analyze`, {
       method: "POST",
-      headers: { "x-dx-session": "session-abcdefgh" },
+      headers: { "x-ridge-session": "session-abcdefgh" },
       body: csvForm({ save: "true" }),
     });
     const body = await res.json();
@@ -260,7 +260,7 @@ describe("persistence is opt-in", () => {
     mockAnalysisResponse();
     await fetch(`${base}/api/analyze`, {
       method: "POST",
-      headers: { "x-dx-session": "session-abcdefgh", "x-anthropic-key": FAKE_KEY },
+      headers: { "x-ridge-session": "session-abcdefgh", "x-anthropic-key": FAKE_KEY },
       body: csvForm({ save: "true" }),
     });
     const saved = JSON.stringify(saveAnalysisMock.mock.calls[0][0]);

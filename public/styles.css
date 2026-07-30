@@ -945,3 +945,6 @@ html, body {
   .dash-topbar { flex-direction: column; align-items: stretch; gap: 12px; }
   .dash-actions { flex-wrap: wrap; }
 }
+
+/* ─── Ridge mark ────────────────────────────────────────────────── */
+.brand-glyph { width: 17px; height: 16px; display: block; color: var(--bg); }

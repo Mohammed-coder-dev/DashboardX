@@ -1,17 +1,17 @@
-# DashboardX
+# Ridge
 
-[![CI](https://github.com/MohammedAlkindi/DashboardX/actions/workflows/ci.yml/badge.svg)](https://github.com/MohammedAlkindi/DashboardX/actions/workflows/ci.yml)
+[![CI](https://github.com/MohammedAlkindi/Ridge/actions/workflows/ci.yml/badge.svg)](https://github.com/MohammedAlkindi/Ridge/actions/workflows/ci.yml)
 
 An analyst's read on any spreadsheet. Upload a file — or paste a link to
 one — and get a grounded dashboard back: a deterministic data-quality
 grade, statistics, correlations, charts, written insights, and follow-up
 answers. Bring your own Anthropic API key; nothing is stored server-side.
 
-**Live demo:** [dashboardx-demo.vercel.app](https://dashboardx-demo.vercel.app)
+**Live demo:** [ridge-data.vercel.app](https://ridge-data.vercel.app)
 
 ## What it does
 
-DashboardX parses spreadsheets (`.xlsx`, `.xls`, `.csv` — including
+Ridge parses spreadsheets (`.xlsx`, `.xls`, `.csv` — including
 multi-sheet workbooks with a sheet picker), documents (`.pdf`, `.docx`,
 `.pptx`), and structured text (`.json`, `.txt`, `.md`). It profiles the
 data deterministically (missingness, type consistency, IQR outliers,

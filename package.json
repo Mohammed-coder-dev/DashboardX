@@ -1,7 +1,7 @@
 {
-  "name": "dashboardx",
+  "name": "ridge",
   "version": "2.0.0",
-  "description": "Upload a spreadsheet, get statistics, correlations, and AI insights back.",
+  "description": "Ridge turns spreadsheets and structured files into traceable findings, quality diagnostics, statistical evidence, and clear explanations.",
   "main": "server.js",
   "type": "module",
   "engines": {
@@ -16,21 +16,24 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MohammedAlkindi/DashboardX.git"
+    "url": "git+https://github.com/MohammedAlkindi/Ridge.git"
   },
   "keywords": [
-    "dashboard",
     "data-analysis",
-    "claude",
-    "excel",
-    "ai"
+    "spreadsheet",
+    "data-quality",
+    "statistics",
+    "evidence",
+    "anthropic",
+    "express",
+    "vercel"
   ],
   "author": "Mohammed Alkindi",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/MohammedAlkindi/DashboardX/issues"
+    "url": "https://github.com/MohammedAlkindi/Ridge/issues"
   },
-  "homepage": "https://github.com/MohammedAlkindi/DashboardX#readme",
+  "homepage": "https://github.com/MohammedAlkindi/Ridge#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
     "@supabase/supabase-js": "^2.110.9",

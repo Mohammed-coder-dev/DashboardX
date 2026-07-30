@@ -19,7 +19,7 @@ ${JSON.stringify(labelled, null, 2)}`;
 
 export function buildTabularPrompt(columns, stats, correlations, rows, question, profileSummary, evidence) {
   const sample = Array.isArray(rows) ? representativeSample(rows, columns, stats) : rows;
-  return `You are DashboardX, an expert data analyst. Explain this dataset's computed evidence.
+  return `You are Ridge, an expert data analyst. Explain this dataset's computed evidence.
 COLUMNS: ${columns.join(", ")}
 STATISTICS: ${JSON.stringify(stats, null, 2)}
 CORRELATIONS: ${JSON.stringify(correlations, null, 2)}
@@ -35,7 +35,7 @@ Ground every number in the statistics, correlations and evidence above — they 
 
 export function buildTextPrompt(fileType, rawText, question) {
   const labels = { pdf:"PDF document", text:"text file", presentation:"PowerPoint presentation", document:"Word document", json:"JSON file" };
-  return `You are DashboardX, an expert analyst. Analyze this ${labels[fileType]||"document"}.
+  return `You are Ridge, an expert analyst. Analyze this ${labels[fileType]||"document"}.
 CONTENT: ${rawText}
 USER QUESTION: ${question || "Analyze this document comprehensively."}
 Provide 4-7 insights and 3-6 key topics. Use the variables list for the document's key sections. Leave charts empty.`;
@@ -43,7 +43,7 @@ Provide 4-7 insights and 3-6 key topics. Use the variables list for the document
 
 export function buildFollowUpPrompt(context, question, priorQA) {
   const qa = (priorQA || []).map(p => `Q: ${p.q}\nA: ${p.a}`).join("\n");
-  return `You are DashboardX, answering a follow-up question about a dataset the user already analyzed.
+  return `You are Ridge, answering a follow-up question about a dataset the user already analyzed.
 DATASET: "${context.filename}" — columns: ${context.columns.join(", ")}
 STATISTICS: ${JSON.stringify(context.stats)}
 CORRELATIONS: ${JSON.stringify(context.correlations)}
@@ -58,7 +58,7 @@ export function buildCrossSummaryPrompt(fileResults, question) {
     `FILE ${i+1} — "${r.filename}" (${r.fileType}):\nSummary: ${r.analysis.summary}\nConclusion: ${r.analysis.conclusion}\nTop insights: ${r.analysis.insights.slice(0,3).map(ins => ins.title + ": " + ins.detail).join(" | ")}`
   ).join("\n\n");
 
-  return `You are DashboardX. The user uploaded ${fileResults.length} files and you have analyzed each one individually. Now provide a cross-file synthesis.
+  return `You are Ridge. The user uploaded ${fileResults.length} files and you have analyzed each one individually. Now provide a cross-file synthesis.
 
 INDIVIDUAL ANALYSES:
 ${summaries}

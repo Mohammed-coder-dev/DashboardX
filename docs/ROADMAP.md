@@ -1,4 +1,4 @@
-# DashboardX Development Roadmap
+# Ridge Development Roadmap
 
 This roadmap outlines the evolution from prototype to full AI data analysis platform.
 
@@ -120,7 +120,7 @@ Enable real-world usage and scalability.
 
 Final vision.
 
-AnalyzeX becomes an intelligent analytical system capable of:
+Ridge becomes an intelligent analytical system capable of:
 
 - dataset exploration
 - automated reporting

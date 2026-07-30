@@ -1,4 +1,4 @@
-/* ─── DashboardX — Frontend Logic ───────────────────────────── */
+/* ─── Ridge — Frontend Logic ───────────────────────────── */
 const uploadScreen    = document.getElementById("uploadScreen");
 const loadingScreen   = document.getElementById("loadingScreen");
 const dashboardScreen = document.getElementById("dashboardScreen");
@@ -65,9 +65,42 @@ const modelSelect     = document.getElementById("modelSelect");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const settingsStatus  = document.getElementById("settingsStatus");
 
+// ─── Browser storage (Ridge keys, migrated from the DashboardX era) ──
+const KEY_STORAGE     = "ridge_api_key";
+const MODEL_STORAGE   = "ridge_model";
+const SESSION_STORAGE = "ridge_session";
+
+// One-time rename of the pre-Ridge keys. `dx_*` appears here and in this
+// migration's tests only; everywhere else uses the names above. Each key is
+// copied to its new name in the store it was found in, then removed, so a
+// returning user keeps their key, model and history without noticing.
+function migrateLegacyStorage(stores = [localStorage, sessionStorage]) {
+  const renames = [
+    ["dx_api_key", KEY_STORAGE],
+    ["dx_model", MODEL_STORAGE],
+    ["dx_session", SESSION_STORAGE],
+  ];
+  const migrated = [];
+  for (const store of stores) {
+    if (!store) continue;
+    for (const [legacy, current] of renames) {
+      let value = null;
+      try { value = store.getItem(legacy); } catch { continue; }
+      if (value === null) continue;
+      // Never clobber a value already stored under the new name.
+      try {
+        if (store.getItem(current) === null) store.setItem(current, value);
+        store.removeItem(legacy);
+        migrated.push(legacy);
+      } catch { /* a full or blocked store must not break startup */ }
+    }
+  }
+  return migrated;
+}
+
+migrateLegacyStorage();
+
 // ─── API settings (BYOK) ──────────────────────────────────────
-const KEY_STORAGE   = "dx_api_key";
-const MODEL_STORAGE = "dx_model";
 const rememberKeyToggle = document.getElementById("rememberKeyToggle");
 let serverHasKey = false;
 let modelLabels  = {};
@@ -146,8 +179,8 @@ saveToggle?.addEventListener("change", () => {
 });
 
 function getSessionId() {
-  let id = localStorage.getItem("dx_session");
-  if (!id) { id = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem("dx_session", id); }
+  let id = localStorage.getItem(SESSION_STORAGE);
+  if (!id) { id = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem(SESSION_STORAGE, id); }
   return id;
 }
 
@@ -176,7 +209,7 @@ async function loadHistory() {
         try {
           const res = await fetch(`/api/history/${encodeURIComponent(btn.dataset.id)}`, {
             method: "DELETE",
-            headers: { "x-dx-session": getSessionId() },
+            headers: { "x-ridge-session": getSessionId() },
           });
           if (!res.ok) throw new Error();
           if (currentAnalysisId === btn.dataset.id) { currentAnalysisId = null; updateShareBtn(); }
@@ -380,7 +413,7 @@ async function runAnalysis(sheet) {
 
   try {
     const endpoint = isMulti ? "/api/analyze-multi" : "/api/analyze";
-    const headers  = { "x-dx-session": getSessionId() };
+    const headers  = { "x-ridge-session": getSessionId() };
     if (getApiKey()) headers["x-anthropic-key"] = getApiKey();
     const response = await fetch(endpoint, { method:"POST", headers, body:formData });
     const data     = await response.json()
@@ -418,7 +451,7 @@ async function runUrlAnalysis(sheet) {
   loadingFileCount.textContent = "Fetching file from URL...";
 
   try {
-    const headers = { "Content-Type": "application/json", "x-dx-session": getSessionId() };
+    const headers = { "Content-Type": "application/json", "x-ridge-session": getSessionId() };
     if (getApiKey()) headers["x-anthropic-key"] = getApiKey();
     const response = await fetch("/api/analyze-url", {
       method: "POST",
@@ -883,7 +916,7 @@ async function submitAsk() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-dx-session": getSessionId(),
+        "x-ridge-session": getSessionId(),
         ...(getApiKey() ? { "x-anthropic-key": getApiKey() } : {}),
       },
       body: JSON.stringify({
@@ -927,7 +960,7 @@ explainBtn?.addEventListener("click", async () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-dx-session": getSessionId(),
+        "x-ridge-session": getSessionId(),
         "x-anthropic-key": getApiKey(),
       },
       body: JSON.stringify({

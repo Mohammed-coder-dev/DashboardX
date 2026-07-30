@@ -8,7 +8,7 @@ export async function parsePDF(buffer) {
   const PDFParser = (await import("pdf2json")).default;
   // Random names, not timestamps: parallel parses in one instance would
   // collide on Date.now() and mix documents across requests.
-  const tmpPath   = path.join(os.tmpdir(), `dx_${randomUUID()}.pdf`);
+  const tmpPath   = path.join(os.tmpdir(), `ridge_${randomUUID()}.pdf`);
   fs.writeFileSync(tmpPath, buffer);
   return new Promise((resolve, reject) => {
     const parser = new PDFParser(null, 1);

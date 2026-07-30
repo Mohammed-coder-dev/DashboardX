@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#f7f6f2"/>
+  <rect x="72" y="72" width="76" height="76" rx="17" fill="#1a1916"/>
+  <path d="M86 128 L100 104 L110 117 L124 92 L136 113" fill="none" stroke="#f7f6f2"
+        stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="168" y="128" font-family="Georgia, serif" font-size="52" font-weight="700" fill="#1a1916">Ridge</text>
+  <text x="72" y="300" font-family="Georgia, serif" font-size="64" font-weight="700" fill="#1a1916">Evidence-backed analysis</text>
+  <text x="72" y="378" font-family="Georgia, serif" font-size="64" font-weight="700" fill="#1a1916">for spreadsheets.</text>
+  <text x="72" y="452" font-family="Helvetica, Arial, sans-serif" font-size="27" fill="#6b6960">Traceable statistics, quality diagnostics and optional AI explanations.</text>
+  <g font-family="ui-monospace, Menlo, monospace" font-size="20" fill="#6b6960">
+    <rect x="72" y="500" width="196" height="42" rx="21" fill="#ffffff" stroke="#e4e2db"/>
+    <text x="94" y="527">no API key needed</text>
+    <rect x="288" y="500" width="168" height="42" rx="21" fill="#ffffff" stroke="#e4e2db"/>
+    <text x="310" y="527">sample size + n</text>
+    <rect x="476" y="500" width="182" height="42" rx="21" fill="#ffffff" stroke="#e4e2db"/>
+    <text x="498" y="527">opt-in storage</text>
+  </g>
+  <path d="M760 470 L830 360 L880 415 L950 300 L1020 372 L1090 250" fill="none"
+        stroke="#2563eb" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+</svg>

@@ -18,7 +18,7 @@ router.get("/analysis/:id", async (req, res) => {
 
 router.delete("/history/:id", async (req, res) => {
   if (!historyEnabled()) throw new AppError("History is not configured.", { status: 404, code: "history_disabled" });
-  const sessionId = validSessionId(req.get("x-dx-session"));
+  const sessionId = validSessionId(req.get("x-ridge-session"));
   await deleteAnalysis(req.params.id, sessionId);
   res.json({ deleted: true });
 });

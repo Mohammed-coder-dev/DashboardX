@@ -1,4 +1,4 @@
-# DashboardX — project context for Claude Code
+# Ridge — project context for Claude Code
 
 > Project-specific context layered on top of the global standards in `~/.claude/CLAUDE.md`.
 

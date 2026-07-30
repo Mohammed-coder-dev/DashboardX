@@ -3,10 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DashboardX — App</title>
-  <meta name="description" content="Upload a spreadsheet or paste a link, add your Anthropic API key, and get a grounded AI dashboard: quality profile, statistics, charts, and follow-up answers." />
+  <title>Ridge | Evidence-backed spreadsheet analysis</title>
+  <meta name="description" content="Analyze spreadsheets and structured files with traceable statistics, quality diagnostics, and optional AI explanations." />
   <meta name="theme-color" content="#f7f6f2" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Ctext x='16' y='21.5' font-family='monospace' font-size='13' font-weight='bold' fill='%23f7f6f2' text-anchor='middle'%3EDX%3C/text%3E%3C/svg%3E" />
+  <link rel="canonical" href="https://ridge-data.vercel.app/" />
+  <meta property="og:site_name" content="Ridge" />
+  <meta property="og:title" content="Ridge | Evidence-backed spreadsheet analysis" />
+  <meta property="og:description" content="Ridge turns spreadsheets and structured files into traceable findings, quality diagnostics, statistical evidence, and clear explanations." />
+  <meta property="og:url" content="https://ridge-data.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://ridge-data.vercel.app/og.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ridge | Evidence-backed spreadsheet analysis" />
+  <meta name="twitter:description" content="Evidence-backed analysis for spreadsheets. Deterministic statistics and quality diagnostics with no API key required." />
+  <meta name="twitter:image" content="https://ridge-data.vercel.app/og.svg" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%231a1916%22%2F%3E%3Cpath%20d%3D%22M6%2022.5%20L11.5%2013%20L15.5%2018%20L21%208.5%20L26%2016.5%22%20fill%3D%22none%22%20stroke%3D%22%23f7f6f2%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
     integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
@@ -17,9 +28,9 @@
 
   <nav class="topbar">
     <div class="topbar-brand">
-      <div class="brand-mark">DX</div>
-      <span class="brand-name">DashboardX</span>
-      <span class="brand-tag">Beta</span>
+      <div class="brand-mark"><svg class="brand-glyph" viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span class="brand-name">Ridge</span>
+      <span class="brand-tag">Evidence</span>
     </div>
     <div class="topbar-nav">
       <a class="topbar-link" href="/about">About</a>
@@ -54,8 +65,8 @@
 
     <!-- Upload Screen -->
     <div id="uploadScreen" class="upload-section animate">
-      <h1 class="upload-headline">Turn any file<br>into intelligence.</h1>
-      <p class="upload-sub">Upload up to 10 files at once — Excel, CSV, JSON, PDF, PowerPoint, Word, or text. Each file is analyzed individually, then synthesized together.</p>
+      <h1 class="upload-headline">Evidence-backed analysis<br>for spreadsheets.</h1>
+      <p class="upload-sub">Ridge turns spreadsheets and structured files into traceable findings, quality diagnostics and statistical evidence. Runs without an API key — add one only if you want the results explained.</p>
 
       <div class="file-type-pills">
         <span class="pill">📊 Excel</span>

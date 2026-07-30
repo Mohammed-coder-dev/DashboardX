@@ -1,4 +1,4 @@
-﻿# AGENTS.md — DashboardX
+﻿# AGENTS.md — Ridge
 
 Read this and `CLAUDE.md` before working here. Full standards: `~/.claude/CLAUDE.md` and `~/Github/CLAUDE.md`.
 

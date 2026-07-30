@@ -131,7 +131,7 @@ export async function fetchRemoteFile(rawUrl) {
       response = await fetch(url, {
         redirect: "manual",
         signal: AbortSignal.timeout(FETCH_TIMEOUT),
-        headers: { "User-Agent": "DashboardX/2.0 (+https://github.com/MohammedAlkindi/DashboardX)" },
+        headers: { "User-Agent": "Ridge/2.0 (+https://github.com/MohammedAlkindi/Ridge)" },
       });
     } catch (err) {
       const timedOut = err?.name === "TimeoutError" || err?.name === "AbortError";

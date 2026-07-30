@@ -9,6 +9,17 @@ const SAMPLE_CSV = path.resolve(here, "../../public/samples/team-sales.csv");
 // deterministic product exactly as a first-time visitor experiences it.
 
 test.describe("the root URL is the application", () => {
+  test("loads without a single console error", async ({ page }) => {
+    // A parse error in app.js leaves every control inert but the page looking
+    // fine, so failures surface here rather than as a mystery timeout later.
+    const errors = [];
+    page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
+    page.on("pageerror", (err) => errors.push(String(err)));
+    await page.goto("/");
+    await expect(page.locator("#dropzone")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test("loads the app, not a marketing page", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("#dropzone")).toBeVisible();
@@ -124,8 +135,8 @@ test.describe("AI interpretation is optional", () => {
     await page.locator("#saveSettingsBtn").click();
 
     const stored = await page.evaluate(() => ({
-      session: sessionStorage.getItem("dx_api_key"),
-      local: localStorage.getItem("dx_api_key"),
+      session: sessionStorage.getItem("ridge_api_key"),
+      local: localStorage.getItem("ridge_api_key"),
     }));
     expect(stored.session).toBe("sk-ant-browser-journey-key-000");
     expect(stored.local).toBeNull();
@@ -139,8 +150,8 @@ test.describe("AI interpretation is optional", () => {
     await page.locator("#saveSettingsBtn").click();
 
     const stored = await page.evaluate(() => ({
-      session: sessionStorage.getItem("dx_api_key"),
-      local: localStorage.getItem("dx_api_key"),
+      session: sessionStorage.getItem("ridge_api_key"),
+      local: localStorage.getItem("ridge_api_key"),
     }));
     expect(stored.local).toBe("sk-ant-browser-journey-key-000");
     expect(stored.session).toBeNull();
