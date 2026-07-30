@@ -10,7 +10,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "vitest run tests"
+    "test": "vitest run tests --exclude tests/browser",
+    "test:browser": "playwright test",
+    "test:all": "npm run test && npm run test:browser"
   },
   "repository": {
     "type": "git",
@@ -41,6 +43,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "vitest": "^4.1.10"
   }
 }

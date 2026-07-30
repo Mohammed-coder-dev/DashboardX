@@ -927,3 +927,21 @@ html, body {
 }
 .sample-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 .sample-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Narrow viewports: let the top bar wrap instead of overflowing ──── */
+@media (max-width: 700px) {
+  .topbar {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 16px;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .topbar-brand { flex: 1 1 auto; }
+  .topbar-nav { flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+  .brand-tag { display: none; }
+  .settings-btn { white-space: nowrap; }
+  .main { padding: 24px 16px 60px; }
+  .dash-topbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .dash-actions { flex-wrap: wrap; }
+}

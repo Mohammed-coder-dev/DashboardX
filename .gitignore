@@ -12,3 +12,8 @@ coverage/
 .vercel
 .env*
 .claude/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
