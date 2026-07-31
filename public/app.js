@@ -589,7 +589,7 @@ function renderSingleFile(data, isTabbed) {
     return;
   }
 
-  const { meta, stats, correlations, analysis, chartData, columns, rawText } = data;
+  const { meta, stats, correlations, analysis, chartData, rawText } = data;
 
   if (!isTabbed) {
     const fileTypeLabel = { spreadsheet:"SPREADSHEET",json:"JSON",text:"TEXT FILE",pdf:"PDF",presentation:"POWERPOINT",document:"WORD DOC" }[meta.fileType]||meta.fileType.toUpperCase();

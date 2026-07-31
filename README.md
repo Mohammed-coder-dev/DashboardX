@@ -24,9 +24,21 @@ first — statistics, data quality, correlations, evidence — and that is the
 product. A language model is offered afterwards, optionally, and its only job is
 to explain evidence that already exists.
 
+## Layout
+
+| Route | What it is |
+|---|---|
+| `/` | Landing page — the problem, who it's for, how it works, what happens to your data |
+| `/app` | The analysis workspace — upload, evidence, statistics, exports |
+| `/privacy` | What is stored, and when |
+| `/docs` | Using the app |
+
+`/about` redirects to `/`. A share link of the form `/?a=<id>` forwards to
+`/app?a=<id>`, so links created before the landing/workspace split still open.
+
 ## Screenshots
 
-The application at `/` after **Try sample data**: deterministic evidence,
+The workspace at `/app` after **Try sample data**: deterministic evidence,
 statistics and quality diagnostics, with AI interpretation still un-run.
 
 <!-- To refresh: npm run dev, open http://localhost:3000, click "Try sample
@@ -180,7 +192,8 @@ provider call.
 
 Deployed on Vercel as static `public/` plus one serverless function
 (`api/index.js`). `vercel.json` disables framework detection, enables
-`cleanUrls`, and redirects `/app` → `/`.
+`cleanUrls`, redirects `/about` → `/`, and forwards `/?a=<id>` to `/app` so
+share links from the previous layout keep working.
 
 ```bash
 vercel --prod

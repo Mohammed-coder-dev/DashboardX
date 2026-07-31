@@ -66,11 +66,12 @@ tagged commit before creating the Release.
 3. Deploy production: `vercel --prod`.
 4. **Open the production URL and use it.** A successful deployment command is
    not evidence that the product works. At minimum:
-   - `/` loads the application, not a marketing page
+   - `/` loads the landing page and reaches the workspace in one click
+   - `/app` loads the workspace with a working dropzone
    - **Try sample data** returns evidence, statistics and a quality grade
      with no API key
-   - `/app?a=x` still redirects to `/?a=x`
-   - `/about`, `/privacy`, `/docs` load
+   - `/?a=x` forwards to `/app?a=x`; `/about` redirects to `/`
+   - `/privacy` and `/docs` load
    - the browser console is clean
 5. Confirm the deployed commit matches the tag.
 

@@ -22,8 +22,18 @@ Browser (public/)                Vercel                     External
 ```
 
 `public/` is served by the Vercel CDN; `/api/*` is rewritten to the Express
-app. `/app` redirects to `/` so links from the previous layout still resolve.
-Locally, `server.js` serves both.
+app. Locally, `server.js` serves both.
+
+### Routes
+
+| Route | Serves | Notes |
+|---|---|---|
+| `/` | `index.html` — landing page | Forwards to `/app` when the URL carries `?a=<id>`, so share links minted before the split still resolve |
+| `/app` | `app.html` — analysis workspace | The product; drag-and-drop, evidence, exports |
+| `/privacy` | `privacy.html` | What is stored, and when |
+| `/docs` | `docs.html` | Using the app; links to repository docs |
+| `/about` | — | 301 to `/`, which is the page it became |
+| `/api/*` | Express | Rewritten to `api/index.js` in production |
 
 ## Layers
 
