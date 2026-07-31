@@ -20,12 +20,17 @@ export function createApp() {
   // web page spend the server-side fallback Anthropic key from a visitor's
   // browser.
   app.use(express.json({ limit: "1mb" }));
-  // The application lives at the root. /app is kept as a redirect so shared
-  // links and bookmarks from the earlier layout keep working, query intact.
-  app.get(["/app", "/app.html"], (req, res) => {
+  // The landing page is the root; the analysis workspace lives at /app.
+  // Shared analyses were previously handed out as `/?a=<id>` links, so a root
+  // request carrying an analysis id forwards to the workspace with the query
+  // intact rather than stranding the visitor on marketing copy.
+  app.get("/", (req, res, next) => {
     const query = req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "";
-    res.redirect(302, `/${query}`);
+    if (req.query.a) return res.redirect(302, `/app${query}`);
+    return next();
   });
+  // /about was the product explanation before it became the landing page.
+  app.get(["/about", "/about.html"], (req, res) => res.redirect(301, "/"));
   // extensions lets /about, /privacy and /docs resolve to their .html files
   // locally, matching Vercel's cleanUrls behavior in production.
   app.use(express.static(path.join(__dirname, "..", "public"), { extensions: ["html"] }));

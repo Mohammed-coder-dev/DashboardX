@@ -72,7 +72,9 @@ html, body {
   z-index: 100;
 }
 
-.topbar-brand { display: flex; align-items: center; gap: 10px; }
+.topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; border-radius: var(--radius-sm); }
+.topbar-brand:hover .brand-name { color: var(--accent); }
+.topbar-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .brand-mark {
   width: 28px; height: 28px;

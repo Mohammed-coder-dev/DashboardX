@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ridge | Evidence-backed spreadsheet analysis</title>
+  <meta name="description" content="Analyze spreadsheets and structured files with traceable statistics, quality diagnostics, and optional AI explanations." />
+  <meta name="theme-color" content="#f7f6f2" />
+  <link rel="canonical" href="https://ridge-data.vercel.app/" />
+  <meta property="og:site_name" content="Ridge" />
+  <meta property="og:title" content="Ridge | Evidence-backed spreadsheet analysis" />
+  <meta property="og:description" content="Ridge turns spreadsheets and structured files into traceable findings, quality diagnostics, statistical evidence, and clear explanations." />
+  <meta property="og:url" content="https://ridge-data.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://ridge-data.vercel.app/og.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ridge | Evidence-backed spreadsheet analysis" />
+  <meta name="twitter:description" content="Evidence-backed analysis for spreadsheets. Deterministic statistics and quality diagnostics with no API key required." />
+  <meta name="twitter:image" content="https://ridge-data.vercel.app/og.svg" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%231a1916%22%2F%3E%3Cpath%20d%3D%22M6%2022.5%20L11.5%2013%20L15.5%2018%20L21%208.5%20L26%2016.5%22%20fill%3D%22none%22%20stroke%3D%22%23f7f6f2%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+    integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
+    crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="app">
+
+  <nav class="topbar">
+    <a class="topbar-brand" href="/" aria-label="Ridge home">
+      <div class="brand-mark"><svg class="brand-glyph" viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span class="brand-name">Ridge</span>
+      <span class="brand-tag">Evidence</span>
+    </a>
+    <div class="topbar-nav">
+      <a class="topbar-link" href="/privacy">Privacy</a>
+      <a class="topbar-link" href="/docs">Docs</a>
+      <button id="settingsBtn" class="settings-btn" type="button">⚙ API Settings</button>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- Settings Panel -->
+    <div id="settingsPanel" class="settings-panel" style="display:none;">
+      <div class="settings-field">
+        <label class="settings-label" for="apiKeyInput">Anthropic API key <span class="settings-optional">optional — unlocks AI interpretation</span></label>
+        <input id="apiKeyInput" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+        <p class="settings-hint">Kept in this browser tab by default and sent with each request to this app's backend, which forwards it to Anthropic. It is never stored on the server or written to logs. Get one at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+        <label class="save-toggle settings-remember" for="rememberKeyToggle">
+          <input type="checkbox" id="rememberKeyToggle" />
+          <span>Remember this key on this device (stores it in this browser until you remove it)</span>
+        </label>
+      </div>
+      <div class="settings-field">
+        <label class="settings-label" for="modelSelect">Model</label>
+        <select id="modelSelect" class="settings-input"></select>
+      </div>
+      <div class="settings-actions">
+        <button id="saveSettingsBtn" class="settings-save" type="button">Save</button>
+        <span id="settingsStatus" class="settings-status"></span>
+      </div>
+    </div>
+
+    <!-- Upload Screen -->
+    <div id="uploadScreen" class="upload-section animate">
+      <h1 class="upload-headline">Evidence-backed analysis<br>for spreadsheets.</h1>
+      <p class="upload-sub">Ridge turns spreadsheets and structured files into traceable findings, quality diagnostics and statistical evidence. Runs without an API key — add one only if you want the results explained.</p>
+
+      <div class="file-type-pills">
+        <span class="pill">📊 Excel</span>
+        <span class="pill">📋 CSV</span>
+        <span class="pill">🗂️ JSON</span>
+        <span class="pill">📄 PDF</span>
+        <span class="pill">📑 PowerPoint</span>
+        <span class="pill">📝 Word</span>
+        <span class="pill">🔤 Text</span>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
+        <span class="dropzone-icon" id="dropzoneIcon">📁</span>
+        <div class="dropzone-title">Drop files here or click to browse</div>
+        <div class="dropzone-sub">Up to 10 files · 4 MB per upload — bigger files via the link box below</div>
+        <div id="fileList" class="file-list" style="display:none;"></div>
+      </div>
+
+      <button id="sampleBtn" class="sample-btn" type="button">✨ Try sample data — no upload, no API key needed</button>
+
+      <div class="url-input-wrap">
+        <input id="urlInput" class="question-input" type="url"
+          placeholder="…or paste an https:// link to a file in the cloud" spellcheck="false" />
+      </div>
+
+      <div class="question-input-wrap">
+        <input id="questionInput" class="question-input" type="text"
+          placeholder="Optional: Ask a question about your files..." />
+      </div>
+
+      <label class="save-toggle" for="saveToggle">
+        <input type="checkbox" id="saveToggle" />
+        <span>Save this analysis to history and enable a share link</span>
+      </label>
+      <p class="save-toggle-hint" id="saveToggleHint" style="display:none;">The result (statistics, insights and sample rows — never your API key) will be stored server-side so you can reopen and share it.</p>
+
+      <button id="analyzeBtn" class="analyze-btn" disabled>Analyze data →</button>
+      <div id="errorBox" class="error-box" style="display:none;"></div>
+
+      <div id="historySection" class="history-section" style="display:none;">
+        <div class="history-title">Recent analyses</div>
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loadingScreen" style="display:none;">
+      <div class="loading-wrap">
+        <div class="spinner"></div>
+        <div class="loading-steps">
+          <div class="loading-step active" id="step1">PARSING FILES</div>
+          <div class="loading-step" id="step2">EXTRACTING CONTENT</div>
+          <div class="loading-step" id="step3">RUNNING AI ANALYSIS</div>
+          <div class="loading-step" id="step4">BUILDING DASHBOARD</div>
+        </div>
+        <div id="loadingFileCount" style="font-size:12px;color:var(--text-3);font-family:'DM Mono',monospace;margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboardScreen" style="display:none;">
+      <div class="dashboard">
+
+        <div class="dash-topbar animate">
+          <div>
+            <div class="dash-title" id="dashTitle">Analysis Complete</div>
+            <div class="dash-meta" id="dashMeta"></div>
+          </div>
+          <div class="dash-actions">
+            <button class="reset-btn" id="exportJsonBtn">⬇ JSON</button>
+            <button class="reset-btn" id="exportReportBtn">🖨 Report</button>
+            <button class="reset-btn" id="shareBtn" style="display:none;">🔗 Share</button>
+            <button class="reset-btn" id="resetBtn">← New Files</button>
+          </div>
+        </div>
+
+        <!-- Sheet picker (multi-sheet workbooks) -->
+        <div id="sheetBar" class="sheet-bar" style="display:none;"></div>
+
+        <!-- Optional target column for focused evidence -->
+        <div id="targetBar" class="sheet-bar" style="display:none;">
+          <label class="sheet-bar-label" for="targetSelect">Target column</label>
+          <select id="targetSelect" class="target-select"></select>
+          <span class="target-hint">Focus the evidence on one outcome — group differences, correlations, trends.</span>
+        </div>
+
+        <!-- Cross-file summary (multi-file only) -->
+        <div id="crossSummarySection" style="display:none;" class="animate animate-delay-1">
+          <div class="cross-summary-card">
+            <div class="cross-summary-label">🔗 Cross-File Synthesis</div>
+            <div class="cross-summary-text" id="crossSummaryText"></div>
+            <div class="cross-grid" id="crossGrid"></div>
+            <div id="crossInsights"></div>
+            <div class="cross-conclusion" id="crossConclusion"></div>
+          </div>
+        </div>
+
+        <!-- File tabs (multi-file) -->
+        <div id="fileTabs" style="display:none;" class="animate animate-delay-2">
+          <div class="tabs-bar" id="tabsBar"></div>
+        </div>
+
+        <!-- Per-file dashboard -->
+        <div id="fileDashboard">
+
+          <!-- Shown instead of the AI sections when the analysis ran without a key -->
+          <div id="explainBar" class="explain-bar animate animate-delay-2" style="display:none;">
+            <div>
+              <div class="explain-title">Deterministic results ready</div>
+              <div class="explain-sub" id="explainSub">Statistics, quality checks and evidence below were computed locally on the server — no AI involved yet.</div>
+            </div>
+            <button id="explainBtn" class="analyze-btn explain-btn" type="button">Explain with Claude →</button>
+          </div>
+
+          <div id="evidenceSection" class="animate animate-delay-2" style="display:none;">
+            <div class="card-title">Evidence <span class="ai-badge">deterministic</span></div>
+            <div id="evidenceList" class="evidence-list"></div>
+          </div>
+
+          <div class="summary-card animate animate-delay-2" id="summaryCard">
+            <div class="summary-label">AI Summary <span class="ai-badge">AI-generated interpretation</span></div>
+            <div class="summary-text" id="summaryText"></div>
+          </div>
+
+          <div id="qualitySection" style="display:none;" class="animate animate-delay-2">
+            <div class="card">
+              <div class="quality-header">
+                <div class="card-title">Data Quality</div>
+                <div class="quality-badges">
+                  <span id="qualityGrade" class="quality-grade"></span>
+                  <span id="qualityMeta" class="quality-meta"></span>
+                </div>
+              </div>
+              <div id="qualityIssues" class="quality-issues"></div>
+              <div id="qualityColumns" class="quality-columns"></div>
+            </div>
+          </div>
+
+          <div id="topicsSection" style="display:none;" class="animate animate-delay-2">
+            <div class="card">
+              <div class="card-title">Key Topics</div>
+              <div class="topics-list" id="topicsList"></div>
+            </div>
+          </div>
+
+          <div class="grid-2 animate animate-delay-3">
+            <div class="card">
+              <div class="card-title">Key Insights</div>
+              <div class="insights-list" id="insightsList"></div>
+            </div>
+            <div class="card">
+              <div class="card-title" id="varListTitle">Variable Explanations</div>
+              <div class="var-list" id="varList"></div>
+            </div>
+          </div>
+
+          <div id="statsSection" class="card animate animate-delay-3">
+            <div class="card-title">Statistical Summary</div>
+            <div class="stat-grid" id="statGrid"></div>
+          </div>
+
+          <div id="rawTextSection" style="display:none;" class="card animate animate-delay-3">
+            <div class="card-title">Content Preview</div>
+            <pre class="raw-text-preview" id="rawTextPreview"></pre>
+          </div>
+
+          <div id="chartsSection">
+            <div class="card-title" style="margin-bottom:16px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);">Charts</div>
+            <div class="charts-grid" id="chartsGrid"></div>
+          </div>
+
+          <div id="corrSection" style="display:none;">
+            <div class="card">
+              <div class="card-title">Correlations</div>
+              <div class="corr-list" id="corrList"></div>
+            </div>
+          </div>
+
+          <div class="conclusion-card animate animate-delay-4" id="conclusionSection">
+            <div class="conclusion-label">Analytical Conclusion</div>
+            <div class="conclusion-text" id="conclusionText"></div>
+          </div>
+
+          <div id="askSection" class="animate animate-delay-4" style="display:none;">
+            <div class="card">
+              <div class="card-title">Ask a follow-up</div>
+              <div id="askThread" class="ask-thread"></div>
+              <div class="ask-input-row">
+                <input id="askInput" class="question-input" type="text"
+                  placeholder="e.g. What is driving the outliers in this data?" />
+                <button id="askBtn" class="ask-btn" type="button">Ask</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

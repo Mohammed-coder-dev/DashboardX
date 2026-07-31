@@ -408,20 +408,41 @@ describe("safe errors", () => {
 });
 
 describe("routing", () => {
-  it("serves the application at the root", async () => {
+  it("serves the landing page at the root", async () => {
     const res = await fetch(`${base}/`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Evidence-backed");
+    // The workspace must not be inlined into the landing page.
+    expect(html).not.toContain("dropzone");
+  });
+
+  it("serves the application at /app", async () => {
+    const res = await fetch(`${base}/app`);
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("dropzone");
   });
 
-  it("redirects /app to / preserving the query string", async () => {
-    const res = await fetch(`${base}/app?a=abc123`, { redirect: "manual" });
+  it("forwards a shared root link to the workspace, query intact", async () => {
+    // Share links minted before the landing/app split were `/?a=<id>`.
+    const res = await fetch(`${base}/?a=abc123`, { redirect: "manual" });
     expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/?a=abc123");
+    expect(res.headers.get("location")).toBe("/app?a=abc123");
   });
 
-  it("serves the about, privacy and docs pages", async () => {
-    for (const path of ["/about", "/privacy", "/docs"]) {
+  it("leaves the landing page alone when there is no analysis id", async () => {
+    const res = await fetch(`${base}/`, { redirect: "manual" });
+    expect(res.status).toBe(200);
+  });
+
+  it("redirects /about to the landing page it became", async () => {
+    const res = await fetch(`${base}/about`, { redirect: "manual" });
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("/");
+  });
+
+  it("serves the privacy and docs pages", async () => {
+    for (const path of ["/privacy", "/docs"]) {
       const res = await fetch(`${base}${path}`);
       expect(res.status, path).toBe(200);
     }

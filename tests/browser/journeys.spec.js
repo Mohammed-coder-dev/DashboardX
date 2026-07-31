@@ -8,49 +8,91 @@ const SAMPLE_CSV = path.resolve(here, "../../public/samples/team-sales.csv");
 // The server runs without an Anthropic key, so these journeys exercise the
 // deterministic product exactly as a first-time visitor experiences it.
 
-test.describe("the root URL is the application", () => {
+test.describe("landing page at the root", () => {
+  test("presents the product, not the upload form", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveTitle(/Ridge/);
+    await expect(page.locator("h1")).toContainText(/Evidence-backed analysis for spreadsheets/i);
+    // The workspace must not be the first thing a visitor meets.
+    await expect(page.locator("#dropzone")).toHaveCount(0);
+  });
+
+  test("reaches the working engine in one click", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Open the app" }).first().click();
+    await expect(page).toHaveURL(/\/app$/);
+    await expect(page.locator("#dropzone")).toBeVisible();
+  });
+
+  test("covers problem, audience, trust and a footer", async ({ page }) => {
+    await page.goto("/");
+    const body = page.locator("body");
+    await expect(body).toContainText(/How it works/i);
+    await expect(body).toContainText(/Who it's for/i);
+    await expect(body).toContainText(/What happens to your data/i);
+    await expect(page.locator("footer")).toContainText(/GitHub/i);
+    await expect(page.locator("footer")).toContainText(/Privacy/i);
+  });
+
+  test("does not promise a key before the visitor can do anything", async ({ page }) => {
+    await page.goto("/");
+    // The old copy opened with "Add your Anthropic key" as step 01.
+    await expect(page.locator("#how")).not.toContainText(/Add your Anthropic key/i);
+    await expect(page.locator("#how")).toContainText(/no API key/i);
+  });
+
+  test("links to privacy and docs", async ({ page }) => {
+    for (const [label, heading] of [
+      ["Privacy", /Saved analyses \(opt-in\)/i],
+      ["Docs", /Using the app/i],
+    ]) {
+      await page.goto("/");
+      await page.getByRole("link", { name: label, exact: true }).first().click();
+      await expect(page.locator("body")).toContainText(heading);
+    }
+  });
+});
+
+test.describe("the application at /app", () => {
   test("loads without a single console error", async ({ page }) => {
     // A parse error in app.js leaves every control inert but the page looking
     // fine, so failures surface here rather than as a mystery timeout later.
     const errors = [];
     page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
     page.on("pageerror", (err) => errors.push(String(err)));
-    await page.goto("/");
+    await page.goto("/app");
     await expect(page.locator("#dropzone")).toBeVisible();
     expect(errors).toEqual([]);
   });
 
-  test("loads the app, not a marketing page", async ({ page }) => {
-    await page.goto("/");
+  test("offers analysis without asking for a key first", async ({ page }) => {
+    await page.goto("/app");
     await expect(page.locator("#dropzone")).toBeVisible();
-    await expect(page.locator("#analyzeBtn")).toBeVisible();
-    // A visitor is never asked for a key before they can do anything.
     await expect(page.locator("#analyzeBtn")).toHaveText(/Analyze data/);
   });
 
-  test("links to about, privacy and docs", async ({ page }) => {
-    await page.goto("/");
-    for (const [label, heading] of [
-      ["About", /Evidence-backed analysis for spreadsheets/i],
-      ["Privacy", /Saved analyses \(opt-in\)/i],
-      ["Docs", /Using the app/i],
-    ]) {
-      await page.goto("/");
-      await page.getByRole("link", { name: label, exact: true }).click();
-      await expect(page.locator("body")).toContainText(heading);
-    }
+  test("the wordmark returns to the landing page", async ({ page }) => {
+    await page.goto("/app");
+    await page.getByRole("link", { name: "Ridge home" }).click();
+    await expect(page).toHaveURL(/\/$/);
   });
 
-  test("redirects /app to / preserving the query string", async ({ page }) => {
-    await page.goto("/app?a=abc123");
-    expect(new URL(page.url()).pathname).toBe("/");
+  test("a shared root link forwards to the workspace with its query intact", async ({ page }) => {
+    // Share links minted before the split were handed out as /?a=<id>.
+    await page.goto("/?a=abc123");
+    expect(new URL(page.url()).pathname).toBe("/app");
     expect(new URL(page.url()).searchParams.get("a")).toBe("abc123");
+  });
+
+  test("/about redirects to the landing page", async ({ page }) => {
+    await page.goto("/about");
+    expect(new URL(page.url()).pathname).toBe("/");
   });
 });
 
 test.describe("deterministic analysis without an API key", () => {
   test("try sample data produces evidence and statistics", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").click();
 
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
@@ -67,7 +109,7 @@ test.describe("deterministic analysis without an API key", () => {
   });
 
   test("evidence carries method, sample size and coverage", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").click();
     await expect(page.locator("#evidenceSection")).toBeVisible({ timeout: 20_000 });
 
@@ -79,7 +121,7 @@ test.describe("deterministic analysis without an API key", () => {
   });
 
   test("correlations report their sample size", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#corrSection")).toBeVisible();
@@ -87,7 +129,7 @@ test.describe("deterministic analysis without an API key", () => {
   });
 
   test("uploading a file fixture works the same way", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#fileInput").setInputFiles(SAMPLE_CSV);
     await expect(page.locator(".file-chip-name")).toContainText("team-sales.csv");
     await page.locator("#analyzeBtn").click();
@@ -98,7 +140,7 @@ test.describe("deterministic analysis without an API key", () => {
 
 test.describe("target column selection", () => {
   test("re-runs the analysis focused on a target", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
 
@@ -115,7 +157,7 @@ test.describe("target column selection", () => {
 
 test.describe("AI interpretation is optional", () => {
   test("explain prompts for a key when none is configured", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").click();
     await expect(page.locator("#explainBar")).toBeVisible({ timeout: 20_000 });
 
@@ -126,14 +168,14 @@ test.describe("AI interpretation is optional", () => {
   });
 
   test("the key field offers session-only storage by default", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#settingsBtn").click();
     await expect(page.locator("#rememberKeyToggle")).not.toBeChecked();
     await expect(page.locator(".settings-hint")).toContainText(/forwards it to Anthropic/i);
   });
 
   test("a saved key stays out of localStorage unless remembered", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#settingsBtn").click();
     await page.locator("#apiKeyInput").fill("sk-ant-browser-journey-key-000");
     await page.locator("#saveSettingsBtn").click();
@@ -147,7 +189,7 @@ test.describe("AI interpretation is optional", () => {
   });
 
   test("remembering a key moves it to localStorage", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#settingsBtn").click();
     await page.locator("#apiKeyInput").fill("sk-ant-browser-journey-key-000");
     await page.locator("#rememberKeyToggle").check();
@@ -164,7 +206,7 @@ test.describe("AI interpretation is optional", () => {
 
 test.describe("persistence is opt-in", () => {
   test("the save toggle is off by default and explains itself", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await expect(page.locator("#saveToggle")).not.toBeChecked();
     await expect(page.locator("#saveToggleHint")).toBeHidden();
 
@@ -174,7 +216,7 @@ test.describe("persistence is opt-in", () => {
   });
 
   test("an unsaved analysis shows no share control", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#shareBtn")).toBeHidden();
@@ -183,7 +225,7 @@ test.describe("persistence is opt-in", () => {
 
 test.describe("exports", () => {
   test("exports the analysis as JSON", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
 
@@ -195,7 +237,7 @@ test.describe("exports", () => {
   });
 
   test("opens a printable report labelling deterministic and AI sections", async ({ page, context }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
 
@@ -212,7 +254,7 @@ test.describe("exports", () => {
 
 test.describe("error states", () => {
   test("rejects an unsupported file type with a readable message", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#fileInput").setInputFiles({
       name: "notes.exe", mimeType: "application/octet-stream", buffer: Buffer.from("x"),
     });
@@ -222,7 +264,7 @@ test.describe("error states", () => {
   });
 
   test("rejects an invalid URL", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#urlInput").fill("http://127.0.0.1/secret.csv");
     await page.locator("#analyzeBtn").click();
     await expect(page.locator("#errorBox")).toBeVisible({ timeout: 20_000 });
@@ -231,7 +273,7 @@ test.describe("error states", () => {
 
 test.describe("keyboard navigation", () => {
   test("the primary controls are reachable and operable by keyboard", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     // The settings button opens on Enter without a pointer.
     await page.locator("#settingsBtn").focus();
     await page.keyboard.press("Enter");
@@ -245,7 +287,7 @@ test.describe("keyboard navigation", () => {
   });
 
   test("the sample button runs from the keyboard", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app");
     await page.locator("#sampleBtn").focus();
     await page.keyboard.press("Enter");
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });

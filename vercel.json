@@ -16,8 +16,14 @@
   ],
   "redirects": [
     {
-      "source": "/app",
+      "source": "/about",
       "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "query", "key": "a" }],
+      "destination": "/app",
       "permanent": false
     }
   ]
