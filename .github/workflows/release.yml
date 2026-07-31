@@ -58,7 +58,16 @@ jobs:
             sleep 1
           done
           curl -sf http://127.0.0.1:3399/api/health | grep -q '"status":"ok"'
-          curl -sf http://127.0.0.1:3399/ | grep -q 'dropzone'
+          # / is the landing page and must NOT inline the workspace;
+          # /app is the workspace and must carry a working dropzone.
+          # Captured first so a failed fetch fails the grep rather than
+          # feeding an empty stream to a negated match and passing.
+          ROOT=$(curl -sf http://127.0.0.1:3399/)
+          echo "$ROOT" | grep -q 'Evidence-backed'
+          if echo "$ROOT" | grep -q 'dropzone'; then
+            echo '::error::the landing page inlines the workspace'; exit 1
+          fi
+          curl -sf http://127.0.0.1:3399/app | grep -q 'dropzone'
           kill $SERVER
 
       - name: No committed secrets
