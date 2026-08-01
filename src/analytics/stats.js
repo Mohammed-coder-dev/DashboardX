@@ -21,6 +21,38 @@ import { coveragePct, isMissing, quantile, round, toFiniteNumber } from "./value
 export const NUMERIC_TYPE_THRESHOLD = 0.5;
 const TOP_VALUES = 8;
 const OUTLIER_MIN_SAMPLE = 8;
+const MAX_HISTOGRAM_BINS = 10;
+
+/**
+ * Equal-width histogram over every valid value in a numeric field.
+ *
+ * The bins travel with the computed statistics so charts never have to infer a
+ * distribution from the 100 representative rows included for AI context.
+ */
+function histogram(numbers) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const value of numbers) {
+    if (value < min) min = value;
+    if (value > max) max = value;
+  }
+  if (min === max) {
+    return { method: "equal-width", bins: [{ start: min, end: max, count: numbers.length }] };
+  }
+
+  const binCount = Math.min(MAX_HISTOGRAM_BINS, Math.max(2, Math.ceil(Math.sqrt(numbers.length))));
+  const width = (max - min) / binCount;
+  const bins = Array.from({ length: binCount }, (_, index) => ({
+    start: round(min + index * width),
+    end: round(index === binCount - 1 ? max : min + (index + 1) * width),
+    count: 0,
+  }));
+  for (const value of numbers) {
+    const index = Math.min(Math.floor((value - min) / width), binCount - 1);
+    bins[index].count++;
+  }
+  return { method: "equal-width", bins };
+}
 
 function outlierReport(numbers) {
   if (numbers.length < OUTLIER_MIN_SAMPLE) {
@@ -115,6 +147,7 @@ function numericField(rawValues, total, totalRows) {
       q3: round(quantile(sorted, 0.75)),
       p95: round(quantile(sorted, 0.95)),
     },
+    histogram: histogram(numbers),
     outliers: outlierReport(numbers),
   };
 }

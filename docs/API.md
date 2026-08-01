@@ -61,11 +61,12 @@ Response:
     "aiIncluded": false,        // whether an AI interpretation is present
     "target": "revenue",        // echoed back, or null
     "saved": false,             // whether this response was persisted
-    "schemaVersion": "2.1", "evidenceEngine": "1.0.0"
+    "schemaVersion": "2.2", "evidenceEngine": "1.0.0"
   },
   "stats": { "revenue": { "type": "numeric", "validCount": 90, "missing": 1, "invalid": 0,
                           "coverage": 98.9, "min": 100, "max": 4980, "mean": 0, "median": 0,
-                          "std": 0, "quantiles": {}, "outliers": {} } },
+                          "std": 0, "quantiles": {},
+                          "histogram": { "method": "equal-width", "bins": [] }, "outliers": {} } },
   "correlations": [ { "columnA": "revenue", "columnB": "spend", "method": "spearman",
                       "coefficient": 0.9068, "pearson": -0.0895, "spearman": 0.9068,
                       "n": 90, "coverage": 98.9, "strength": "very strong",

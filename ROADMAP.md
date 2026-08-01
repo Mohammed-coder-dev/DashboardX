@@ -18,6 +18,8 @@ scope by construction.
 - Opt-in persistence, deletable saved analyses, session-scoped keys.
 - JSON and printable-report exports carrying schema and engine versions.
 - The application at the root URL; `/about`, `/privacy`, `/docs`.
+- Full-file deterministic charts for numeric distributions, category frequencies,
+  and date trends, available without an API key.
 
 ## Next — strengthening the evidence
 
@@ -35,12 +37,6 @@ scope by construction.
 
 ## Next — the product surface
 
-- **Charts from evidence, not from the model.** Chart specs currently arrive in
-  the AI response, so keyless analyses get no charts. Derive them
-  deterministically from column types and evidence so they appear without a key.
-- **Whole-file charting.** Charts render from up to 100 sample rows while the
-  statistics above them cover the whole file. Aggregate server-side so the two
-  agree.
 - **Column drill-down** — the full distribution and outlier list for one field.
 - **Comparison mode** — same schema, two files, what changed.
 

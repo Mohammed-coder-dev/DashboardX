@@ -706,7 +706,13 @@ function renderSingleFile(data, isTabbed) {
     }).join("");
   } else corrSection.style.display = "none";
 
-  const charts = (hasAI && analysis.charts) || [];
+  // Charts are derived from full-file aggregates computed by the deterministic
+  // engine. Older saved analyses without those aggregates retain their legacy
+  // AI chart specs as a compatibility fallback.
+  const deterministicCharts = buildDeterministicCharts(stats, meta.target);
+  const charts = deterministicCharts.length > 0
+    ? deterministicCharts
+    : (hasAI && analysis.charts) || [];
   if (charts.length > 0 && meta.isTabular) {
     chartsSection.style.display = "";
     chartsGrid.innerHTML = "";
@@ -717,12 +723,68 @@ function renderSingleFile(data, isTabbed) {
       const canvasId = `chart-${idx}`;
       card.innerHTML = `<div class="chart-title">${esc(spec.title)}</div><div class="chart-reason">${esc(spec.reason)}</div><canvas id="${canvasId}" class="chart-canvas" height="220"></canvas>`;
       chartsGrid.appendChild(card);
-      setTimeout(() => renderChart(canvasId, spec, chartData, stats), 50);
+      setTimeout(() => {
+        if (spec.deterministic) renderAggregateChart(canvasId, spec);
+        else renderChart(canvasId, spec, chartData, stats);
+      }, 50);
     });
   } else chartsSection.style.display = "none";
 
   conclusionText.textContent = hasAI ? analysis.conclusion : "";
   conclusionSection.style.display = hasAI ? "" : "none";
+}
+
+function buildDeterministicCharts(stats, target) {
+  const entries = Object.entries(stats || {});
+  if (target && stats?.[target]) {
+    entries.sort(([left], [right]) => left === target ? -1 : right === target ? 1 : 0);
+  }
+
+  const charts = [];
+  const usedKinds = new Set();
+  for (const [column, field] of entries) {
+    let chart = null;
+    if (field.type === "numeric" && field.histogram?.bins?.length && !usedKinds.has("numeric")) {
+      chart = {
+        deterministic: true,
+        kind: "histogram",
+        title: `${column} distribution`,
+        reason: `${field.validCount.toLocaleString()} valid values · ${field.coverage}% coverage · equal-width bins`,
+        labels: field.histogram.bins.map(bin => bin.start === bin.end ? String(bin.start) : `${bin.start}–${bin.end}`),
+        values: field.histogram.bins.map(bin => bin.count),
+        xLabel: column,
+        yLabel: "rows",
+      };
+      usedKinds.add("numeric");
+    } else if (field.type === "date" && field.periods?.length > 1 && !usedKinds.has("date")) {
+      chart = {
+        deterministic: true,
+        kind: "trend",
+        title: `${column} over time`,
+        reason: `${field.validCount.toLocaleString()} dated rows · ${field.granularity} buckets · ${field.coverage}% coverage`,
+        labels: field.periods.map(period => period.period),
+        values: field.periods.map(period => period.count),
+        xLabel: column,
+        yLabel: "rows",
+      };
+      usedKinds.add("date");
+    } else if (field.type === "categorical" && field.role === "category" && field.top?.length > 1 && !usedKinds.has("category")) {
+      chart = {
+        deterministic: true,
+        kind: "category",
+        title: `${column} breakdown`,
+        reason: `${field.validCount.toLocaleString()} valid values · top ${field.top.length} of ${field.unique} levels · ${field.coverage}% coverage`,
+        labels: field.top.map(item => item.value),
+        values: field.top.map(item => item.count),
+        xLabel: column,
+        yLabel: "rows",
+      };
+      usedKinds.add("category");
+    }
+    if (chart) charts.push(chart);
+    if (charts.length === 3) break;
+  }
+  return charts;
 }
 
 // ─── Follow-up Q&A ────────────────────────────────────────────
@@ -1013,6 +1075,30 @@ function renderQuality(profile) {
 }
 
 // ─── Chart rendering ──────────────────────────────────────────
+function renderAggregateChart(canvasId, spec) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const isTrend = spec.kind === "trend";
+  const cfg = {
+    type: isTrend ? "line" : "bar",
+    data: {
+      labels: spec.labels,
+      datasets: [{
+        data: spec.values,
+        borderColor: "#2563eb",
+        backgroundColor: isTrend ? "#2563eb11" : "#2563eb22",
+        borderWidth: isTrend ? 2 : 1.5,
+        borderRadius: isTrend ? 0 : 4,
+        pointRadius: isTrend ? 3 : 0,
+        fill: isTrend,
+        tension: isTrend ? 0.25 : 0,
+      }],
+    },
+    options: chartOptions(spec.xLabel, spec.yLabel),
+  };
+  chartInstances.push(new Chart(canvas.getContext("2d"), cfg));
+}
+
 function renderChart(canvasId, spec, data, stats) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
