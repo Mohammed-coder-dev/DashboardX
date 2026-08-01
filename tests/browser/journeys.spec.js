@@ -268,6 +268,10 @@ test.describe("error states", () => {
     await page.locator("#urlInput").fill("http://127.0.0.1/secret.csv");
     await page.locator("#analyzeBtn").click();
     await expect(page.locator("#errorBox")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#errorBox")).toContainText(/https/i);
+    // URL analysis uses the same deterministic pipeline as uploads. A missing
+    // Anthropic key must not divert the user into AI settings first.
+    await expect(page.locator("#settingsPanel")).toBeHidden();
   });
 });
 

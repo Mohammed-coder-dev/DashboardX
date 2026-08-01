@@ -440,11 +440,6 @@ async function runAnalysis(sheet) {
 }
 
 async function runUrlAnalysis(sheet) {
-  if (keyMissing()) {
-    settingsPanel.style.display = "";
-    showError("Add your Anthropic API key in Settings first — it stays in your browser.");
-    return;
-  }
   showScreen("loading");
   hideError();
   animateLoadingSteps();
