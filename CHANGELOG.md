@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Added
+
+- Full-file deterministic charts for numeric distributions, categorical
+  frequencies, and date trends. Charts now work without AI and cover the same
+  rows as the reported statistics.
+- Traceable analysis records with request ID, completion time, processing
+  duration, engine/schema versions, AI participation, and retention status.
+  JSON errors carry the same request ID as the `X-Request-ID` response header.
+- Production OCI packaging: a non-root Node 24 image, HTTP health check,
+  graceful shutdown, secret-safe build context, and a private-deployment
+  runbook with explicit scaling limits.
+- One-click sample analysis from the landing page.
+
+### Changed
+
+- Repositioned the landing page around defensible spreadsheet answers for
+  finance, operations, and analytics teams, with hosted and self-hosted paths.
+- Raised the supported Node.js floor to Node 22; the production container uses
+  the current Node 24 LTS line.
+- Analysis schema version is now `2.2` to include numeric histogram aggregates.
+
+### Fixed
+
+- HTTPS URL analysis no longer incorrectly requires an Anthropic key. The
+  deterministic path works for URL inputs exactly as it does for uploads.
+
 ## [2.1.0] — 2026-07-30
 
 The DashboardX → Ridge release. The product is now the deterministic evidence
