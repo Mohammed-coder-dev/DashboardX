@@ -109,6 +109,11 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#chartsSection")).toBeVisible();
     await expect(page.locator("#chartsSection .ai-badge")).toContainText(/full dataset/i);
     expect(await page.locator(".chart-card").count()).toBeGreaterThan(0);
+    await expect(page.locator("#analysisRecord")).toBeVisible();
+    await expect(page.locator("#analysisRecordSummary")).toContainText(/deterministic only/i);
+    await page.locator("#analysisRecord summary").click();
+    await expect(page.locator("#analysisRecordGrid")).toContainText(/not saved/i);
+    await expect(page.locator("#analysisRecordGrid")).toContainText(/request id/i);
   });
 
   test("evidence carries method, sample size and coverage", async ({ page }) => {

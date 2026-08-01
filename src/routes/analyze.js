@@ -16,6 +16,15 @@ import { rateLimit } from "../middleware/rateLimit.js";
 
 const MAX_QUESTION_LENGTH = 2000;
 
+function analysisRecord(req, startedAt, analysis) {
+  return {
+    requestId: req.requestId,
+    generatedAt: new Date().toISOString(),
+    processingMs: Math.max(0, Date.now() - startedAt),
+    aiIncluded: Boolean(analysis),
+  };
+}
+
 // Vercel rejects serverless request bodies over ~4.5 MB before the function
 // runs, so the aggregate budget — not just the per-file limit — is what
 // actually matters. Multer caps each file; this caps the whole request so a
@@ -121,6 +130,7 @@ async function analyzeParsedFile(parsed, question, { apiKey, model, target = nul
 const router = Router();
 
 router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => {
+  const startedAt = Date.now();
   if (!req.file) throw new AppError("No file uploaded.", { status: 400, code: "no_file" });
   assertAggregateUploadSize([req.file]);
   const question = validateQuestion(req.body.question);
@@ -136,8 +146,9 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
   const { stats, correlations, profile, evidence, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model, target });
 
   const body = {
-    meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model, aiIncluded: Boolean(analysis),
-      target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION },
+    meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model,
+      target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
+      ...analysisRecord(req, startedAt, analysis) },
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
@@ -152,6 +163,7 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
 });
 
 router.post("/analyze-url", rateLimit(), async (req, res) => {
+  const startedAt = Date.now();
   const question = validateQuestion(req.body?.question);
   const apiKey   = resolveApiKey(req, { required: false });
   const model    = resolveModel(req.body?.model);
@@ -167,8 +179,9 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
 
   const body = {
     meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
-      filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl, aiIncluded: Boolean(analysis),
-      target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION },
+      filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl,
+      target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
+      ...analysisRecord(req, startedAt, analysis) },
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
   };
@@ -183,6 +196,7 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
 });
 
 router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req, res) => {
+  const startedAt = Date.now();
   if (!req.files || req.files.length === 0) throw new AppError("No files uploaded.", { status: 400, code: "no_file" });
   assertAggregateUploadSize(req.files);
   const question = validateQuestion(req.body.question);
@@ -204,7 +218,8 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
         fileType: parsed.fileType,
         meta: { sheetName:parsed.sheetName, totalRows:parsed.totalRows, columns:columns.length,
           fileType:parsed.fileType, isTabular, pages:parsed.pages, filename:file.originalname, size:file.size, model,
-          target: fileTarget, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION },
+          target: fileTarget, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
+          ...analysisRecord(req, startedAt, analysis) },
         stats, correlations, profile, evidence, analysis,
         chartData: isTabular ? rows.slice(0,100) : [],
         columns,
@@ -238,6 +253,9 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
       })
     : null;
   body.saved = Boolean(body.analysisId);
+  for (const result of fileResults) {
+    if (result.meta) result.meta.saved = body.saved;
+  }
   res.json(body);
 });
 

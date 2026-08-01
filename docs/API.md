@@ -61,6 +61,9 @@ Response:
     "aiIncluded": false,        // whether an AI interpretation is present
     "target": "revenue",        // echoed back, or null
     "saved": false,             // whether this response was persisted
+    "requestId": "92a...",      // also returned in the X-Request-ID header
+    "generatedAt": "2026-08-01T18:30:00.000Z",
+    "processingMs": 42,
     "schemaVersion": "2.2", "evidenceEngine": "1.0.0"
   },
   "stats": { "revenue": { "type": "numeric", "validCount": 90, "missing": 1, "invalid": 0,
@@ -87,6 +90,9 @@ Response:
 Errors: `no_file`, `unsupported_file_type`, `upload_too_large` (413),
 `empty_file`, `invalid_sheet`, `invalid_target`, `unknown_target`,
 `question_too_long`, `unsupported_model`, `invalid_api_key_format`.
+Every API response includes an `X-Request-ID` header. JSON error bodies echo it
+as `requestId` so an operator can correlate a user-visible failure without
+logging file contents, questions, or API keys.
 
 ---
 

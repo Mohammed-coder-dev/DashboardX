@@ -6,6 +6,7 @@ import askRouter from "./routes/ask.js";
 import healthRouter from "./routes/health.js";
 import historyRouter from "./routes/history.js";
 import { securityHeaders } from "./middleware/security.js";
+import { requestContext } from "./middleware/requestContext.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +17,7 @@ export function createApp() {
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(securityHeaders);
+  app.use(requestContext);
   // No CORS middleware: the API is same-origin only. Open CORS would let any
   // web page spend the server-side fallback Anthropic key from a visitor's
   // browser.

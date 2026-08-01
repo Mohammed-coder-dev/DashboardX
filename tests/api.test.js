@@ -92,6 +92,12 @@ describe("GET /api/health", () => {
     expect(body.models[0]).toHaveProperty("note");
     expect(body.defaultModel).toBe("claude-sonnet-5");
   });
+
+  it("returns a stable request ID for operational correlation", async () => {
+    const requestId = "ridge-test-request-123";
+    const res = await fetch(`${base}/api/health`, { headers: { "x-request-id": requestId } });
+    expect(res.headers.get("x-request-id")).toBe(requestId);
+  });
 });
 
 describe("upload validation", () => {
@@ -144,6 +150,9 @@ describe("deterministic analysis without a key", () => {
     expect(body.stats.revenue.missing).toBe(1);
     expect(body.meta.schemaVersion).toBeTruthy();
     expect(body.meta.evidenceEngine).toBeTruthy();
+    expect(body.meta.requestId).toBe(res.headers.get("x-request-id"));
+    expect(Number.isFinite(body.meta.processingMs)).toBe(true);
+    expect(Number.isFinite(Date.parse(body.meta.generatedAt))).toBe(true);
     expect(Array.isArray(body.evidence)).toBe(true);
     // No key was supplied, so the provider must never have been called.
     expect(createMessage).not.toHaveBeenCalled();
@@ -370,7 +379,8 @@ describe("safe errors", () => {
   it("returns a stable { error, code } shape and never a stack trace", async () => {
     const res = await fetch(`${base}/api/analyze`, { method: "POST", body: new FormData() });
     const body = await res.json();
-    expect(Object.keys(body).sort()).toEqual(["code", "error"]);
+    expect(Object.keys(body).sort()).toEqual(["code", "error", "requestId"]);
+    expect(body.requestId).toBe(res.headers.get("x-request-id"));
     expect(JSON.stringify(body)).not.toMatch(/at .*\.js:\d+/);
   });
 

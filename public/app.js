@@ -54,6 +54,9 @@ const targetSelect      = document.getElementById("targetSelect");
 const sampleBtn         = document.getElementById("sampleBtn");
 const exportJsonBtn     = document.getElementById("exportJsonBtn");
 const exportReportBtn   = document.getElementById("exportReportBtn");
+const analysisRecord    = document.getElementById("analysisRecord");
+const analysisRecordSummary = document.getElementById("analysisRecordSummary");
+const analysisRecordGrid = document.getElementById("analysisRecordGrid");
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -418,7 +421,7 @@ async function runAnalysis(sheet) {
     const response = await fetch(endpoint, { method:"POST", headers, body:formData });
     const data     = await response.json()
       .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}) — the upload may be too large.` }));
-    if (!response.ok) throw new Error(data.error || "Analysis failed.");
+    if (!response.ok) throw new Error(apiErrorMessage(data, "Analysis failed."));
     await delay(500);
 
     lastSource = isMulti ? null : { kind: "upload" };
@@ -462,7 +465,7 @@ async function runUrlAnalysis(sheet) {
     });
     const data = await response.json()
       .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}).` }));
-    if (!response.ok) throw new Error(data.error || "Analysis failed.");
+    if (!response.ok) throw new Error(apiErrorMessage(data, "Analysis failed."));
     await delay(500);
     lastSource = { kind: "url" };
     allFileResults = [data];
@@ -580,6 +583,7 @@ function renderSingleFile(data, isTabbed) {
     corrSection.style.display = "none";
     topicsSection.style.display = "none";
     qualitySection.style.display = "none";
+    analysisRecord.style.display = "none";
     conclusionText.textContent = "";
     return;
   }
@@ -632,6 +636,7 @@ function renderSingleFile(data, isTabbed) {
   renderEvidence(data.evidence || []);
   renderTargetBar(data);
   renderQuality(data.profile);
+  renderAnalysisRecord(meta);
   if (!isTabbed) resetAsk(data, true);
 
   const topics = (hasAI && analysis.topics) || [];
@@ -785,6 +790,35 @@ function buildDeterministicCharts(stats, target) {
     if (charts.length === 3) break;
   }
   return charts;
+}
+
+function renderAnalysisRecord(meta = {}) {
+  const hasRecord = meta.schemaVersion || meta.evidenceEngine || meta.requestId;
+  if (!hasRecord) {
+    analysisRecord.style.display = "none";
+    return;
+  }
+
+  const stored = meta.saved ? "Saved by request" : "Not saved";
+  const mode = meta.aiIncluded ? "Deterministic + AI" : "Deterministic only";
+  const duration = Number.isFinite(meta.processingMs) ? `${meta.processingMs.toLocaleString()} ms` : "Not recorded";
+  let generated = "Not recorded";
+  if (meta.generatedAt) {
+    const parsed = new Date(meta.generatedAt);
+    if (Number.isFinite(parsed.getTime())) generated = parsed.toLocaleString();
+  }
+
+  analysisRecord.style.display = "";
+  analysisRecordSummary.textContent = `${mode} · ${stored.toLowerCase()} · ${duration}`;
+  analysisRecordGrid.innerHTML = [
+    ["Processing mode", mode],
+    ["Data retention", stored],
+    ["Evidence engine", meta.evidenceEngine ? `v${meta.evidenceEngine}` : "Legacy analysis"],
+    ["Analysis schema", meta.schemaVersion ? `v${meta.schemaVersion}` : "Legacy analysis"],
+    ["Completed", generated],
+    ["Processing time", duration],
+    ["Request ID", meta.requestId || "Not recorded"],
+  ].map(([label, value]) => `<div class="analysis-record-item"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
 }
 
 // ─── Follow-up Q&A ────────────────────────────────────────────
@@ -993,7 +1027,7 @@ async function submitAsk() {
     });
     const data = await response.json()
       .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}).` }));
-    if (!response.ok) throw new Error(data.error || "Could not answer that.");
+    if (!response.ok) throw new Error(apiErrorMessage(data, "Could not answer that."));
     askQA.push({ q: question, a: data.answer });
     renderAskThread();
   } catch (err) {
@@ -1037,7 +1071,7 @@ explainBtn?.addEventListener("click", async () => {
       }),
     });
     const data = await response.json().catch(() => ({ error: "Unexpected response." }));
-    if (!response.ok) throw new Error(data.error || "Explanation failed.");
+    if (!response.ok) throw new Error(apiErrorMessage(data, "Explanation failed."));
     current.analysis = data.analysis;
     if (current.meta) current.meta.aiIncluded = true;
     renderSingleFile(current, allFileResults.length > 1);
@@ -1168,6 +1202,10 @@ function showScreen(name) {
 
 function showError(msg) { errorBox.textContent=msg; errorBox.style.display=""; }
 function hideError()    { errorBox.style.display="none"; errorBox.textContent=""; }
+function apiErrorMessage(data, fallback) {
+  const message = data?.error || fallback;
+  return data?.requestId ? `${message} Reference: ${data.requestId}.` : message;
+}
 
 function resetDashboard() {
   selectedFiles=[]; fileInput.value=""; allFileResults=[]; activeTabIdx=0;
