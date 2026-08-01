@@ -12,16 +12,25 @@ test.describe("landing page at the root", () => {
   test("presents the product, not the upload form", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/Ridge/);
-    await expect(page.locator("h1")).toContainText(/Evidence-backed analysis for spreadsheets/i);
+    await expect(page.locator("h1")).toContainText(/answers you can defend/i);
     // The workspace must not be the first thing a visitor meets.
     await expect(page.locator("#dropzone")).toHaveCount(0);
   });
 
   test("reaches the working engine in one click", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: "Open the app" }).first().click();
+    await page.getByRole("link", { name: "Analyze a file" }).first().click();
     await expect(page).toHaveURL(/\/app$/);
     await expect(page.locator("#dropzone")).toBeVisible();
+  });
+
+  test("reaches a computed sample analysis in one click", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Run the sample analysis" }).first().click();
+    await expect(page).toHaveURL(/\/app\?sample=1$/);
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#evidenceSection")).toBeVisible();
+    await expect(page.locator("#chartsSection")).toBeVisible();
   });
 
   test("covers problem, audience, trust and a footer", async ({ page }) => {
@@ -29,6 +38,7 @@ test.describe("landing page at the root", () => {
     const body = page.locator("body");
     await expect(body).toContainText(/How it works/i);
     await expect(body).toContainText(/Who it's for/i);
+    await expect(body).toContainText(/Deploy around your data boundary/i);
     await expect(body).toContainText(/What happens to your data/i);
     await expect(page.locator("footer")).toContainText(/GitHub/i);
     await expect(page.locator("footer")).toContainText(/Privacy/i);

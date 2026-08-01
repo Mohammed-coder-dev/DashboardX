@@ -3,13 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ridge | Evidence-backed spreadsheet analysis</title>
-  <meta name="description" content="Analyze spreadsheets and structured files with traceable statistics, quality diagnostics, and optional AI explanations. No API key required." />
+  <title>Ridge | Spreadsheet answers you can defend</title>
+  <meta name="description" content="Turn messy spreadsheets into computed evidence, full-file charts, quality diagnostics, and optional AI explanations. No signup or API key required." />
   <meta name="theme-color" content="#f7f6f2" />
-  <meta property="og:title" content="Ridge | Evidence-backed spreadsheet analysis" />
-  <meta property="og:description" content="Ridge turns spreadsheets into traceable findings, quality diagnostics and statistical evidence. Works without an API key." />
+  <link rel="canonical" href="https://ridge-data.vercel.app/" />
+  <meta property="og:site_name" content="Ridge" />
+  <meta property="og:title" content="Ridge | Spreadsheet answers you can defend" />
+  <meta property="og:description" content="Computed evidence, full-file charts, and quality diagnostics before AI explains a thing." />
   <meta property="og:url" content="https://ridge-data.vercel.app/" />
   <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://ridge-data.vercel.app/og.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ridge | Spreadsheet answers you can defend" />
+  <meta name="twitter:description" content="Computed evidence and data-quality diagnostics for the spreadsheets your team relies on." />
+  <meta name="twitter:image" content="https://ridge-data.vercel.app/og.svg" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%231a1916%22%2F%3E%3Cpath%20d%3D%22M6%2022.5%20L11.5%2013%20L15.5%2018%20L21%208.5%20L26%2016.5%22%20fill%3D%22none%22%20stroke%3D%22%23f7f6f2%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,600;0,700;1,500&display=swap');
@@ -132,6 +139,18 @@
     @keyframes grow { from { transform: scaleY(0); transform-origin: bottom; } to { transform: scaleY(1); transform-origin: bottom; } }
     .demo-insight { font-size: 13px; color: var(--graphite); line-height: 1.55; max-width: 34ch; }
     .demo-insight b { color: var(--ink); font-weight: 500; }
+    .proof-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      margin-top: 14px; border: 1px solid var(--grid); border-radius: 12px;
+      background: rgba(255,255,255,0.48); overflow: hidden;
+    }
+    .proof-item { padding: 15px 16px; border-right: 1px solid var(--grid); }
+    .proof-item:last-child { border-right: 0; }
+    .proof-item strong {
+      display: block; color: var(--ink); font-family: 'DM Mono', monospace;
+      font-size: 12px; font-weight: 500; text-transform: uppercase;
+    }
+    .proof-item span { color: var(--faint); font-size: 11px; }
 
     /* Sections */
     section { padding: 56px 0; border-top: 1px solid var(--grid); }
@@ -151,6 +170,18 @@
       color: var(--graphite); background: var(--grid);
       padding: 3px 8px; border-radius: 5px; margin-bottom: 12px;
     }
+    .deploy-panel {
+      display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 32px;
+      align-items: start; padding: 30px; background: var(--ink); color: var(--paper);
+      border-radius: 14px;
+    }
+    .deploy-panel h3 { font-family: 'Fraunces', serif; font-size: 25px; line-height: 1.2; margin-bottom: 12px; }
+    .deploy-panel p { color: #c8c5bc; font-size: 14px; }
+    .deploy-options { display: grid; gap: 10px; }
+    .deploy-option { padding: 12px 14px; border: 1px solid #3c3a35; border-radius: 8px; }
+    .deploy-option strong { display: block; font-size: 13px; margin-bottom: 2px; }
+    .deploy-option span { color: #a7a39a; font-size: 11.5px; }
+    .deploy-link { display: inline-block; margin-top: 18px; color: #93b4ff; font-size: 13px; }
 
     /* Footer */
     footer {
@@ -166,6 +197,7 @@
     .foot-brand .mark { width: 22px; height: 22px; border-radius: 6px; }
     @media (max-width: 620px) {
       footer { flex-direction: column; align-items: flex-start; gap: 16px; }
+      .nav-links > a:not(.btn) { display: none; }
     }
 
     /* Audience, trust and closing sections */
@@ -191,6 +223,10 @@
       .demo { grid-template-columns: 1fr; }
       .demo-arrow { transform: rotate(90deg); justify-self: center; }
       .steps, .feats { grid-template-columns: 1fr; gap: 26px; }
+      .proof-strip { grid-template-columns: repeat(2, 1fr); }
+      .proof-item:nth-child(2) { border-right: 0; }
+      .proof-item:nth-child(-n+2) { border-bottom: 1px solid var(--grid); }
+      .deploy-panel { grid-template-columns: 1fr; padding: 24px; }
       header.hero { padding: 48px 0 40px; }
     }
   </style>
@@ -201,23 +237,24 @@
     <nav>
       <a class="wordmark" href="/" aria-label="Ridge home"><span class="mark"><svg viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="width:15px;height:14px;display:block;"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Ridge</span></a>
       <div class="nav-links">
+        <a href="#product">Product</a>
+        <a href="#deploy">Deploy</a>
         <a href="https://github.com/MohammedAlkindi/Ridge">GitHub</a>
-        <a class="btn" href="/app">Open the app</a>
+        <a class="btn" href="/app">Analyze a file</a>
       </div>
     </nav>
 
     <header class="hero">
-      <p class="eyebrow rise"><b>No API key required</b> · nothing stored unless you ask</p>
-      <h1 class="rise d1"><em>Evidence-backed</em> analysis for spreadsheets.</h1>
-      <p class="sub rise d2">Ridge computes every number before a language model sees anything —
-        statistics, data quality, correlations with their sample sizes, and structured evidence.
-        <strong>That part needs no API key.</strong> Add one only if you want the findings
-        explained. Files are parsed in memory and never written to disk.</p>
+      <p class="eyebrow rise"><b>For finance and operations</b> · hosted or self-hosted</p>
+      <h1 class="rise d1">Turn messy spreadsheets into <em>answers you can defend.</em></h1>
+      <p class="sub rise d2">Ridge computes the evidence first: full-file statistics and charts,
+        data-quality diagnostics, correlations with sample sizes, and explicit caveats.
+        <strong>AI is optional and only explains what the engine already proved.</strong></p>
       <div class="cta-row rise d3">
-        <a class="btn" href="/app">Open the app</a>
-        <a class="ghost" href="#how">How it works</a>
+        <a class="btn" href="/app">Analyze a file</a>
+        <a class="ghost" href="/app?sample=1">Run the sample analysis</a>
       </div>
-      <p class="keyline rise d3">works with .xlsx · .csv · .json · .pdf · .docx · .pptx</p>
+      <p class="keyline rise d3">no signup · no API key · source files never stored</p>
 
       <div class="demo rise d4" aria-label="Example: a CSV file turned into a graded analysis">
         <div class="demo-file">
@@ -233,12 +270,18 @@
         </div>
         <div class="demo-arrow" aria-hidden="true">→</div>
         <div class="demo-read">
-          <p class="demo-label">the read</p>
+          <p class="demo-label">computed output</p>
           <div class="grade-chip">B · 84/100 <span>1 missing value in revenue</span></div>
           <div class="mini-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
           <p class="demo-insight"><b>GCC revenue grew 30% into March</b> while EU held flat —
             though the missing February figure caps confidence in the EU trend.</p>
         </div>
+      </div>
+      <div class="proof-strip rise d4" aria-label="Ridge product facts">
+        <div class="proof-item"><strong>0 accounts</strong><span>required to analyze</span></div>
+        <div class="proof-item"><strong>Full file</strong><span>statistics and charts</span></div>
+        <div class="proof-item"><strong>Traceable</strong><span>method, n, coverage, caveat</span></div>
+        <div class="proof-item"><strong>Self-host</strong><span>production container included</span></div>
       </div>
     </header>
 
@@ -266,8 +309,8 @@
       </div>
     </section>
 
-    <section>
-      <h2>Why it holds up</h2>
+    <section id="product">
+      <h2>Why teams can trust the output</h2>
       <div class="feats">
         <div class="feat">
           <span class="feat-tag">computed, not guessed</span>
@@ -276,10 +319,10 @@
             health grade are calculated in code — the AI reads them, it doesn't invent them.</p>
         </div>
         <div class="feat">
-          <span class="feat-tag">schema-enforced</span>
-          <h3>Grounded insights</h3>
-          <p>Claude answers against the computed statistics and quality profile, and its
-            output is constrained to a strict JSON schema — no free-form hallucinated reports.</p>
+          <span class="feat-tag">full-file evidence</span>
+          <h3>Charts that match the numbers</h3>
+          <p>Histograms, category frequencies, and time trends are aggregated across the
+            complete file — never inferred from a few preview rows or generated by a model.</p>
         </div>
         <div class="feat">
           <span class="feat-tag">nothing kept</span>
@@ -292,23 +335,41 @@
 
     <section id="who">
       <h2>Who it's for</h2>
-      <p class="lede">Anyone handed a spreadsheet they did not build and asked what it says.</p>
+      <p class="lede">For the teams expected to make a decision from a spreadsheet they did not build.</p>
       <div class="feats">
         <div class="feat">
-          <h3>Operators and analysts</h3>
+          <h3>Finance and revenue teams</h3>
           <p>You get an export from a system you don't control. Ridge tells you what is
             actually in it — how complete each column is, what correlates, what looks wrong —
             before you build anything on top of it.</p>
         </div>
         <div class="feat">
-          <h3>Founders and generalists</h3>
+          <h3>Operations and strategy</h3>
           <p>You need a defensible read on a file today, not a notebook and an afternoon.
             Drop it in, get the numbers, and know which ones rest on enough data to quote.</p>
         </div>
         <div class="feat">
-          <h3>Anyone checking a number</h3>
-          <p>A figure in a deck traces back to a column somewhere. Point Ridge at the file
-            and see the sample size, the coverage and the caveat behind it.</p>
+          <h3>Data and analytics teams</h3>
+          <p>Profile a handoff before it reaches a warehouse or dashboard. Surface mixed
+            types, missingness, duplicates, outliers, and weak statistical support early.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="deploy">
+      <h2>Deploy around your data boundary</h2>
+      <div class="deploy-panel">
+        <div>
+          <h3>Use the hosted app. Or run the same engine inside your environment.</h3>
+          <p>Ridge is open source and ships as a non-root, health-checked container. Keep the
+            deterministic path fully internal, add your own Anthropic key when policy allows,
+            and put the documented API behind your existing gateway.</p>
+          <a class="deploy-link" href="https://github.com/MohammedAlkindi/Ridge/blob/main/docs/DEPLOYMENT.md">Read the deployment guide →</a>
+        </div>
+        <div class="deploy-options">
+          <div class="deploy-option"><strong>Hosted</strong><span>Start immediately, no account required.</span></div>
+          <div class="deploy-option"><strong>Private container</strong><span>Stateless service, in-memory file processing.</span></div>
+          <div class="deploy-option"><strong>Internal API</strong><span>Traceable JSON results with request IDs and versions.</span></div>
         </div>
       </div>
     </section>
@@ -336,15 +397,18 @@
     </section>
 
     <section class="closer">
-      <h2>Open a file and see.</h2>
-      <p class="lede">No sign-up, no key, no sample-data theatre — bring a real spreadsheet.</p>
-      <div class="cta-row"><a class="btn" href="/app">Open the app</a></div>
+      <h2>Put a defensible answer in front of your team.</h2>
+      <p class="lede">Bring a real spreadsheet, or inspect a complete analysis in ten seconds.</p>
+      <div class="cta-row">
+        <a class="btn" href="/app">Analyze a file</a>
+        <a class="ghost" href="/app?sample=1">Run the sample analysis</a>
+      </div>
     </section>
 
     <footer>
       <div class="foot-brand">
         <span class="mark" aria-hidden="true"><svg viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" focusable="false" style="width:15px;height:14px;display:block;"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        <span>Ridge — evidence-backed analysis for spreadsheets.</span>
+        <span>Ridge — spreadsheet answers you can defend.</span>
       </div>
       <div class="foot-links">
         <a href="/app">Open the app</a>

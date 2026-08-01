@@ -422,7 +422,7 @@ describe("routing", () => {
     const res = await fetch(`${base}/`);
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain("Evidence-backed");
+    expect(html).toContain("answers you can defend");
     // The workspace must not be inlined into the landing page.
     expect(html).not.toContain("dropzone");
   });

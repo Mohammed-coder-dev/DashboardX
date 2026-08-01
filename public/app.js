@@ -154,7 +154,7 @@ saveSettingsBtn.addEventListener("click", () => {
   setTimeout(() => { settingsStatus.textContent = ""; settingsPanel.style.display = "none"; }, 900);
 });
 
-initSettings();
+const settingsReady = initSettings();
 
 function modelChip() {
   const id = getModel() || modelSelect.value;
@@ -957,6 +957,11 @@ sampleBtn?.addEventListener("click", async () => {
     sampleBtn.disabled = false;
   }
 });
+
+const startupParams = new URLSearchParams(location.search);
+if (!sharedId && startupParams.get("sample") === "1") {
+  settingsReady.finally(() => sampleBtn.click());
+}
 
 
 const askSection = document.getElementById("askSection");
