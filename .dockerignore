@@ -1,0 +1,14 @@
+.git
+.github
+.claude
+.vercel
+.env
+.env.*
+!.env.example
+node_modules
+test-results
+tests
+docs
+*.log
+Dockerfile*
+playwright.config.js

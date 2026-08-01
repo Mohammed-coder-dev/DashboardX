@@ -174,7 +174,7 @@ api/index.js       Vercel serverless entry
 
 Routes validate and orchestrate; services own every external call; analytics and
 parsers are pure and unit-tested. Errors become `AppError` and reach the client
-only as `{ error, code }`. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md);
+only as `{ error, code, requestId }`. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md);
 endpoint reference in [docs/API.md](docs/API.md).
 
 ## Tests
@@ -201,6 +201,16 @@ vercel --prod
 
 Set `ANTHROPIC_API_KEY`, `SUPABASE_URL` and `SUPABASE_KEY` in the Vercel project
 only if you want a server fallback key and history.
+
+Ridge also ships a non-root, health-checked OCI image for private deployments:
+
+```bash
+docker build -t ridge:local .
+docker run --rm -p 3000:3000 ridge:local
+```
+
+Data-flow modes, scaling limits and the production checklist are documented in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Releases
 
