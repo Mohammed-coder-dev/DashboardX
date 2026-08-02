@@ -12,6 +12,8 @@ const analyzeBtn      = document.getElementById("analyzeBtn");
 const errorBox        = document.getElementById("errorBox");
 const resetBtn        = document.getElementById("resetBtn");
 const loadingFileCount = document.getElementById("loadingFileCount");
+const uploadReadiness = document.getElementById("uploadReadiness");
+const dropzoneTitle   = document.getElementById("dropzoneTitle");
 
 const dashTitle         = document.getElementById("dashTitle");
 const dashMeta          = document.getElementById("dashMeta");
@@ -297,11 +299,15 @@ let currentTarget  = null;
 document.querySelectorAll("[data-analysis-mode]").forEach((button) => {
   button.addEventListener("click", () => {
     analysisMode = button.dataset.analysisMode;
-    document.querySelectorAll("[data-analysis-mode]").forEach((candidate) => candidate.classList.toggle("active", candidate === button));
+    document.querySelectorAll("[data-analysis-mode]").forEach((candidate) => {
+      const active = candidate === button;
+      candidate.classList.toggle("active", active);
+      candidate.setAttribute("aria-pressed", String(active));
+    });
     const comparing = analysisMode === "compare";
     analysisModeHint.textContent = comparing
       ? "Choose exactly two tabular files. File 1 is the baseline; file 2 is the current version."
-      : "Profile one file or explore several files side by side.";
+      : "Upload one file for a focused analysis, or several to explore them side by side.";
     urlInputWrap.style.display = comparing ? "none" : "";
     questionInputWrap.style.display = comparing ? "none" : "";
     sampleBtn.style.display = comparing ? "none" : "";
@@ -322,11 +328,30 @@ dropzone.addEventListener("drop", (e) => {
 function handleFiles(incoming) {
   const combined = [...selectedFiles];
   const limit = analysisMode === "compare" ? 2 : MAX_FILES;
+  const rejected = [];
   for (const f of incoming) {
-    if (combined.length >= limit) break;
+    const extension = f.name.split(".").pop().toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(extension)) {
+      rejected.push(`Unsupported file type: ${f.name}`);
+      continue;
+    }
+    if (f.size > MAX_REQUEST_BYTES) {
+      rejected.push(`${f.name} is larger than the 4 MB upload limit`);
+      continue;
+    }
+    if (combined.length >= limit) {
+      rejected.push(analysisMode === "compare" ? "Comparison mode accepts exactly two files" : `You can analyze up to ${MAX_FILES} files at once`);
+      break;
+    }
     if (!combined.find(x => x.name === f.name && x.size === f.size)) combined.push(f);
   }
   selectedFiles = combined;
+  const totalBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+  if (totalBytes > MAX_REQUEST_BYTES) {
+    rejected.push("Selected files exceed the 4 MB total upload limit");
+  }
+  if (rejected.length) showError(`${rejected[0]}. ${rejected[0].includes("4 MB") ? "Use the HTTPS link option for larger data." : ""}`.trim());
+  else hideError();
   renderFileList();
 }
 
@@ -336,11 +361,20 @@ urlInput.addEventListener("input", () => { if (selectedFiles.length === 0) rende
 
 function renderFileList() {
   const comparing = analysisMode === "compare";
+  const selectedBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+  const withinLimit = selectedBytes <= MAX_REQUEST_BYTES;
+  dropzone.classList.toggle("has-files", selectedFiles.length > 0);
+  dropzone.classList.toggle("is-comparing", comparing);
+  dropzoneTitle.textContent = comparing ? "Add baseline and current files" : "Drop files here or click to browse";
   if (selectedFiles.length === 0) {
     fileListEl.style.display = "none";
     dropzoneIcon.textContent = "📁";
     analyzeBtn.disabled = comparing || !urlValue();
     analyzeBtn.textContent = comparing ? "Select two files to compare" : (urlValue() ? "Analyze link →" : "Analyze data →");
+    uploadReadiness.className = `upload-status${urlValue() ? " ready" : ""}`;
+    uploadReadiness.innerHTML = urlValue()
+      ? `<span class="upload-status-dot"></span><span>Link ready. Ridge will fetch and analyze it securely.</span>`
+      : `<span class="upload-status-dot"></span><span>${comparing ? "Add a baseline file and a current file to continue." : "Choose a file to begin. Deterministic analysis does not need an API key."}</span>`;
     return;
   }
 
@@ -353,22 +387,37 @@ function renderFileList() {
     const ext  = f.name.split(".").pop().toLowerCase();
     const icon = FILE_ICONS[ext] || "📄";
     const size = f.size > 1024*1024 ? `${(f.size/1024/1024).toFixed(1)}MB` : `${(f.size/1024).toFixed(0)}KB`;
+    const role = comparing ? (i === 0 ? "Baseline" : "Current") : (selectedFiles.length > 1 ? `File ${i + 1}` : "Ready");
     return `<div class="file-chip">
+      <span class="file-chip-role">${esc(role)}</span>
       <span class="file-chip-icon">${icon}</span>
       <span class="file-chip-name">${esc(f.name)}</span>
       <span class="file-chip-size">${size}</span>
-      <button class="file-chip-remove" data-idx="${i}" type="button">×</button>
+      <button class="file-chip-remove" data-idx="${i}" type="button" aria-label="Remove ${esc(f.name)}">×</button>
     </div>`;
   }).join("");
 
   if (selectedFiles.length < (comparing ? 2 : MAX_FILES)) {
     fileListEl.innerHTML += `<label class="add-more-btn" for="fileInput">+ Add more</label>`;
   }
+  if (comparing && selectedFiles.length === 2) {
+    fileListEl.innerHTML += `<button class="swap-files-btn" data-swap-files type="button" aria-label="Swap baseline and current files">⇄ Swap order</button>`;
+  }
 
-  analyzeBtn.disabled = comparing && selectedFiles.length !== 2;
+  analyzeBtn.disabled = !withinLimit || (comparing && selectedFiles.length !== 2);
   analyzeBtn.textContent = comparing
     ? (selectedFiles.length === 2 ? "Compare baseline to current →" : "Add one current file")
     : (selectedFiles.length === 1 ? "Analyze data →" : `Analyze ${selectedFiles.length} files →`);
+  const size = selectedBytes > 1024 * 1024 ? `${(selectedBytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(selectedBytes / 1024))} KB`;
+  const status = !withinLimit
+    ? `${size} selected — over the 4 MB total upload limit.`
+    : comparing && selectedFiles.length < 2
+      ? `${selectedFiles[0].name} is the baseline. Add the current file next.`
+      : comparing
+        ? `Ready to compare ${selectedFiles[0].name} against ${selectedFiles[1].name}.`
+        : `${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} ready · ${size} total · deterministic analysis available.`;
+  uploadReadiness.className = `upload-status ${withinLimit && (!comparing || selectedFiles.length === 2) ? "ready" : !withinLimit ? "error" : ""}`;
+  uploadReadiness.innerHTML = `<span class="upload-status-dot"></span><span>${esc(status)}</span>`;
 }
 
 function removeFile(idx) {
@@ -382,6 +431,10 @@ function removeFile(idx) {
 fileListEl.addEventListener("click", (e) => {
   const btn = e.target.closest(".file-chip-remove");
   if (btn) removeFile(Number(btn.dataset.idx));
+  if (e.target.closest("[data-swap-files]") && selectedFiles.length === 2) {
+    selectedFiles = [selectedFiles[1], selectedFiles[0]];
+    renderFileList();
+  }
 });
 tabsBar.addEventListener("click", (e) => {
   const tab = e.target.closest(".tab-btn");
@@ -413,6 +466,7 @@ sheetBar.addEventListener("click", (e) => {
 // Vercel rejects request bodies over ~4.5 MB before the server sees them,
 // so oversized uploads are caught here with a useful message instead.
 const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = new Set(Object.keys(FILE_ICONS));
 
 async function runAnalysis(sheet) {
   const isComparison = analysisMode === "compare";

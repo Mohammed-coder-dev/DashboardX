@@ -81,6 +81,8 @@ test.describe("the application at /app", () => {
     await page.goto("/app");
     await expect(page.locator("#dropzone")).toBeVisible();
     await expect(page.locator("#analyzeBtn")).toHaveText(/Analyze data/);
+    await expect(page.locator("#uploadReadiness")).toContainText(/does not need an API key/i);
+    await expect(page.locator('[data-analysis-mode="analyze"]')).toHaveAttribute("aria-pressed", "true");
   });
 
   test("the wordmark returns to the landing page", async ({ page }) => {
@@ -179,6 +181,11 @@ test.describe("deterministic file comparison", () => {
       { name: "baseline.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue\nNorth,100\nSouth,120\nNorth,110\nSouth,130\n") },
       { name: "current.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue,channel\nWest,200,direct\nWest,220,direct\nSouth,210,partner\nWest,230,direct\n") },
     ]);
+    await expect(page.locator(".file-chip-role")).toHaveText(["Baseline", "Current"]);
+    await expect(page.locator("#uploadReadiness")).toContainText(/ready to compare/i);
+    await page.locator("[data-swap-files]").click();
+    await expect(page.locator(".file-chip-name")).toHaveText(["current.csv", "baseline.csv"]);
+    await page.locator("[data-swap-files]").click();
     await expect(page.locator("#analyzeBtn")).toContainText(/Compare baseline to current/i);
     await page.locator("#analyzeBtn").click();
 
@@ -314,9 +321,9 @@ test.describe("error states", () => {
     await page.locator("#fileInput").setInputFiles({
       name: "notes.exe", mimeType: "application/octet-stream", buffer: Buffer.from("x"),
     });
-    await page.locator("#analyzeBtn").click();
-    await expect(page.locator("#errorBox")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#errorBox")).toBeVisible();
     await expect(page.locator("#errorBox")).toContainText(/Unsupported file type/i);
+    await expect(page.locator("#analyzeBtn")).toBeDisabled();
   });
 
   test("rejects an invalid URL", async ({ page }) => {

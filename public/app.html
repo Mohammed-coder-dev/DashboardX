@@ -78,29 +78,44 @@
       </div>
 
       <div class="analysis-mode" role="group" aria-label="Analysis mode">
-        <button class="analysis-mode-btn active" data-analysis-mode="analyze" type="button">Analyze</button>
-        <button class="analysis-mode-btn" data-analysis-mode="compare" type="button">Compare two files</button>
+        <button class="analysis-mode-btn active" data-analysis-mode="analyze" type="button" aria-pressed="true">
+          <span class="analysis-mode-kicker">Explore</span>
+          <strong>Analyze files</strong>
+          <small>Profile, visualize and find evidence</small>
+        </button>
+        <button class="analysis-mode-btn" data-analysis-mode="compare" type="button" aria-pressed="false">
+          <span class="analysis-mode-kicker">Monitor</span>
+          <strong>Compare versions</strong>
+          <small>Measure what changed between two files</small>
+        </button>
       </div>
-      <p id="analysisModeHint" class="analysis-mode-hint">Profile one file or explore several files side by side.</p>
+      <p id="analysisModeHint" class="analysis-mode-hint">Upload one file for a focused analysis, or several to explore them side by side.</p>
 
-      <div class="dropzone" id="dropzone">
+      <div class="dropzone" id="dropzone" aria-describedby="dropzoneHelp uploadReadiness">
         <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
         <span class="dropzone-icon" id="dropzoneIcon">📁</span>
-        <div class="dropzone-title">Drop files here or click to browse</div>
-        <div class="dropzone-sub">Up to 10 files · 4 MB per upload — bigger files via the link box below</div>
+        <div class="dropzone-title" id="dropzoneTitle">Drop files here or click to browse</div>
+        <div class="dropzone-sub" id="dropzoneHelp">Up to 10 files · 4 MB total — larger files work through a public HTTPS link</div>
         <div id="fileList" class="file-list" style="display:none;"></div>
+      </div>
+
+      <div class="upload-status" id="uploadReadiness" role="status" aria-live="polite">
+        <span class="upload-status-dot"></span>
+        <span>Choose a file to begin. Deterministic analysis does not need an API key.</span>
       </div>
 
       <button id="sampleBtn" class="sample-btn" type="button">✨ Try sample data — no upload, no API key needed</button>
 
-      <div id="urlInputWrap" class="url-input-wrap">
+      <div id="urlInputWrap" class="url-input-wrap input-field">
+        <label for="urlInput">Analyze from a link <span>optional</span></label>
         <input id="urlInput" class="question-input" type="url"
-          placeholder="…or paste an https:// link to a file in the cloud" spellcheck="false" />
+          placeholder="https://example.com/data.csv" spellcheck="false" />
       </div>
 
-      <div id="questionInputWrap" class="question-input-wrap">
+      <div id="questionInputWrap" class="question-input-wrap input-field">
+        <label for="questionInput">Focus the analysis <span>optional</span></label>
         <input id="questionInput" class="question-input" type="text"
-          placeholder="Optional: Ask a question about your files..." />
+          placeholder="e.g. Which regions are driving the change?" />
       </div>
 
       <label class="save-toggle" for="saveToggle">
