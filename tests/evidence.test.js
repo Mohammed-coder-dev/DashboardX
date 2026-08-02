@@ -10,7 +10,7 @@ function evidenceFor(rows, columns, options) {
 
 const EVIDENCE_KEYS = [
   "claim", "metric", "value", "columns", "method",
-  "sampleSize", "coverage", "strength", "caveat", "engineVersion",
+  "sampleSize", "coverage", "strength", "caveat", "engineVersion", "provenance",
 ];
 
 // A sales-style dataset with a numeric target, a category, a date column,
@@ -47,6 +47,9 @@ describe("buildEvidence", () => {
       expect(item.sampleSize).toBeGreaterThan(0);
       expect(item.coverage).toBeGreaterThan(0);
       expect(Array.isArray(item.columns)).toBe(true);
+      expect(item.provenance.formula).toBeTruthy();
+      expect(item.provenance.includedRows + item.provenance.excludedRows).toBe(salesRows().length);
+      expect(item.provenance.includedRows).toBe(item.sampleSize);
     }
   });
 

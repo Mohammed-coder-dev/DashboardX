@@ -64,7 +64,7 @@ Response:
     "requestId": "92a...",      // also returned in the X-Request-ID header
     "generatedAt": "2026-08-01T18:30:00.000Z",
     "processingMs": 42,
-    "schemaVersion": "2.3", "evidenceEngine": "1.0.0"
+    "schemaVersion": "2.4", "evidenceEngine": "1.0.0"
   },
   "stats": { "revenue": { "type": "numeric", "validCount": 90, "missing": 1, "invalid": 0,
                           "coverage": 98.9, "min": 100, "max": 4980, "mean": 0, "median": 0,
@@ -78,7 +78,11 @@ Response:
   "evidence": [ { "claim": "...", "metric": "spearman_rho", "value": 0.9068,
                   "columns": ["revenue","spend"], "method": "...", "sampleSize": 90,
                   "coverage": 98.9, "strength": "very strong", "caveat": null,
-                  "engineVersion": "1.0.0" } ],
+                  "engineVersion": "1.0.0",
+                  "provenance": { "formula": "ρ = ...", "inclusionRule": "...",
+                    "inputRows": 91, "includedRows": 90, "excludedRows": 1,
+                    "exclusionReasons": [], "sourceRowsPolicy": "...",
+                    "sourceRows": [{ "rowNumber": 1, "values": { "revenue": 100 } }] } } ],
   "analysis": null,             // null unless a key was supplied
   "chartData": [],              // up to 100 rows for client-side charts
   "columns": ["date","region"],
@@ -138,7 +142,7 @@ and never invokes an AI provider; an API key is neither required nor used.
 ```jsonc
 {
   "kind": "comparison",
-  "meta": { "comparisonVersion": "1.0.0", "schemaVersion": "2.3", "saved": false },
+  "meta": { "comparisonVersion": "1.0.0", "schemaVersion": "2.4", "saved": false },
   "files": [ /* compact deterministic profile for each file */ ],
   "comparison": {
     "deterministic": true,

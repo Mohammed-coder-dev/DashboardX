@@ -1000,15 +1000,34 @@ const STRENGTH_CLASS = { "very strong": "strong", strong: "strong", moderate: "m
 function renderEvidence(evidence) {
   if (!evidence.length) { evidenceSection.style.display = "none"; return; }
   evidenceSection.style.display = "";
-  evidenceList.innerHTML = evidence.map(e => `
-    <div class="evidence-item">
+  evidenceList.innerHTML = evidence.map(e => {
+    const provenance = e.provenance;
+    const headers = e.columns || [];
+    const sourceRows = provenance?.sourceRows || [];
+    const exclusions = (provenance?.exclusionReasons || []).map((reason) => `${reason.count} ${reason.reason}`).join(" · ") || "None";
+    const drilldown = provenance ? `<details class="evidence-provenance">
+      <summary>Inspect formula and source rows</summary>
+      <div class="evidence-provenance-grid">
+        <div><span>Formula</span><strong>${esc(provenance.formula)}</strong></div>
+        <div><span>Included</span><strong>${esc(provenance.includedRows)} of ${esc(provenance.inputRows)} rows</strong></div>
+        <div><span>Rule</span><strong>${esc(provenance.inclusionRule)}</strong></div>
+        <div><span>Excluded</span><strong>${esc(provenance.excludedRows)} rows · ${esc(exclusions)}</strong></div>
+      </div>
+      ${sourceRows.length ? `<div class="evidence-source-note">${esc(provenance.sourceRowsPolicy)}</div>
+        <div class="evidence-source-wrap"><table class="evidence-source-table"><thead><tr><th>Row</th>${headers.map((column) => `<th>${esc(column)}</th>`).join("")}</tr></thead><tbody>
+          ${sourceRows.map((source) => `<tr><td>${esc(source.rowNumber)}</td>${headers.map((column) => `<td>${esc(source.values?.[column] ?? "—")}</td>`).join("")}</tr>`).join("")}
+        </tbody></table></div>` : ""}
+    </details>` : "";
+    return `<div class="evidence-item">
       <div class="evidence-head">
         <span class="evidence-strength ${STRENGTH_CLASS[e.strength] || "weak"}">${esc(e.strength)}</span>
         <span class="evidence-claim">${esc(e.claim)}</span>
       </div>
       <div class="evidence-meta">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage · engine v${esc(e.engineVersion)}</div>
       ${e.caveat ? `<div class="evidence-caveat">⚠ ${esc(e.caveat)}</div>` : ""}
-    </div>`).join("");
+      ${drilldown}
+    </div>`;
+  }).join("");
 }
 
 // ─── Target column selector ───────────────────────────────────
@@ -1080,6 +1099,7 @@ function buildReportHtml(data) {
   const evidenceRows = evidence.map(e => `
     <div class="ev"><strong>[${esc(e.strength)}]</strong> ${esc(e.claim)}
       <div class="muted">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage</div>
+      ${e.provenance ? `<div class="muted">Formula: ${esc(e.provenance.formula)} · included ${esc(e.provenance.includedRows)}/${esc(e.provenance.inputRows)} rows · source rows ${esc(e.provenance.sourceRows.map((row) => row.rowNumber).join(", ") || "none")}</div>` : ""}
       ${e.caveat ? `<div class="muted">⚠ ${esc(e.caveat)}</div>` : ""}</div>`).join("") || `<p class="muted">None met the reporting thresholds.</p>`;
   const corrRows = correlations.map(c =>
     `<tr><td>${esc(c.columnA ?? c.colA)} ↔ ${esc(c.columnB ?? c.colB)}</td><td>${esc(c.coefficient ?? c.r)}</td><td>${esc(c.method || "pearson")}</td><td>${esc(c.n ?? "—")}</td><td>${esc(c.coverage ?? "—")}%</td></tr>`).join("");

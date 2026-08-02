@@ -51,11 +51,11 @@ Ticking *Save this analysis to history and enable a share link* stores one row:
 | Field | Contents |
 |---|---|
 | `session_id` | Random anonymous identifier generated in your browser |
-| `kind` | `single`, `multi` or `url` |
+| `kind` | `single`, `multi`, `url` or `comparison` |
 | `filename`, `file_type` | As uploaded |
 | `model` | The Claude model used, if any |
 | `question` | Your question, if you asked one |
-| `payload` | The full response: statistics, evidence, quality profile, AI text if any, and up to 100 sample rows of your data |
+| `payload` | The full response: statistics, evidence, quality profile, AI text if any, up to 100 chart sample rows, and up to 10 source-row excerpts per evidence item containing only that item's involved columns |
 | `created_at` | Timestamp |
 
 Your API key is never part of it.

@@ -8,17 +8,18 @@
 import { computeCorrelations } from "./correlations.js";
 import { toDate } from "./dates.js";
 import { coveragePct, isMissing, round, toFiniteNumber } from "./values.js";
+import { attachEvidenceProvenance } from "./provenance.js";
 
 /** Bumped when evidence computation changes meaning, not just wording. */
 export const EVIDENCE_ENGINE_VERSION = "1.0.0";
 /** Version of the saved/exported analysis payload shape. */
-export const ANALYSIS_SCHEMA_VERSION = "2.3";
+export const ANALYSIS_SCHEMA_VERSION = "2.4";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;
 const MAX_GROUPS = 6;
 
-function evidenceObject({ claim, metric, columns, method, sampleSize, coverage, strength, caveat = null, value = null }) {
+function evidenceObject({ claim, metric, columns, method, sampleSize, coverage, strength, caveat = null, value = null, provenanceContext = null }) {
   return {
     claim,
     metric,
@@ -30,6 +31,7 @@ function evidenceObject({ claim, metric, columns, method, sampleSize, coverage, 
     strength,
     caveat,
     engineVersion: EVIDENCE_ENGINE_VERSION,
+    ...(provenanceContext ? { _provenanceContext: provenanceContext } : {}),
   };
 }
 
@@ -117,6 +119,7 @@ function groupComparisonEvidence(rows, target, stats, categoricalColumn) {
     coverage: coveragePct(sampleSize, rows.length),
     strength: effectStrength(d),
     caveat: caveats.length ? caveats.join("; ") : null,
+    provenanceContext: { retainedLevels: groups.map((group) => group.level) },
   });
 }
 
@@ -239,6 +242,7 @@ function dateEvidence(rows, columns, stats, target) {
       coverage: coveragePct(p.currentCount + p.previousCount, rows.length),
       strength: Math.abs(p.changePct) >= 50 ? "strong" : Math.abs(p.changePct) >= 20 ? "moderate" : "weak",
       caveat: "the latest period may be incomplete",
+      provenanceContext: { periods: [p.previous, p.current], granularity: p.granularity },
     }));
   }
 
@@ -325,10 +329,11 @@ export function buildEvidence(rows, columns, stats, { target = null, limit = MAX
   evidence.push(...dateEvidence(rows, columns, stats, target));
   evidence.push(...anomalyEvidence(rows, columns, stats, target));
 
-  return evidence
+  const selected = evidence
     .sort((a, b) =>
       (STRENGTH_ORDER[a.strength] ?? 5) - (STRENGTH_ORDER[b.strength] ?? 5)
       || Math.abs(b.value ?? 0) - Math.abs(a.value ?? 0)
       || a.claim.localeCompare(b.claim))
     .slice(0, limit);
+  return attachEvidenceProvenance(selected, rows, stats);
 }

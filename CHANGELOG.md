@@ -21,6 +21,9 @@ All notable changes to this project are documented here. The format follows
 - Deterministic two-file comparison mode with baseline/current semantics,
   schema drift, quality movement, row and column deltas, and exportable shared
   column changes. Comparison works without an API key.
+- Evidence provenance drill-downs with the exact formula, inclusion rule,
+  excluded-row accounting, and bounded source-row excerpts containing only the
+  columns used by each finding.
 
 ### Changed
 
@@ -28,8 +31,8 @@ All notable changes to this project are documented here. The format follows
   finance, operations, and analytics teams, with hosted and self-hosted paths.
 - Raised the supported Node.js floor to Node 22; the production container uses
   the current Node 24 LTS line.
-- Analysis schema version is now `2.3`; numeric histograms separate IQR outlier
-  tails so the central distribution remains readable without dropping values.
+- Analysis schema version is now `2.4`; numeric histograms separate IQR outlier
+  tails and evidence objects include row-level provenance.
 
 ### Fixed
 
