@@ -172,7 +172,17 @@ async function initSettings() {
 }
 
 settingsBtn.addEventListener("click", () => {
-  settingsPanel.style.display = settingsPanel.style.display === "none" ? "" : "none";
+  const opening = settingsPanel.style.display === "none";
+  settingsPanel.style.display = opening ? "" : "none";
+  settingsBtn.setAttribute("aria-expanded", String(opening));
+  if (opening) apiKeyInput.focus();
+});
+
+settingsPanel.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  settingsPanel.style.display = "none";
+  settingsBtn.setAttribute("aria-expanded", "false");
+  settingsBtn.focus();
 });
 
 saveSettingsBtn.addEventListener("click", () => {
@@ -180,7 +190,11 @@ saveSettingsBtn.addEventListener("click", () => {
   localStorage.setItem(MODEL_STORAGE, modelSelect.value);
   updateSettingsBtn();
   settingsStatus.textContent = "Saved ✓";
-  setTimeout(() => { settingsStatus.textContent = ""; settingsPanel.style.display = "none"; }, 900);
+  setTimeout(() => {
+    settingsStatus.textContent = "";
+    settingsPanel.style.display = "none";
+    settingsBtn.setAttribute("aria-expanded", "false");
+  }, 900);
 });
 
 const settingsReady = initSettings();
@@ -325,6 +339,7 @@ document.querySelectorAll("[data-analysis-mode]").forEach((button) => {
       candidate.setAttribute("aria-pressed", String(active));
     });
     const comparing = analysisMode === "compare";
+    if (comparing && selectedFiles.length > 2) selectedFiles = selectedFiles.slice(0, 2);
     analysisModeHint.textContent = comparing
       ? "Choose exactly two tabular files. File 1 is the baseline; file 2 is the current version."
       : "Upload one file for a focused analysis, or several to explore them side by side.";
@@ -759,8 +774,10 @@ function renderComparisonDashboard(data) {
     + schemaGroup("Changed", (schema.typeChanges || []).map((change) => `${change.column}: ${change.baseline} → ${change.current}`), "changed")
     + schemaGroup("Shared", schema.shared || [], "");
 
-  compareFindings.innerHTML = (comparison.findings || []).map((finding) => `
-    <div class="compare-finding ${esc(finding.severity || "neutral")}"><strong>${esc(finding.title)}</strong><p>${esc(finding.detail)}</p></div>`).join("");
+  compareFindings.innerHTML = (comparison.findings || []).length
+    ? comparison.findings.map((finding) => `
+      <div class="compare-finding ${esc(finding.severity || "neutral")}"><strong>${esc(finding.title)}</strong><p>${esc(finding.detail)}</p></div>`).join("")
+    : `<div class="compare-empty"><strong>No material changes detected</strong><p>The shared columns did not cross Ridge's reporting thresholds. Review the deltas below for smaller movements.</p></div>`;
 
   compareColumnRows.innerHTML = (comparison.columns || []).length
     ? comparison.columns.map((column) => `<tr><td>${esc(column.column)}</td><td>${esc(column.type)}</td><td>${esc(comparisonColumnValue(column.baseline, column.type))}</td><td>${esc(comparisonColumnValue(column.current, column.type))}</td><td class="change">${esc(comparisonColumnChange(column))}</td></tr>`).join("")
@@ -1731,6 +1748,7 @@ function showScreen(name) {
   uploadScreen.style.display    = name==="upload"    ? "" : "none";
   loadingScreen.style.display   = name==="loading"   ? "" : "none";
   dashboardScreen.style.display = name==="dashboard" ? "" : "none";
+  if (name === "dashboard") requestAnimationFrame(() => dashTitle.focus({ preventScroll: true }));
 }
 
 function showError(msg) { errorBox.textContent=msg; errorBox.style.display=""; }

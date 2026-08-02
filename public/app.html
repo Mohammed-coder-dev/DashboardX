@@ -35,14 +35,14 @@
     <div class="topbar-nav">
       <a class="topbar-link" href="/privacy">Privacy</a>
       <a class="topbar-link" href="/docs">Docs</a>
-      <button id="settingsBtn" class="settings-btn" type="button">⚙ API Settings</button>
+      <button id="settingsBtn" class="settings-btn" type="button" aria-expanded="false" aria-controls="settingsPanel">⚙ API Settings</button>
     </div>
   </nav>
 
   <main class="main">
 
     <!-- Settings Panel -->
-    <div id="settingsPanel" class="settings-panel" style="display:none;">
+    <div id="settingsPanel" class="settings-panel" role="region" aria-label="AI settings" style="display:none;">
       <div class="settings-field">
         <label class="settings-label" for="apiKeyInput">Anthropic API key <span class="settings-optional">optional — unlocks AI interpretation</span></label>
         <input id="apiKeyInput" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
@@ -92,7 +92,7 @@
       <p id="analysisModeHint" class="analysis-mode-hint">Upload one file for a focused analysis, or several to explore them side by side.</p>
 
       <div class="dropzone" id="dropzone" aria-describedby="dropzoneHelp uploadReadiness">
-        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
+        <input type="file" id="fileInput" aria-label="Choose files to analyze" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
         <span class="dropzone-icon" id="dropzoneIcon">📁</span>
         <div class="dropzone-title" id="dropzoneTitle">Drop files here or click to browse</div>
         <div class="dropzone-sub" id="dropzoneHelp">Up to 10 files · 4 MB total — larger files work through a public HTTPS link</div>
@@ -124,8 +124,8 @@
       </label>
       <p class="save-toggle-hint" id="saveToggleHint" style="display:none;">The result (statistics, insights and sample rows — never your API key) will be stored server-side so you can reopen and share it.</p>
 
-      <button id="analyzeBtn" class="analyze-btn" disabled>Analyze data →</button>
-      <div id="errorBox" class="error-box" style="display:none;"></div>
+      <button id="analyzeBtn" class="analyze-btn" type="button" disabled>Analyze data →</button>
+      <div id="errorBox" class="error-box" role="alert" aria-live="assertive" style="display:none;"></div>
 
       <div id="historySection" class="history-section" style="display:none;">
         <div class="history-title">Recent analyses</div>
@@ -158,7 +158,7 @@
 
         <div class="dash-topbar animate">
           <div>
-            <div class="dash-title" id="dashTitle">Analysis Complete</div>
+            <div class="dash-title" id="dashTitle" tabindex="-1">Analysis Complete</div>
             <div class="dash-meta" id="dashMeta"></div>
           </div>
           <div class="dash-actions">

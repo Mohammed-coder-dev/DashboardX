@@ -11,6 +11,7 @@ test("the application is usable on a phone viewport", async ({ page }) => {
   const overflow = await page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+
 });
 
 test("the dashboard renders and stays within the viewport", async ({ page }) => {
@@ -22,6 +23,16 @@ test("the dashboard renders and stays within the viewport", async ({ page }) => 
   const overflow = await page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+
+  await page.locator('[data-column="revenue"]').tap();
+  await expect(page.locator("#columnInspector")).toBeVisible();
+  const closeButton = await page.locator("#columnInspectorClose").boundingBox();
+  expect(closeButton.height).toBeGreaterThanOrEqual(44);
+  const inspectorOverflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(inspectorOverflow).toBeLessThanOrEqual(1);
+  await page.locator("#columnInspectorClose").tap();
+  await expect(page.locator("#columnInspector")).toBeHidden();
 });
 
 test("the explain bar stacks instead of squeezing", async ({ page }) => {

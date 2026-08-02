@@ -239,6 +239,20 @@ test.describe("deterministic file comparison", () => {
     await expect(page.locator("#compareColumnRows")).toContainText("KS D=");
     await expect(page.locator("#analysisRecordSummary")).toContainText(/deterministic comparison/i);
   });
+
+  test("explains when no material changes cross reporting thresholds", async ({ page }) => {
+    const stable = "region,revenue\nNorth,100\nSouth,120\nNorth,110\nSouth,130\n";
+    await page.goto("/app");
+    await page.locator('[data-analysis-mode="compare"]').click();
+    await page.locator("#fileInput").setInputFiles([
+      { name: "baseline.csv", mimeType: "text/csv", buffer: Buffer.from(stable) },
+      { name: "current.csv", mimeType: "text/csv", buffer: Buffer.from(stable) },
+    ]);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#compareSection")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#compareFindings")).toContainText(/no material (descriptive )?changes detected/i);
+    await expect(page.locator("#compareFindings")).toContainText(/reporting thresholds/i);
+  });
 });
 
 test.describe("target column selection", () => {
@@ -385,6 +399,12 @@ test.describe("keyboard navigation", () => {
     await page.locator("#settingsBtn").focus();
     await page.keyboard.press("Enter");
     await expect(page.locator("#settingsPanel")).toBeVisible();
+    await expect(page.locator("#settingsBtn")).toHaveAttribute("aria-expanded", "true");
+    await expect(page.locator("#apiKeyInput")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#settingsPanel")).toBeHidden();
+    await expect(page.locator("#settingsBtn")).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator("#settingsBtn")).toBeFocused();
 
     // The save toggle is a real checkbox: focusable and space-togglable.
     await page.locator("#saveToggle").focus();
