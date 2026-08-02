@@ -814,7 +814,7 @@ function renderMultiDashboard(data) {
 
     if (themes.length > 0) {
       const col = document.createElement("div");
-      col.innerHTML = `<div class="cross-col-title">🔗 Common Themes</div>` +
+      col.innerHTML = `<div class="cross-col-title">Common themes</div>` +
         themes.map(t => `<div class="cross-item theme"><strong>${esc(t.theme)}</strong><p>${esc(t.detail)}</p></div>`).join("");
       crossGrid.appendChild(col);
     }
@@ -965,12 +965,12 @@ function renderSingleFile(data, isTabbed) {
           ? statRow("coverage", `${s.coverage}%${s.invalid ? ` (${s.invalid} invalid)` : ""}`)
           : "";
         return `<button class="stat-card" data-column="${esc(col)}" type="button" aria-label="Inspect ${esc(col)} column">
-        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Explore ↗</span></div><span class="stat-type-badge numeric">numeric</span>
+        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Inspect</span></div><span class="stat-type-badge numeric">numeric</span>
         ${statRow("mean",s.mean)}${s.meanConfidence95 ? statRow("95% CI", `${s.meanConfidence95.lower} to ${s.meanConfidence95.upper}`) : ""}${statRow("median",s.median)}${statRow("min",s.min)}${statRow("max",s.max)}${statRow("std",s.std)}${statRow("count",s.count)}${coverage}
       </button>`;
       }
       if (s.type === "date") return `<button class="stat-card" data-column="${esc(col)}" type="button" aria-label="Inspect ${esc(col)} column">
-        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Explore ↗</span></div><span class="stat-type-badge categorical">date</span>
+        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Inspect</span></div><span class="stat-type-badge categorical">date</span>
         ${statRow("valid",s.validCount)}${statRow("earliest",s.earliest||"—")}${statRow("latest",s.latest||"—")}${statRow("range",s.rangeDays != null ? s.rangeDays + " days" : "—")}${s.trend ? statRow("trend", s.trend) : ""}
       </button>`;
       // Categorical top values are { value, count, percentage } objects ranked
@@ -980,7 +980,7 @@ function renderSingleFile(data, isTabbed) {
         .map(t => typeof t === "object" && t !== null ? `${t.value} (${t.percentage}%)` : String(t))
         .join(", ");
       return `<button class="stat-card" data-column="${esc(col)}" type="button" aria-label="Inspect ${esc(col)} column">
-        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Explore ↗</span></div><span class="stat-type-badge categorical">${esc(s.role || "categorical")}</span>
+        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Inspect</span></div><span class="stat-type-badge categorical">${esc(s.role || "categorical")}</span>
         ${statRow("count",s.count)}${statRow("unique",s.unique)}
         <div class="stat-row"><span class="stat-key">most common</span><span class="stat-val" style="font-size:10px;">${esc(topText)}</span></div>
       </button>`;
@@ -1003,7 +1003,7 @@ function renderSingleFile(data, isTabbed) {
       const evidence = c.n !== undefined
         ? `<div class="corr-meta">${esc(c.strength || "")} · ${esc(c.method || "pearson")} · n=${c.n} · ${c.coverage}% coverage${c.smallSample ? " · small sample" : ""}</div>`
         : "";
-      const caveat = c.caveat ? `<div class="corr-caveat">⚠ ${esc(c.caveat)}</div>` : "";
+      const caveat = c.caveat ? `<div class="corr-caveat">Caveat — ${esc(c.caveat)}</div>` : "";
       return `<div class="corr-item">
         <div class="corr-cols">${esc(colA)} ↔ ${esc(colB)}</div>
         <div class="corr-bar-wrap"><div class="corr-bar ${isPos?"positive":"negative"}" style="width:${pct}%"></div></div>
@@ -1352,7 +1352,7 @@ function renderEvidence(evidence) {
         <span class="evidence-claim">${esc(e.claim)}</span>
       </div>
       <div class="evidence-meta">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage · engine v${esc(e.engineVersion)}</div>
-      ${e.caveat ? `<div class="evidence-caveat">⚠ ${esc(e.caveat)}</div>` : ""}
+      ${e.caveat ? `<div class="evidence-caveat">Caveat — ${esc(e.caveat)}</div>` : ""}
       ${drilldown}
     </div>`;
   }).join("");
@@ -1429,7 +1429,7 @@ function buildReportHtml(data) {
       <div class="muted">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage</div>
       ${evidenceStatisticsText(e) ? `<div class="muted">Inference: ${esc(evidenceStatisticsText(e))}</div>` : ""}
       ${e.provenance ? `<div class="muted">Formula: ${esc(e.provenance.formula)} · included ${esc(e.provenance.includedRows)}/${esc(e.provenance.inputRows)} rows · source rows ${esc(e.provenance.sourceRows.map((row) => row.rowNumber).join(", ") || "none")}</div>` : ""}
-      ${e.caveat ? `<div class="muted">⚠ ${esc(e.caveat)}</div>` : ""}</div>`).join("") || `<p class="muted">None met the reporting thresholds.</p>`;
+      ${e.caveat ? `<div class="muted">Caveat — ${esc(e.caveat)}</div>` : ""}</div>`).join("") || `<p class="muted">None met the reporting thresholds.</p>`;
   const corrRows = correlations.map(c =>
     `<tr><td>${esc(c.columnA ?? c.colA)} ↔ ${esc(c.columnB ?? c.colB)}</td><td>${esc(c.coefficient ?? c.r)}</td><td>${esc(c.method || "pearson")}</td><td>${esc(c.n ?? "—")}</td><td>${esc(c.coverage ?? "—")}%</td></tr>`).join("");
   const issues = (profile?.issues || []).map(i => `<li>[${esc(i.severity)}] ${esc(i.message)}</li>`).join("");
