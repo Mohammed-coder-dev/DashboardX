@@ -28,6 +28,9 @@ All notable changes to this project are documented here. The format follows
   and p-values for group/file mean differences, chi-square with Cramér's V for
   categorical associations, two-sample KS distribution-shift tests, and an
   explicitly exploratory median/MAD level-shift detector for dated targets.
+- A five-user pilot playbook, privacy-safe structured feedback issue form, and
+  in-product pilot feedback links so validation measures observed reuse instead
+  of collecting vague interest.
 
 ### Changed
 

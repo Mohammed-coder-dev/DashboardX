@@ -38,6 +38,8 @@ test.describe("landing page at the root", () => {
     const body = page.locator("body");
     await expect(body).toContainText(/How it works/i);
     await expect(body).toContainText(/Who it's for/i);
+    await expect(body).toContainText(/Evidence you can audit/i);
+    await expect(body).toContainText(/Know what actually changed/i);
     await expect(body).toContainText(/Deploy around your data boundary/i);
     await expect(body).toContainText(/What happens to your data/i);
     await expect(page.locator("footer")).toContainText(/GitHub/i);
@@ -129,6 +131,7 @@ test.describe("deterministic analysis without an API key", () => {
     await page.locator("#analysisRecord summary").click();
     await expect(page.locator("#analysisRecordGrid")).toContainText(/not saved/i);
     await expect(page.locator("#analysisRecordGrid")).toContainText(/request id/i);
+    await expect(page.getByRole("link", { name: "Give feedback" })).toHaveAttribute("href", /pilot-feedback\.yml/);
     await page.locator(".evidence-provenance summary").first().click();
     await expect(page.locator(".evidence-provenance").first()).toContainText(/Formula/i);
     await expect(page.locator(".evidence-provenance").first()).toContainText(/Included/i);

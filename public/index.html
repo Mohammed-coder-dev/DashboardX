@@ -248,7 +248,7 @@
       <p class="eyebrow rise"><b>For finance and operations</b> · hosted or self-hosted</p>
       <h1 class="rise d1">Turn messy spreadsheets into <em>answers you can defend.</em></h1>
       <p class="sub rise d2">Ridge computes the evidence first: full-file statistics and charts,
-        data-quality diagnostics, correlations with sample sizes, and explicit caveats.
+        confidence intervals, two-file change detection, row-level provenance, and explicit caveats.
         <strong>AI is optional and only explains what the engine already proved.</strong></p>
       <div class="cta-row rise d3">
         <a class="btn" href="/app">Analyze a file</a>
@@ -280,7 +280,7 @@
       <div class="proof-strip rise d4" aria-label="Ridge product facts">
         <div class="proof-item"><strong>0 accounts</strong><span>required to analyze</span></div>
         <div class="proof-item"><strong>Full file</strong><span>statistics and charts</span></div>
-        <div class="proof-item"><strong>Traceable</strong><span>method, n, coverage, caveat</span></div>
+        <div class="proof-item"><strong>Traceable</strong><span>formula, source rows, caveat</span></div>
         <div class="proof-item"><strong>Self-host</strong><span>production container included</span></div>
       </div>
     </header>
@@ -329,6 +329,23 @@
           <h3>Private by default</h3>
           <p>No account. Files are parsed in memory and never written to disk. Nothing is
             saved unless you tick the box that saves it. The code is open — read it.</p>
+        </div>
+      </div>
+      <div class="feats" style="margin-top:32px;">
+        <div class="feat">
+          <span class="feat-tag">claim → calculation → rows</span>
+          <h3>Evidence you can audit</h3>
+          <p>Open any finding to see its formula, inclusion rule, excluded-row count, and a bounded excerpt of the exact source rows involved.</p>
+        </div>
+        <div class="feat">
+          <span class="feat-tag">baseline → current</span>
+          <h3>Know what actually changed</h3>
+          <p>Compare two files for schema drift, quality movement, mean intervals, and full-distribution shifts—without asking a model to do arithmetic.</p>
+        </div>
+        <div class="feat">
+          <span class="feat-tag">uncertainty included</span>
+          <h3>Evidence with statistical boundaries</h3>
+          <p>Mean intervals, Welch tests, Cramér's V, and KS shifts carry sample sizes, p-values, effect sizes, and multiple-testing caveats.</p>
         </div>
       </div>
     </section>
@@ -402,6 +419,7 @@
       <div class="cta-row">
         <a class="btn" href="/app">Analyze a file</a>
         <a class="ghost" href="/app?sample=1">Run the sample analysis</a>
+        <a class="ghost" href="https://github.com/MohammedAlkindi/Ridge/issues/new?template=pilot-feedback.yml">Join the pilot</a>
       </div>
     </section>
 
@@ -415,6 +433,7 @@
         <a href="/docs">Docs</a>
         <a href="/privacy">Privacy</a>
         <a href="https://github.com/MohammedAlkindi/Ridge">GitHub</a>
+        <a href="https://github.com/MohammedAlkindi/Ridge/issues/new?template=pilot-feedback.yml">Pilot feedback</a>
         <a href="https://github.com/MohammedAlkindi/Ridge/blob/main/LICENSE">MIT</a>
       </div>
     </footer>

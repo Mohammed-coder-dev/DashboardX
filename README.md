@@ -150,6 +150,14 @@ including in the exported report.
 
 Full detail: [PRIVACY.md](PRIVACY.md) and the live `/privacy` page.
 
+## Run a five-user pilot
+
+Use [docs/PILOT_PLAYBOOK.md](docs/PILOT_PLAYBOOK.md) to recruit and observe five
+people with recurring finance, operations, or analytics spreadsheet work. It
+defines the session protocol, privacy boundary, return-use metric, and decision
+thresholds. Non-confidential product feedback can be submitted through the
+repository's **Pilot feedback** issue form.
+
 ## Quick start
 
 ```bash
