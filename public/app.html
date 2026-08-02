@@ -235,6 +235,21 @@
         <!-- Per-file dashboard -->
         <div id="fileDashboard">
 
+          <section id="overviewSection" class="result-overview animate animate-delay-1" style="display:none;" aria-labelledby="overviewTitle">
+            <div class="result-overview-head">
+              <div>
+                <div class="result-overview-eyebrow">Decision snapshot</div>
+                <h2 id="overviewTitle">At a glance</h2>
+              </div>
+              <span class="result-overview-badge">Computed · not generated</span>
+            </div>
+            <div id="overviewGrid" class="result-overview-grid"></div>
+            <div class="result-overview-focus">
+              <span>Start here</span>
+              <p id="overviewFocus"></p>
+            </div>
+          </section>
+
           <!-- Shown instead of the AI sections when the analysis ran without a key -->
           <div id="explainBar" class="explain-bar animate animate-delay-2" style="display:none;">
             <div>

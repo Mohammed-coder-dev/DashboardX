@@ -121,11 +121,16 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#statsSection")).toBeVisible();
     await expect(page.locator("#statsSection")).toContainText("95% CI");
     await expect(page.locator("#qualitySection")).toBeVisible();
+    await expect(page.locator("#overviewSection")).toBeVisible();
+    await expect(page.locator("#overviewSection")).toContainText(/computed · not generated/i);
+    await expect(page.locator("#overviewGrid")).toContainText(/data health/i);
+    await expect(page.locator("#overviewGrid")).toContainText(/completeness/i);
     await expect(page.locator("#chartsSection")).toBeVisible();
     await expect(page.locator("#chartsSection .ai-badge")).toContainText(/full dataset/i);
     expect(await page.locator(".chart-card").count()).toBeGreaterThan(0);
     await expect(page.locator("#aiDetailGrid")).toBeHidden();
     await expect(page.locator("#resultNav")).toBeVisible();
+    await expect(page.locator('#resultNav a[href="#overviewSection"]')).toHaveAttribute("aria-current", "location");
     await expect(page.locator("#resultNav")).toContainText(/Evidence/);
     await expect(page.locator("#resultNav")).toContainText(/Charts/);
     await expect(page.locator("#analysisRecord")).toBeVisible();

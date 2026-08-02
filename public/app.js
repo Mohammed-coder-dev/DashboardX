@@ -72,6 +72,9 @@ const compareQuality     = document.getElementById("compareQuality");
 const compareSchema      = document.getElementById("compareSchema");
 const compareFindings    = document.getElementById("compareFindings");
 const compareColumnRows  = document.getElementById("compareColumnRows");
+const overviewSection    = document.getElementById("overviewSection");
+const overviewGrid       = document.getElementById("overviewGrid");
+const overviewFocus      = document.getElementById("overviewFocus");
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -791,6 +794,7 @@ function renderSingleFile(data, isTabbed) {
     corrSection.style.display = "none";
     topicsSection.style.display = "none";
     qualitySection.style.display = "none";
+    overviewSection.style.display = "none";
     analysisRecord.style.display = "none";
     resultNav.style.display = "none";
     aiDetailGrid.style.display = "none";
@@ -845,6 +849,7 @@ function renderSingleFile(data, isTabbed) {
     </div>`).join("") : "";
 
   renderEvidence(data.evidence || []);
+  renderOverview(data);
   renderTargetBar(data);
   renderQuality(data.profile);
   renderAnalysisRecord(meta);
@@ -953,6 +958,7 @@ function renderSingleFile(data, isTabbed) {
 
 function renderResultNav() {
   const sections = [
+    ["overviewSection", "Overview"],
     ["evidenceSection", "Evidence"],
     ["qualitySection", "Quality"],
     ["statsSection", "Columns"],
@@ -968,7 +974,69 @@ function renderResultNav() {
     return;
   }
   resultNav.style.display = "";
-  resultNav.innerHTML = sections.map(([id, label]) => `<a href="#${esc(id)}">${esc(label)}</a>`).join("");
+  resultNav.innerHTML = sections.map(([id, label], index) => `<a href="#${esc(id)}"${index === 0 ? ` class="active" aria-current="location"` : ""}>${esc(label)}</a>`).join("");
+  observeResultSections(sections.map(([id]) => id));
+}
+
+let resultNavObserver = null;
+
+function setActiveResultSection(id) {
+  resultNav.querySelectorAll("a").forEach((link) => {
+    const active = link.getAttribute("href") === `#${id}`;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "location");
+    else link.removeAttribute("aria-current");
+  });
+}
+
+function observeResultSections(ids) {
+  resultNavObserver?.disconnect();
+  if (!("IntersectionObserver" in window)) return;
+  resultNavObserver = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0];
+    if (visible) setActiveResultSection(visible.target.id);
+  }, { rootMargin: "-120px 0px -62% 0px", threshold: [0, 0.01] });
+  ids.forEach((id) => {
+    const section = document.getElementById(id);
+    if (section) resultNavObserver.observe(section);
+  });
+}
+
+resultNav.addEventListener("click", (event) => {
+  const link = event.target.closest("a");
+  if (link) setActiveResultSection(link.getAttribute("href").slice(1));
+});
+
+function renderOverview(data) {
+  const { meta = {}, profile, evidence = [], correlations = [] } = data;
+  if (!meta.isTabular || !profile) {
+    overviewSection.style.display = "none";
+    return;
+  }
+
+  const metrics = [
+    ["Rows analyzed", (meta.totalRows ?? profile.rows ?? 0).toLocaleString(), "Full dataset"],
+    ["Data health", `${profile.healthGrade || "—"} · ${profile.healthScore ?? "—"}/100`, `${profile.issues?.length || 0} flagged issue${profile.issues?.length === 1 ? "" : "s"}`],
+    ["Completeness", `${profile.completeness ?? "—"}%`, `${profile.duplicateRows || 0} duplicate row${profile.duplicateRows === 1 ? "" : "s"}`],
+    ["Evidence", String(evidence.length), `${correlations.length} reported relationship${correlations.length === 1 ? "" : "s"}`],
+  ];
+  overviewGrid.innerHTML = metrics.map(([label, value, context]) => `
+    <div class="result-overview-metric">
+      <span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(context)}</small>
+    </div>`).join("");
+
+  const priorityIssue = (profile.issues || []).find((issue) => issue.severity === "high")
+    || (profile.issues || []).find((issue) => issue.severity === "medium")
+    || (profile.issues || [])[0];
+  const priorityEvidence = evidence.find((item) => ["strong", "very strong"].includes(String(item.strength).toLowerCase())) || evidence[0];
+  overviewFocus.textContent = priorityIssue
+    ? `Review data quality first: ${priorityIssue.message}`
+    : priorityEvidence
+      ? priorityEvidence.claim
+      : "No material quality or evidence flags were found. Review the column profiles for context.";
+  overviewSection.style.display = "";
 }
 
 function buildDeterministicCharts(stats, target) {
@@ -1517,6 +1585,8 @@ function apiErrorMessage(data, fallback) {
 function resetDashboard() {
   selectedFiles=[]; fileInput.value=""; allFileResults=[]; activeTabIdx=0;
   currentComparison=null; compareSection.style.display="none"; fileDashboard.style.display="";
+  overviewSection.style.display="none";
+  resultNavObserver?.disconnect();
   fileListEl.style.display="none"; dropzoneIcon.textContent="📁";
   questionInput.value=""; urlInput.value="";
   renderFileList();
