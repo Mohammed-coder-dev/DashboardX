@@ -302,7 +302,10 @@
           </div>
 
           <div id="statsSection" class="card animate animate-delay-3">
-            <div class="card-title">Statistical Summary</div>
+            <div class="stats-section-head">
+              <div class="card-title">Statistical Summary</div>
+              <span>Select a column to inspect its full profile</span>
+            </div>
             <div class="stat-grid" id="statGrid"></div>
           </div>
 
@@ -347,6 +350,22 @@
 
   </main>
 </div>
+
+<dialog id="columnInspector" class="column-inspector" aria-labelledby="columnInspectorTitle">
+  <div class="column-inspector-shell">
+    <div class="column-inspector-head">
+      <div>
+        <div class="column-inspector-eyebrow">Column profile · full dataset</div>
+        <h2 id="columnInspectorTitle"></h2>
+        <div id="columnInspectorMeta" class="column-inspector-meta"></div>
+      </div>
+      <button id="columnInspectorClose" class="column-inspector-close" type="button" aria-label="Close column profile">×</button>
+    </div>
+    <div id="columnInspectorMetrics" class="column-inspector-metrics"></div>
+    <div id="columnInspectorVisual" class="column-inspector-visual"></div>
+    <p class="column-inspector-note">Every value shown here is computed from the full uploaded column. No AI-generated statistics.</p>
+  </div>
+</dialog>
 <script src="app.js"></script>
 </body>
 </html>

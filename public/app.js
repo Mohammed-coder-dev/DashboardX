@@ -75,6 +75,12 @@ const compareColumnRows  = document.getElementById("compareColumnRows");
 const overviewSection    = document.getElementById("overviewSection");
 const overviewGrid       = document.getElementById("overviewGrid");
 const overviewFocus      = document.getElementById("overviewFocus");
+const columnInspector    = document.getElementById("columnInspector");
+const columnInspectorTitle = document.getElementById("columnInspectorTitle");
+const columnInspectorMeta = document.getElementById("columnInspectorMeta");
+const columnInspectorMetrics = document.getElementById("columnInspectorMetrics");
+const columnInspectorVisual = document.getElementById("columnInspectorVisual");
+const columnInspectorClose = document.getElementById("columnInspectorClose");
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -878,26 +884,26 @@ function renderSingleFile(data, isTabbed) {
         const coverage = s.coverage !== undefined
           ? statRow("coverage", `${s.coverage}%${s.invalid ? ` (${s.invalid} invalid)` : ""}`)
           : "";
-        return `<div class="stat-card">
-        <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge numeric">numeric</span>
+        return `<button class="stat-card" data-column="${esc(col)}" type="button" aria-label="Inspect ${esc(col)} column">
+        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Explore ↗</span></div><span class="stat-type-badge numeric">numeric</span>
         ${statRow("mean",s.mean)}${s.meanConfidence95 ? statRow("95% CI", `${s.meanConfidence95.lower} to ${s.meanConfidence95.upper}`) : ""}${statRow("median",s.median)}${statRow("min",s.min)}${statRow("max",s.max)}${statRow("std",s.std)}${statRow("count",s.count)}${coverage}
-      </div>`;
+      </button>`;
       }
-      if (s.type === "date") return `<div class="stat-card">
-        <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge categorical">date</span>
+      if (s.type === "date") return `<button class="stat-card" data-column="${esc(col)}" type="button" aria-label="Inspect ${esc(col)} column">
+        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Explore ↗</span></div><span class="stat-type-badge categorical">date</span>
         ${statRow("valid",s.validCount)}${statRow("earliest",s.earliest||"—")}${statRow("latest",s.latest||"—")}${statRow("range",s.rangeDays != null ? s.rangeDays + " days" : "—")}${s.trend ? statRow("trend", s.trend) : ""}
-      </div>`;
+      </button>`;
       // Categorical top values are { value, count, percentage } objects ranked
       // by frequency; render the leading levels with their share.
       const topText = (s.top || [])
         .slice(0, 5)
         .map(t => typeof t === "object" && t !== null ? `${t.value} (${t.percentage}%)` : String(t))
         .join(", ");
-      return `<div class="stat-card">
-        <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge categorical">${esc(s.role || "categorical")}</span>
+      return `<button class="stat-card" data-column="${esc(col)}" type="button" aria-label="Inspect ${esc(col)} column">
+        <div class="stat-card-head"><div class="stat-col-name">${esc(col)}</div><span class="stat-card-action">Explore ↗</span></div><span class="stat-type-badge categorical">${esc(s.role || "categorical")}</span>
         ${statRow("count",s.count)}${statRow("unique",s.unique)}
         <div class="stat-row"><span class="stat-key">most common</span><span class="stat-val" style="font-size:10px;">${esc(topText)}</span></div>
-      </div>`;
+      </button>`;
     }).join("");
   } else {
     statsSection.style.display = "none";
@@ -1038,6 +1044,95 @@ function renderOverview(data) {
       : "No material quality or evidence flags were found. Review the column profiles for context.";
   overviewSection.style.display = "";
 }
+
+function inspectorMetric(label, value, context = "") {
+  return `<div class="column-inspector-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${context ? `<small>${esc(context)}</small>` : ""}</div>`;
+}
+
+function histogramLabel(bin) {
+  if (bin.kind === "low-tail") return `< ${bin.end}`;
+  if (bin.kind === "high-tail") return `> ${bin.start}`;
+  return bin.start === bin.end ? String(bin.start) : `${bin.start}–${bin.end}`;
+}
+
+function inspectorBars(items, labelFor, valueFor) {
+  const maximum = Math.max(1, ...items.map(valueFor));
+  return `<div class="column-inspector-bars">${items.map((item) => {
+    const value = valueFor(item);
+    const height = Math.max(4, Math.round(value / maximum * 100));
+    const label = labelFor(item);
+    return `<div class="column-inspector-bar" title="${esc(`${label}: ${value}`)}">
+      <span class="column-inspector-bar-value">${esc(value)}</span>
+      <span class="column-inspector-bar-track"><span style="height:${height}%"></span></span>
+      <small>${esc(label)}</small>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function renderColumnInspectorVisual(field) {
+  if (field.type === "numeric" && field.histogram?.bins?.length) {
+    const outliers = field.outliers?.applied
+      ? `${field.outliers.count} outside the IQR fences`
+      : `Outlier check unavailable${field.outliers?.reason ? `: ${field.outliers.reason}` : ""}`;
+    return `<div class="column-inspector-visual-head"><h3>Distribution</h3><p>${esc(outliers)}</p></div>
+      ${inspectorBars(field.histogram.bins, histogramLabel, (bin) => bin.count)}`;
+  }
+  if (field.type === "date" && field.periods?.length) {
+    return `<div class="column-inspector-visual-head"><h3>Timeline coverage</h3><p>${esc(field.granularity || "period")} buckets · ${esc(field.trend || "no stable trend")}</p></div>
+      ${inspectorBars(field.periods.slice(-16), (period) => period.period, (period) => period.count)}`;
+  }
+  if (field.top?.length) {
+    return `<div class="column-inspector-visual-head"><h3>Most common values</h3><p>Ranked across ${esc(field.validCount ?? field.count ?? 0)} valid rows</p></div>
+      <div class="column-inspector-ranks">${field.top.slice(0, 8).map((item) => {
+        const width = Math.max(2, Math.min(100, item.percentage || 0));
+        return `<div class="column-inspector-rank"><span title="${esc(item.value)}">${esc(item.value)}</span><span class="column-inspector-rank-track"><span style="width:${width}%"></span></span><strong>${esc(item.percentage)}%</strong></div>`;
+      }).join("")}</div>`;
+  }
+  return `<div class="column-inspector-empty">There is not enough valid data to visualize this column.</div>`;
+}
+
+function openColumnInspector(column) {
+  const current = activeResult();
+  const field = current?.stats?.[column];
+  if (!field) return;
+  const profile = current.profile?.columns?.[column];
+  const valid = field.validCount ?? field.count ?? 0;
+  const metrics = field.type === "numeric"
+    ? [
+        ["Mean", field.mean], ["Median", field.median], ["Std. deviation", field.std],
+        ["Range", `${field.min} to ${field.max}`],
+        ["Middle 50%", field.quantiles ? `${field.quantiles.q1} to ${field.quantiles.q3}` : "—"],
+        ["95% mean interval", field.meanConfidence95 ? `${field.meanConfidence95.lower} to ${field.meanConfidence95.upper}` : "Unavailable"],
+      ]
+    : field.type === "date"
+      ? [
+          ["Earliest", field.earliest || "—"], ["Latest", field.latest || "—"],
+          ["Date range", field.rangeDays == null ? "—" : `${field.rangeDays} days`],
+          ["Observed periods", field.periods?.length || 0], ["Trend", field.trend || "—"],
+          ["Gaps", field.gaps?.length || 0],
+        ]
+      : [
+          ["Valid rows", valid], ["Unique values", field.unique ?? "—"],
+          ["Coverage", `${field.coverage ?? "—"}%`], ["Missing", field.missing ?? 0],
+          ["Column role", field.role || field.type], ["Type consistency", profile?.typeConsistency != null ? `${Math.round(profile.typeConsistency * 100)}%` : "—"],
+        ];
+
+  columnInspectorTitle.textContent = column;
+  columnInspectorMeta.textContent = `${field.type} · ${Number(valid).toLocaleString()} valid · ${field.coverage ?? "—"}% coverage${field.invalid ? ` · ${field.invalid} invalid` : ""}${field.missing ? ` · ${field.missing} missing` : ""}`;
+  columnInspectorMetrics.innerHTML = metrics.map(([label, value]) => inspectorMetric(label, value)).join("");
+  columnInspectorVisual.innerHTML = renderColumnInspectorVisual(field);
+  if (typeof columnInspector.showModal === "function") columnInspector.showModal();
+  else columnInspector.setAttribute("open", "");
+}
+
+statGrid.addEventListener("click", (event) => {
+  const card = event.target.closest("[data-column]");
+  if (card) openColumnInspector(card.dataset.column);
+});
+columnInspectorClose.addEventListener("click", () => columnInspector.close());
+columnInspector.addEventListener("click", (event) => {
+  if (event.target === columnInspector) columnInspector.close();
+});
 
 function buildDeterministicCharts(stats, target) {
   const entries = Object.entries(stats || {});
@@ -1587,6 +1682,7 @@ function resetDashboard() {
   currentComparison=null; compareSection.style.display="none"; fileDashboard.style.display="";
   overviewSection.style.display="none";
   resultNavObserver?.disconnect();
+  if (columnInspector.open) columnInspector.close();
   fileListEl.style.display="none"; dropzoneIcon.textContent="📁";
   questionInput.value=""; urlInput.value="";
   renderFileList();

@@ -173,6 +173,22 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#evidenceSection")).toBeVisible();
   });
+
+  test("opens a full deterministic profile for any column", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#statsSection")).toBeVisible({ timeout: 20_000 });
+
+    await page.locator('[data-column="revenue"]').click();
+    await expect(page.locator("#columnInspector")).toBeVisible();
+    await expect(page.locator("#columnInspectorTitle")).toHaveText("revenue");
+    await expect(page.locator("#columnInspectorMetrics")).toContainText(/95% mean interval/i);
+    await expect(page.locator("#columnInspectorVisual")).toContainText(/distribution/i);
+    await expect(page.locator("#columnInspector")).toContainText(/full uploaded column/i);
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#columnInspector")).toBeHidden();
+  });
 });
 
 test.describe("deterministic file comparison", () => {
