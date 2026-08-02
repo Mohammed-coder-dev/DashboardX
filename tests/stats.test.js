@@ -63,14 +63,15 @@ describe("computeStats — numeric fields", () => {
   it("builds a full-field histogram whose bins account for every valid value", () => {
     const rows = [1, 2, 3, 4, 5, 6, 7, 8, null, "bad", 100].map((x) => ({ x }));
     const s = computeStats(rows, ["x"]).x;
-    expect(s.histogram.method).toBe("equal-width");
+    expect(s.histogram.method).toBe("iqr-tail-aware");
     expect(s.histogram.bins.reduce((sum, bin) => sum + bin.count, 0)).toBe(s.validCount);
     expect(s.histogram.bins.at(-1).count).toBe(1);
+    expect(s.histogram.bins.at(-1).kind).toBe("high-tail");
   });
 
   it("represents a constant numeric field with one stable histogram bin", () => {
     const s = computeStats([{ x: 5 }, { x: 5 }, { x: 5 }], ["x"]).x;
-    expect(s.histogram.bins).toEqual([{ start: 5, end: 5, count: 3 }]);
+    expect(s.histogram.bins).toEqual([{ start: 5, end: 5, count: 3, kind: "center" }]);
   });
 
   it("declines to compute IQR outliers when the IQR is zero", () => {

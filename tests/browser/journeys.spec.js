@@ -119,6 +119,10 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#chartsSection")).toBeVisible();
     await expect(page.locator("#chartsSection .ai-badge")).toContainText(/full dataset/i);
     expect(await page.locator(".chart-card").count()).toBeGreaterThan(0);
+    await expect(page.locator("#aiDetailGrid")).toBeHidden();
+    await expect(page.locator("#resultNav")).toBeVisible();
+    await expect(page.locator("#resultNav")).toContainText(/Evidence/);
+    await expect(page.locator("#resultNav")).toContainText(/Charts/);
     await expect(page.locator("#analysisRecord")).toBeVisible();
     await expect(page.locator("#analysisRecordSummary")).toContainText(/deterministic only/i);
     await page.locator("#analysisRecord summary").click();

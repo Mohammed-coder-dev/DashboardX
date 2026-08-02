@@ -29,7 +29,7 @@ const MAX_HISTOGRAM_BINS = 10;
  * The bins travel with the computed statistics so charts never have to infer a
  * distribution from the 100 representative rows included for AI context.
  */
-function histogram(numbers) {
+function histogram(numbers, outliers) {
   let min = Infinity;
   let max = -Infinity;
   for (const value of numbers) {
@@ -37,21 +37,49 @@ function histogram(numbers) {
     if (value > max) max = value;
   }
   if (min === max) {
-    return { method: "equal-width", bins: [{ start: min, end: max, count: numbers.length }] };
+    return { method: "equal-width", bins: [{ start: min, end: max, count: numbers.length, kind: "center" }] };
   }
 
-  const binCount = Math.min(MAX_HISTOGRAM_BINS, Math.max(2, Math.ceil(Math.sqrt(numbers.length))));
-  const width = (max - min) / binCount;
+  // Preserve extreme observations without letting them flatten the central
+  // distribution into a single unreadable bar.
+  const tailAware = outliers?.applied && outliers.count > 0;
+  const central = tailAware
+    ? numbers.filter((value) => value >= outliers.lowerFence && value <= outliers.upperFence)
+    : numbers;
+  let centralMin = Infinity;
+  let centralMax = -Infinity;
+  for (const value of central) {
+    if (value < centralMin) centralMin = value;
+    if (value > centralMax) centralMax = value;
+  }
+  if (centralMin === centralMax) {
+    const bins = [{ start: centralMin, end: centralMax, count: central.length, kind: "center" }];
+    const lowCount = numbers.filter((value) => value < centralMin).length;
+    const highCount = numbers.filter((value) => value > centralMax).length;
+    if (lowCount) bins.unshift({ start: null, end: centralMin, count: lowCount, kind: "low-tail" });
+    if (highCount) bins.push({ start: centralMax, end: null, count: highCount, kind: "high-tail" });
+    return { method: tailAware ? "iqr-tail-aware" : "equal-width", bins };
+  }
+
+  const binCount = Math.min(MAX_HISTOGRAM_BINS, Math.max(2, Math.ceil(Math.sqrt(central.length))));
+  const width = (centralMax - centralMin) / binCount;
   const bins = Array.from({ length: binCount }, (_, index) => ({
-    start: round(min + index * width),
-    end: round(index === binCount - 1 ? max : min + (index + 1) * width),
+    start: round(centralMin + index * width),
+    end: round(index === binCount - 1 ? centralMax : centralMin + (index + 1) * width),
     count: 0,
+    kind: "center",
   }));
-  for (const value of numbers) {
-    const index = Math.min(Math.floor((value - min) / width), binCount - 1);
+  for (const value of central) {
+    const index = Math.min(Math.floor((value - centralMin) / width), binCount - 1);
     bins[index].count++;
   }
-  return { method: "equal-width", bins };
+  if (tailAware) {
+    const lowCount = numbers.filter((value) => value < outliers.lowerFence).length;
+    const highCount = numbers.filter((value) => value > outliers.upperFence).length;
+    if (lowCount) bins.unshift({ start: null, end: outliers.lowerFence, count: lowCount, kind: "low-tail" });
+    if (highCount) bins.push({ start: outliers.upperFence, end: null, count: highCount, kind: "high-tail" });
+  }
+  return { method: tailAware ? "iqr-tail-aware" : "equal-width", bins };
 }
 
 function outlierReport(numbers) {
@@ -126,6 +154,7 @@ function numericField(rawValues, total, totalRows) {
   const sorted = [...numbers].sort((a, b) => a - b);
   const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
   const variance = numbers.reduce((a, b) => a + (b - mean) ** 2, 0) / numbers.length;
+  const outliers = outlierReport(numbers);
 
   return {
     type: "numeric",
@@ -147,8 +176,8 @@ function numericField(rawValues, total, totalRows) {
       q3: round(quantile(sorted, 0.75)),
       p95: round(quantile(sorted, 0.95)),
     },
-    histogram: histogram(numbers),
-    outliers: outlierReport(numbers),
+    histogram: histogram(numbers, outliers),
+    outliers,
   };
 }
 

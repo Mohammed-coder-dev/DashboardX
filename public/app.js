@@ -57,6 +57,8 @@ const exportReportBtn   = document.getElementById("exportReportBtn");
 const analysisRecord    = document.getElementById("analysisRecord");
 const analysisRecordSummary = document.getElementById("analysisRecordSummary");
 const analysisRecordGrid = document.getElementById("analysisRecordGrid");
+const resultNav          = document.getElementById("resultNav");
+const aiDetailGrid       = document.getElementById("aiDetailGrid");
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -584,6 +586,8 @@ function renderSingleFile(data, isTabbed) {
     topicsSection.style.display = "none";
     qualitySection.style.display = "none";
     analysisRecord.style.display = "none";
+    resultNav.style.display = "none";
+    aiDetailGrid.style.display = "none";
     conclusionText.textContent = "";
     return;
   }
@@ -609,6 +613,7 @@ function renderSingleFile(data, isTabbed) {
   const hasAI = Boolean(analysis);
   explainBar.style.display = hasAI ? "none" : "";
   summaryCard.style.display = hasAI ? "" : "none";
+  aiDetailGrid.style.display = hasAI ? "" : "none";
   if (!hasAI) {
     const isDoc = !meta.isTabular;
     explainSub.textContent = isDoc
@@ -737,6 +742,27 @@ function renderSingleFile(data, isTabbed) {
 
   conclusionText.textContent = hasAI ? analysis.conclusion : "";
   conclusionSection.style.display = hasAI ? "" : "none";
+  renderResultNav();
+}
+
+function renderResultNav() {
+  const sections = [
+    ["evidenceSection", "Evidence"],
+    ["qualitySection", "Quality"],
+    ["statsSection", "Columns"],
+    ["chartsSection", "Charts"],
+    ["corrSection", "Relationships"],
+    ["askSection", "Ask"],
+  ].filter(([id]) => {
+    const element = document.getElementById(id);
+    return element && element.style.display !== "none";
+  });
+  if (sections.length < 2) {
+    resultNav.style.display = "none";
+    return;
+  }
+  resultNav.style.display = "";
+  resultNav.innerHTML = sections.map(([id, label]) => `<a href="#${esc(id)}">${esc(label)}</a>`).join("");
 }
 
 function buildDeterministicCharts(stats, target) {
@@ -754,8 +780,12 @@ function buildDeterministicCharts(stats, target) {
         deterministic: true,
         kind: "histogram",
         title: `${column} distribution`,
-        reason: `${field.validCount.toLocaleString()} valid values · ${field.coverage}% coverage · equal-width bins`,
-        labels: field.histogram.bins.map(bin => bin.start === bin.end ? String(bin.start) : `${bin.start}–${bin.end}`),
+        reason: `${field.validCount.toLocaleString()} valid values · ${field.coverage}% coverage · ${field.histogram.method === "iqr-tail-aware" ? "outliers separated from central bins" : "equal-width bins"}`,
+        labels: field.histogram.bins.map(bin => {
+          if (bin.kind === "low-tail") return `< ${bin.end}`;
+          if (bin.kind === "high-tail") return `> ${bin.start}`;
+          return bin.start === bin.end ? String(bin.start) : `${bin.start}–${bin.end}`;
+        }),
         values: field.histogram.bins.map(bin => bin.count),
         xLabel: column,
         yLabel: "rows",

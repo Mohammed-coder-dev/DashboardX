@@ -12,7 +12,7 @@ import { coveragePct, isMissing, round, toFiniteNumber } from "./values.js";
 /** Bumped when evidence computation changes meaning, not just wording. */
 export const EVIDENCE_ENGINE_VERSION = "1.0.0";
 /** Version of the saved/exported analysis payload shape. */
-export const ANALYSIS_SCHEMA_VERSION = "2.2";
+export const ANALYSIS_SCHEMA_VERSION = "2.3";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;
