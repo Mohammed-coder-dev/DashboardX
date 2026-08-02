@@ -129,6 +129,35 @@ A file that fails to parse does not fail the batch; its entry carries `error`.
 
 ---
 
+## `POST /compare`
+
+`multipart/form-data`, exactly two tabular `files`. The first file is the
+baseline and the second is the current version. The endpoint is deterministic
+and never invokes an AI provider; an API key is neither required nor used.
+
+```jsonc
+{
+  "kind": "comparison",
+  "meta": { "comparisonVersion": "1.0.0", "schemaVersion": "2.3", "saved": false },
+  "files": [ /* compact deterministic profile for each file */ ],
+  "comparison": {
+    "deterministic": true,
+    "labels": { "baseline": "june.csv", "current": "july.csv" },
+    "summary": { "rowDelta": 120, "healthScoreDelta": 4, "sharedColumns": 8 },
+    "schema": { "added": [], "removed": [], "shared": [], "typeChanges": [] },
+    "quality": { "baseline": {}, "current": {}, "deltas": {} },
+    "columns": [ /* numeric, categorical, and date descriptive deltas */ ],
+    "findings": [ /* thresholded, deterministic material changes */ ]
+  },
+  "analysisId": null
+}
+```
+
+Set `save=true` to opt into persistence. Errors include
+`comparison_requires_two_files` and `comparison_requires_tabular`.
+
+---
+
 ## `POST /explain` — requires a key
 
 Adds AI interpretation to results the deterministic pipeline already produced,

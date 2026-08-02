@@ -59,6 +59,17 @@ const analysisRecordSummary = document.getElementById("analysisRecordSummary");
 const analysisRecordGrid = document.getElementById("analysisRecordGrid");
 const resultNav          = document.getElementById("resultNav");
 const aiDetailGrid       = document.getElementById("aiDetailGrid");
+const analysisModeHint   = document.getElementById("analysisModeHint");
+const urlInputWrap       = document.getElementById("urlInputWrap");
+const questionInputWrap  = document.getElementById("questionInputWrap");
+const fileDashboard      = document.getElementById("fileDashboard");
+const compareSection     = document.getElementById("compareSection");
+const compareTitle       = document.getElementById("compareTitle");
+const compareMetrics     = document.getElementById("compareMetrics");
+const compareQuality     = document.getElementById("compareQuality");
+const compareSchema      = document.getElementById("compareSchema");
+const compareFindings    = document.getElementById("compareFindings");
+const compareColumnRows  = document.getElementById("compareColumnRows");
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -197,7 +208,7 @@ async function loadHistory() {
     historySection.style.display = "";
     historyList.innerHTML = data.items.map(item => {
       const when = new Date(item.created_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
-      const icon = item.kind === "multi" ? "🗂️" : (FILE_ICONS[item.filename.split(".").pop().toLowerCase()] || "📄");
+      const icon = item.kind === "comparison" ? "↔" : (item.kind === "multi" ? "🗂️" : (FILE_ICONS[item.filename.split(".").pop().toLowerCase()] || "📄"));
       return `<div class="history-item" data-id="${esc(item.id)}">
         <span>${icon}</span>
         <span class="history-item-name">${esc(item.filename)}</span>
@@ -234,7 +245,8 @@ async function openSaved(id) {
     if (!res.ok) throw new Error(row.error || "Could not load analysis.");
     currentAnalysisId = row.id;
     lastSource = null;
-    if (row.kind === "multi") renderMultiDashboard(row.payload);
+    if (row.kind === "comparison") renderComparisonDashboard(row.payload);
+    else if (row.kind === "multi") renderMultiDashboard(row.payload);
     else { allFileResults = [row.payload]; renderSingleFile(row.payload, false); }
     sheetBar.style.display = "none";
     updateShareBtn();
@@ -274,11 +286,29 @@ let selectedFiles  = [];
 let chartInstances = [];
 let allFileResults = [];
 let activeTabIdx   = 0;
+let analysisMode   = "analyze";
+let currentComparison = null;
 // What produced the current dashboard, so sheet chips can re-run it.
 // null when it came from history/share (no re-runnable source).
 let lastSource     = null;
 let lastSheet      = null;
 let currentTarget  = null;
+
+document.querySelectorAll("[data-analysis-mode]").forEach((button) => {
+  button.addEventListener("click", () => {
+    analysisMode = button.dataset.analysisMode;
+    document.querySelectorAll("[data-analysis-mode]").forEach((candidate) => candidate.classList.toggle("active", candidate === button));
+    const comparing = analysisMode === "compare";
+    analysisModeHint.textContent = comparing
+      ? "Choose exactly two tabular files. File 1 is the baseline; file 2 is the current version."
+      : "Profile one file or explore several files side by side.";
+    urlInputWrap.style.display = comparing ? "none" : "";
+    questionInputWrap.style.display = comparing ? "none" : "";
+    sampleBtn.style.display = comparing ? "none" : "";
+    hideError();
+    renderFileList();
+  });
+});
 
 // ─── File handling ────────────────────────────────────────────
 fileInput.addEventListener("change", (e) => handleFiles([...e.target.files]));
@@ -291,8 +321,9 @@ dropzone.addEventListener("drop", (e) => {
 
 function handleFiles(incoming) {
   const combined = [...selectedFiles];
+  const limit = analysisMode === "compare" ? 2 : MAX_FILES;
   for (const f of incoming) {
-    if (combined.length >= MAX_FILES) break;
+    if (combined.length >= limit) break;
     if (!combined.find(x => x.name === f.name && x.size === f.size)) combined.push(f);
   }
   selectedFiles = combined;
@@ -304,11 +335,12 @@ function urlValue() { return urlInput.value.trim(); }
 urlInput.addEventListener("input", () => { if (selectedFiles.length === 0) renderFileList(); });
 
 function renderFileList() {
+  const comparing = analysisMode === "compare";
   if (selectedFiles.length === 0) {
     fileListEl.style.display = "none";
     dropzoneIcon.textContent = "📁";
-    analyzeBtn.disabled = !urlValue();
-    analyzeBtn.textContent = urlValue() ? "Analyze link →" : "Analyze data →";
+    analyzeBtn.disabled = comparing || !urlValue();
+    analyzeBtn.textContent = comparing ? "Select two files to compare" : (urlValue() ? "Analyze link →" : "Analyze data →");
     return;
   }
 
@@ -329,14 +361,14 @@ function renderFileList() {
     </div>`;
   }).join("");
 
-  if (selectedFiles.length < MAX_FILES) {
+  if (selectedFiles.length < (comparing ? 2 : MAX_FILES)) {
     fileListEl.innerHTML += `<label class="add-more-btn" for="fileInput">+ Add more</label>`;
   }
 
-  analyzeBtn.disabled = false;
-  analyzeBtn.textContent = selectedFiles.length === 1
-    ? "Analyze data →"
-    : `Analyze ${selectedFiles.length} files →`;
+  analyzeBtn.disabled = comparing && selectedFiles.length !== 2;
+  analyzeBtn.textContent = comparing
+    ? (selectedFiles.length === 2 ? "Compare baseline to current →" : "Add one current file")
+    : (selectedFiles.length === 1 ? "Analyze data →" : `Analyze ${selectedFiles.length} files →`);
 }
 
 function removeFile(idx) {
@@ -383,8 +415,13 @@ sheetBar.addEventListener("click", (e) => {
 const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
 
 async function runAnalysis(sheet) {
-  if (selectedFiles.length === 0 && urlValue()) return runUrlAnalysis(sheet);
+  const isComparison = analysisMode === "compare";
+  if (!isComparison && selectedFiles.length === 0 && urlValue()) return runUrlAnalysis(sheet);
   if (selectedFiles.length === 0) return;
+  if (isComparison && selectedFiles.length !== 2) {
+    showError("Comparison mode requires exactly two files: baseline first, current second.");
+    return;
+  }
   const totalBytes = selectedFiles.reduce((sum, f) => sum + f.size, 0);
   if (totalBytes > MAX_REQUEST_BYTES) {
     showError("Uploads are limited to 4 MB per request in total — analyze a larger file by pasting a link instead.");
@@ -394,21 +431,23 @@ async function runAnalysis(sheet) {
   hideError();
   animateLoadingSteps();
 
-  const isMulti  = selectedFiles.length > 1;
+  const isMulti  = selectedFiles.length > 1 && !isComparison;
   const question = questionInput.value.trim();
 
-  if (isMulti) {
+  if (isComparison) {
+    loadingFileCount.textContent = "Comparing baseline to current file...";
+  } else if (isMulti) {
     loadingFileCount.textContent = `Analyzing ${selectedFiles.length} files in parallel...`;
   }
 
   lastSheet = sheet || null;
   const formData = new FormData();
-  formData.append("question", question);
-  formData.append("model", getModel() || modelSelect.value || "");
+  formData.append("question", isComparison ? "" : question);
+  if (!isComparison) formData.append("model", getModel() || modelSelect.value || "");
   if (sheet && !isMulti) formData.append("sheet", sheet);
-  if (currentTarget) formData.append("target", currentTarget);
+  if (currentTarget && !isComparison) formData.append("target", currentTarget);
 
-  if (isMulti) {
+  if (isMulti || isComparison) {
     selectedFiles.forEach(f => formData.append("files", f));
   } else {
     formData.append("file", selectedFiles[0]);
@@ -417,23 +456,25 @@ async function runAnalysis(sheet) {
   formData.append("save", saveToggle?.checked ? "true" : "false");
 
   try {
-    const endpoint = isMulti ? "/api/analyze-multi" : "/api/analyze";
+    const endpoint = isComparison ? "/api/compare" : (isMulti ? "/api/analyze-multi" : "/api/analyze");
     const headers  = { "x-ridge-session": getSessionId() };
-    if (getApiKey()) headers["x-anthropic-key"] = getApiKey();
+    if (!isComparison && getApiKey()) headers["x-anthropic-key"] = getApiKey();
     const response = await fetch(endpoint, { method:"POST", headers, body:formData });
     const data     = await response.json()
       .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}) — the upload may be too large.` }));
     if (!response.ok) throw new Error(apiErrorMessage(data, "Analysis failed."));
     await delay(500);
 
-    lastSource = isMulti ? null : { kind: "upload" };
-    if (isMulti) {
+    lastSource = isMulti || isComparison ? null : { kind: "upload" };
+    if (isComparison) {
+      renderComparisonDashboard(data);
+    } else if (isMulti) {
       renderMultiDashboard(data);
     } else {
       allFileResults = [data];
       renderSingleFile(data, false);
     }
-    renderSheetBar(isMulti ? null : data.meta);
+    renderSheetBar(isMulti || isComparison ? null : data.meta);
     currentAnalysisId = data.analysisId || null;
     updateShareBtn();
     loadHistory();
@@ -496,8 +537,104 @@ function animateLoadingSteps() {
   });
 }
 
+// ─── Deterministic comparison dashboard ───────────────────────
+function signed(value, suffix = "") {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  return `${value > 0 ? "+" : ""}${value}${suffix}`;
+}
+
+function comparisonColumnValue(side, type) {
+  if (!side) return "—";
+  if (type === "numeric") return `mean ${side.mean} · median ${side.median} · ${side.coverage}% coverage`;
+  if (type === "categorical") return side.top
+    ? `${side.top.value} ${side.top.percentage}% · ${side.unique} levels`
+    : `${side.unique} levels · ${side.coverage}% coverage`;
+  if (type === "date") return `${side.earliest || "—"} → ${side.latest || "—"}`;
+  return `${side.coverage ?? "—"}% coverage`;
+}
+
+function comparisonColumnChange(column) {
+  if (column.type === "numeric") {
+    const pct = column.deltas.meanPct === null ? "" : ` (${signed(column.deltas.meanPct, "%")})`;
+    return `mean ${signed(column.deltas.mean)}${pct}`;
+  }
+  if (column.type === "categorical") {
+    if (column.dominantChanged) return "leading category changed";
+    return `top share ${signed(column.deltas.topShare, " pts")}`;
+  }
+  if (column.type === "date") return "date range compared";
+  return `coverage ${signed(column.deltas.coverage, " pts")}`;
+}
+
+function renderComparisonDashboard(data) {
+  const comparison = data.comparison || {};
+  const summary = comparison.summary || {};
+  const quality = comparison.quality || {};
+  currentComparison = data;
+  allFileResults = [];
+  activeTabIdx = 0;
+  chartInstances.forEach((chart) => chart.destroy());
+  chartInstances = [];
+  resetAsk(null, false);
+
+  fileDashboard.style.display = "none";
+  compareSection.style.display = "";
+  crossSummarySection.style.display = "none";
+  fileTabs.style.display = "none";
+  resultNav.style.display = "none";
+  targetBar.style.display = "none";
+  sheetBar.style.display = "none";
+
+  dashTitle.textContent = "File Comparison";
+  dashMeta.innerHTML = `<span class="meta-chip">DETERMINISTIC</span><span class="meta-chip">${esc(summary.sharedColumns ?? 0)} SHARED COLUMNS</span><span class="meta-chip">v${esc(comparison.version || "—")}</span>`;
+  compareTitle.textContent = `${comparison.labels?.baseline || "Baseline"} → ${comparison.labels?.current || "Current"}`;
+
+  const metrics = [
+    ["Rows", signed(summary.rowDelta), `${summary.baselineRows ?? 0} → ${summary.currentRows ?? 0}${summary.rowDeltaPct === null ? "" : ` · ${signed(summary.rowDeltaPct, "%")}`}`],
+    ["Columns", signed(summary.columnDelta), `${summary.baselineColumns ?? 0} → ${summary.currentColumns ?? 0}`],
+    ["Health score", signed(summary.healthScoreDelta, " pts"), `${quality.baseline?.healthScore ?? "—"} → ${quality.current?.healthScore ?? "—"}`],
+    ["Completeness", signed(summary.completenessDelta, " pts"), `${quality.baseline?.completeness ?? "—"}% → ${quality.current?.completeness ?? "—"}%`],
+  ];
+  compareMetrics.innerHTML = metrics.map(([label, value, context]) => `
+    <div class="compare-metric"><span class="compare-metric-label">${esc(label)}</span><strong class="compare-metric-value">${esc(value)}</strong><span class="compare-metric-context">${esc(context)}</span></div>`).join("");
+
+  const qualityCards = [
+    [comparison.labels?.baseline || "Baseline", quality.baseline || {}, "Baseline"],
+    [comparison.labels?.current || "Current", quality.current || {}, "Current"],
+  ];
+  compareQuality.innerHTML = qualityCards.map(([name, side, label]) => {
+    const health = Math.max(0, Math.min(100, Number(side.healthScore) || 0));
+    const completeness = Math.max(0, Math.min(100, Number(side.completeness) || 0));
+    return `<div class="compare-quality-card">
+      <div class="compare-quality-head"><span class="compare-quality-name">${esc(name)}</span><span class="compare-quality-score">${esc(label)} · ${esc(side.healthGrade || "—")}</span></div>
+      <div class="compare-bar-row"><span>Health</span><span class="compare-bar"><span style="width:${health}%"></span></span><span class="compare-bar-value">${esc(side.healthScore ?? "—")}/100</span></div>
+      <div class="compare-bar-row"><span>Complete</span><span class="compare-bar"><span style="width:${completeness}%"></span></span><span class="compare-bar-value">${esc(side.completeness ?? "—")}%</span></div>
+    </div>`;
+  }).join("");
+
+  const schema = comparison.schema || {};
+  const schemaGroup = (label, values, kind) => `<div class="compare-schema-group"><span class="compare-schema-label">${esc(label)}</span>${values.length
+    ? values.map((value) => `<span class="compare-chip ${esc(kind)}">${esc(value)}</span>`).join("")
+    : `<span class="compare-chip">None</span>`}</div>`;
+  compareSchema.innerHTML = schemaGroup("Added", schema.added || [], "added")
+    + schemaGroup("Removed", schema.removed || [], "removed")
+    + schemaGroup("Changed", (schema.typeChanges || []).map((change) => `${change.column}: ${change.baseline} → ${change.current}`), "changed")
+    + schemaGroup("Shared", schema.shared || [], "");
+
+  compareFindings.innerHTML = (comparison.findings || []).map((finding) => `
+    <div class="compare-finding ${esc(finding.severity || "neutral")}"><strong>${esc(finding.title)}</strong><p>${esc(finding.detail)}</p></div>`).join("");
+
+  compareColumnRows.innerHTML = (comparison.columns || []).length
+    ? comparison.columns.map((column) => `<tr><td>${esc(column.column)}</td><td>${esc(column.type)}</td><td>${esc(comparisonColumnValue(column.baseline, column.type))}</td><td>${esc(comparisonColumnValue(column.current, column.type))}</td><td class="change">${esc(comparisonColumnChange(column))}</td></tr>`).join("")
+    : `<tr><td colspan="5">No shared columns have directly comparable types.</td></tr>`;
+  renderAnalysisRecord(data.meta);
+}
+
 // ─── Multi-file dashboard ─────────────────────────────────────
 function renderMultiDashboard(data) {
+  currentComparison = null;
+  compareSection.style.display = "none";
+  fileDashboard.style.display = "";
   const { files, crossSummary, totalFiles, successCount } = data;
   allFileResults = files;
   resetAsk(null, false);
@@ -571,6 +708,9 @@ function switchTab(idx) {
 
 // ─── Single file renderer ─────────────────────────────────────
 function renderSingleFile(data, isTabbed) {
+  currentComparison = null;
+  compareSection.style.display = "none";
+  fileDashboard.style.display = "";
   chartInstances.forEach(c => c.destroy());
   chartInstances = [];
 
@@ -830,7 +970,7 @@ function renderAnalysisRecord(meta = {}) {
   }
 
   const stored = meta.saved ? "Saved by request" : "Not saved";
-  const mode = meta.aiIncluded ? "Deterministic + AI" : "Deterministic only";
+  const mode = meta.comparisonVersion ? "Deterministic comparison" : (meta.aiIncluded ? "Deterministic + AI" : "Deterministic only");
   const duration = Number.isFinite(meta.processingMs) ? `${meta.processingMs.toLocaleString()} ms` : "Not recorded";
   let generated = "Not recorded";
   if (meta.generatedAt) {
@@ -840,15 +980,17 @@ function renderAnalysisRecord(meta = {}) {
 
   analysisRecord.style.display = "";
   analysisRecordSummary.textContent = `${mode} · ${stored.toLowerCase()} · ${duration}`;
-  analysisRecordGrid.innerHTML = [
+  const recordItems = [
     ["Processing mode", mode],
     ["Data retention", stored],
-    ["Evidence engine", meta.evidenceEngine ? `v${meta.evidenceEngine}` : "Legacy analysis"],
+    ...(meta.comparisonVersion ? [["Comparison engine", `v${meta.comparisonVersion}`]] : []),
+    ["Evidence engine", meta.evidenceEngine ? `v${meta.evidenceEngine}` : (meta.comparisonVersion ? "Not applicable" : "Legacy analysis")],
     ["Analysis schema", meta.schemaVersion ? `v${meta.schemaVersion}` : "Legacy analysis"],
     ["Completed", generated],
     ["Processing time", duration],
     ["Request ID", meta.requestId || "Not recorded"],
-  ].map(([label, value]) => `<div class="analysis-record-item"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
+  ];
+  analysisRecordGrid.innerHTML = recordItems.map(([label, value]) => `<div class="analysis-record-item"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
 }
 
 // ─── Follow-up Q&A ────────────────────────────────────────────
@@ -895,7 +1037,7 @@ targetSelect?.addEventListener("change", () => {
 
 // ─── Exports ──────────────────────────────────────────────────
 function activeResult() {
-  return allFileResults[activeTabIdx] || allFileResults[0] || null;
+  return currentComparison || allFileResults[activeTabIdx] || allFileResults[0] || null;
 }
 
 function exportBaseName() {
@@ -925,6 +1067,7 @@ exportReportBtn?.addEventListener("click", () => {
 });
 
 function buildReportHtml(data) {
+  if (data.kind === "comparison") return buildComparisonReportHtml(data);
   const { meta = {}, stats = {}, correlations = [], evidence = [], profile, analysis } = data;
   const statRows = Object.entries(stats).map(([col, s]) => {
     const detail = s.type === "numeric"
@@ -967,6 +1110,29 @@ function buildReportHtml(data) {
   ${(analysis.insights || []).map(i => `<div class="ev"><strong>${esc(i.title)}</strong><div>${esc(i.detail)}</div></div>`).join("")}
   <p>${esc(analysis.conclusion || "")}</p>` : `<h2>AI interpretation</h2><p class="muted">Not included — this analysis ran deterministically without an API key.</p>`}
   <p class="muted">Generated ${new Date().toISOString().slice(0, 10)}. Deterministic sections are computed; AI sections are model-generated interpretation of that computed evidence.</p>
+  </body></html>`;
+}
+
+function buildComparisonReportHtml(data) {
+  const { comparison = {}, meta = {} } = data;
+  const summary = comparison.summary || {};
+  const schema = comparison.schema || {};
+  const findings = (comparison.findings || []).map((finding) => `<li><strong>${esc(finding.title)}</strong> — ${esc(finding.detail)}</li>`).join("");
+  const rows = (comparison.columns || []).map((column) => `<tr><td>${esc(column.column)}</td><td>${esc(column.type)}</td><td>${esc(comparisonColumnValue(column.baseline, column.type))}</td><td>${esc(comparisonColumnValue(column.current, column.type))}</td><td>${esc(comparisonColumnChange(column))}</td></tr>`).join("");
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comparison report</title><style>
+    body { font-family: Georgia, serif; max-width: 900px; margin: 32px auto; padding: 0 24px; color: #1a1916; line-height: 1.55; }
+    h1 { font-size: 22px; } h2 { font-size: 15px; margin: 26px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; } td, th { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+    .meta { color: #6b6960; font-size: 12px; } .noprint { margin: 18px 0; } @media print { .noprint { display: none; } }
+  </style></head><body>
+  <h1>${esc(comparison.labels?.baseline || "Baseline")} → ${esc(comparison.labels?.current || "Current")}</h1>
+  <p class="meta">Deterministic comparison v${esc(comparison.version || "—")} · analysis schema v${esc(meta.schemaVersion || "—")} · request ${esc(meta.requestId || "—")}</p>
+  <div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div>
+  <h2>Overview</h2><p>Rows: ${esc(summary.baselineRows ?? 0)} → ${esc(summary.currentRows ?? 0)} (${esc(signed(summary.rowDelta))}). Columns: ${esc(summary.baselineColumns ?? 0)} → ${esc(summary.currentColumns ?? 0)} (${esc(signed(summary.columnDelta))}). Health score change: ${esc(signed(summary.healthScoreDelta, " points"))}. Completeness change: ${esc(signed(summary.completenessDelta, " points"))}.</p>
+  <h2>Schema</h2><p>Added: ${esc((schema.added || []).join(", ") || "none")}. Removed: ${esc((schema.removed || []).join(", ") || "none")}. Type changes: ${esc((schema.typeChanges || []).map((change) => `${change.column}: ${change.baseline} to ${change.current}`).join("; ") || "none")}.</p>
+  <h2>Material changes</h2><ul>${findings}</ul>
+  <h2>Shared column deltas</h2><table><tr><th>Column</th><th>Type</th><th>Baseline</th><th>Current</th><th>Change</th></tr>${rows || `<tr><td colspan="5">No directly comparable shared columns.</td></tr>`}</table>
+  <p class="meta">Generated ${new Date().toISOString().slice(0, 10)}. All numeric values in this report were computed deterministically.</p>
   </body></html>`;
 }
 
@@ -1244,9 +1410,10 @@ function apiErrorMessage(data, fallback) {
 
 function resetDashboard() {
   selectedFiles=[]; fileInput.value=""; allFileResults=[]; activeTabIdx=0;
+  currentComparison=null; compareSection.style.display="none"; fileDashboard.style.display="";
   fileListEl.style.display="none"; dropzoneIcon.textContent="📁";
-  questionInput.value=""; urlInput.value=""; analyzeBtn.disabled=true;
-  analyzeBtn.textContent="Analyze with Claude →";
+  questionInput.value=""; urlInput.value="";
+  renderFileList();
   chartInstances.forEach(c=>c.destroy()); chartInstances=[];
   currentAnalysisId=null; updateShareBtn();
   lastSource=null; sheetBar.style.display="none";

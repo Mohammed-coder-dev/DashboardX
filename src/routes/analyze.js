@@ -6,6 +6,7 @@ import { computeStats } from "../analytics/stats.js";
 import { computeCorrelations } from "../analytics/correlations.js";
 import { ANALYSIS_SCHEMA_VERSION, buildEvidence, EVIDENCE_ENGINE_VERSION } from "../analytics/evidence.js";
 import { profileDataset, profileSummaryForPrompt } from "../analytics/profile.js";
+import { compareAnalyses, COMPARISON_VERSION } from "../analytics/compare.js";
 import { buildTabularPrompt, buildTextPrompt, buildCrossSummaryPrompt } from "../prompts.js";
 import { runAnalysis, resolveApiKey, resolveModel } from "../services/anthropic.js";
 import { ANALYSIS_SCHEMA, CROSS_SUMMARY_SCHEMA } from "../schemas.js";
@@ -189,6 +190,61 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
     ? await saveAnalysis({
         sessionId: validSessionId(req.get("x-ridge-session")), kind: "url",
         filename: file.originalname, fileType: parsed.fileType, model, question, payload: body,
+      })
+    : null;
+  body.meta.saved = Boolean(body.analysisId);
+  res.json(body);
+});
+
+router.post("/compare", rateLimit(), upload.array("files", 2), async (req, res) => {
+  const startedAt = Date.now();
+  if (!req.files || req.files.length !== 2) {
+    throw new AppError("Comparison mode requires exactly two files: baseline first, current second.", { status: 400, code: "comparison_requires_two_files" });
+  }
+  assertAggregateUploadSize(req.files);
+  const question = validateQuestion(req.body.question);
+  const parsedFiles = await Promise.all(req.files.map((file) => parseFile(file)));
+  const results = parsedFiles.map((parsed, index) => {
+    if (!parsed.isTabular || parsed.columns.length === 0) {
+      throw new AppError(`Comparison requires tabular files. "${req.files[index].originalname}" could not be read as a table.`, { status: 400, code: "comparison_requires_tabular" });
+    }
+    if (parsed.rows.length === 0) {
+      throw new AppError(`"${req.files[index].originalname}" appears empty.`, { status: 400, code: "empty_file" });
+    }
+    const stats = computeStats(parsed.rows, parsed.columns);
+    const profile = profileDataset(parsed.rows, parsed.columns);
+    return {
+      filename: req.files[index].originalname,
+      meta: {
+        filename: req.files[index].originalname,
+        fileType: parsed.fileType,
+        sheetName: parsed.sheetName,
+        totalRows: parsed.totalRows,
+        columns: parsed.columns.length,
+        size: req.files[index].size,
+      },
+      columns: parsed.columns,
+      stats,
+      profile,
+    };
+  });
+  const comparison = compareAnalyses(results[0], results[1]);
+  const body = {
+    kind: "comparison",
+    meta: {
+      filename: `${req.files[0].originalname} vs ${req.files[1].originalname}`,
+      fileType: "comparison",
+      schemaVersion: ANALYSIS_SCHEMA_VERSION,
+      comparisonVersion: COMPARISON_VERSION,
+      ...analysisRecord(req, startedAt, null),
+    },
+    files: results,
+    comparison,
+  };
+  body.analysisId = persistRequested(req.body.save)
+    ? await saveAnalysis({
+        sessionId: validSessionId(req.get("x-ridge-session")), kind: "comparison",
+        filename: body.meta.filename.slice(0, 200), fileType: "comparison", model: "deterministic", question, payload: body,
       })
     : null;
   body.meta.saved = Boolean(body.analysisId);

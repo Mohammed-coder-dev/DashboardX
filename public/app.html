@@ -77,6 +77,12 @@
         <span class="pill">🔤 Text</span>
       </div>
 
+      <div class="analysis-mode" role="group" aria-label="Analysis mode">
+        <button class="analysis-mode-btn active" data-analysis-mode="analyze" type="button">Analyze</button>
+        <button class="analysis-mode-btn" data-analysis-mode="compare" type="button">Compare two files</button>
+      </div>
+      <p id="analysisModeHint" class="analysis-mode-hint">Profile one file or explore several files side by side.</p>
+
       <div class="dropzone" id="dropzone">
         <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
         <span class="dropzone-icon" id="dropzoneIcon">📁</span>
@@ -87,12 +93,12 @@
 
       <button id="sampleBtn" class="sample-btn" type="button">✨ Try sample data — no upload, no API key needed</button>
 
-      <div class="url-input-wrap">
+      <div id="urlInputWrap" class="url-input-wrap">
         <input id="urlInput" class="question-input" type="url"
           placeholder="…or paste an https:// link to a file in the cloud" spellcheck="false" />
       </div>
 
-      <div class="question-input-wrap">
+      <div id="questionInputWrap" class="question-input-wrap">
         <input id="questionInput" class="question-input" type="text"
           placeholder="Optional: Ask a question about your files..." />
       </div>
@@ -178,6 +184,37 @@
         <div id="fileTabs" style="display:none;" class="animate animate-delay-2">
           <div class="tabs-bar" id="tabsBar"></div>
         </div>
+
+        <section id="compareSection" class="compare-section animate animate-delay-2" style="display:none;" aria-labelledby="compareTitle">
+          <div class="compare-heading">
+            <div>
+              <div class="card-title">Deterministic comparison <span class="ai-badge">baseline → current</span></div>
+              <h2 id="compareTitle" class="compare-title"></h2>
+            </div>
+            <p class="compare-note">The first file is the baseline. All deltas are computed from complete file statistics; no AI-generated numbers.</p>
+          </div>
+          <div id="compareMetrics" class="compare-metrics"></div>
+          <div id="compareQuality" class="compare-quality"></div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">Schema changes</div>
+              <div id="compareSchema" class="compare-schema"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Material changes</div>
+              <div id="compareFindings" class="compare-findings"></div>
+            </div>
+          </div>
+          <div class="card compare-columns-card">
+            <div class="card-title">Shared column deltas</div>
+            <div class="compare-table-wrap">
+              <table class="compare-table">
+                <thead><tr><th>Column</th><th>Type</th><th>Baseline</th><th>Current</th><th>Change</th></tr></thead>
+                <tbody id="compareColumnRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
 
         <!-- Per-file dashboard -->
         <div id="fileDashboard">

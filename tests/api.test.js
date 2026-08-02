@@ -181,6 +181,44 @@ describe("deterministic analysis without a key", () => {
   });
 });
 
+describe("POST /api/compare", () => {
+  it("compares exactly two tabular files without invoking the model", async () => {
+    const form = new FormData();
+    form.append("files", new File(["region,revenue\nNorth,100\nSouth,120\nNorth,110\n"], "baseline.csv", { type: "text/csv" }));
+    form.append("files", new File(["region,revenue,channel\nWest,200,direct\nWest,220,direct\nSouth,210,partner\n"], "current.csv", { type: "text/csv" }));
+    const res = await fetch(`${base}/api/compare`, { method: "POST", body: form });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.kind).toBe("comparison");
+    expect(body.comparison.deterministic).toBe(true);
+    expect(body.comparison.schema.added).toEqual(["channel"]);
+    expect(body.comparison.columns.find((column) => column.column === "revenue").deltas.mean).toBe(100);
+    expect(body.meta.comparisonVersion).toBeTruthy();
+    expect(body.meta.aiIncluded).toBe(false);
+    expect(createMessage).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests that do not contain exactly two files", async () => {
+    const res = await fetch(`${base}/api/compare`, { method: "POST", body: csvForm({}, { field: "files" }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("comparison_requires_two_files");
+  });
+
+  it("persists comparisons only after explicit opt-in", async () => {
+    saveAnalysisMock.mockResolvedValue("comparison-id");
+    const form = new FormData();
+    form.append("files", new File([CSV], "baseline.csv", { type: "text/csv" }));
+    form.append("files", new File([CSV], "current.csv", { type: "text/csv" }));
+    form.append("save", "true");
+    const res = await fetch(`${base}/api/compare`, { method: "POST", headers: { "x-ridge-session": "a".repeat(32) }, body: form });
+    const body = await res.json();
+
+    expect(body.analysisId).toBe("comparison-id");
+    expect(saveAnalysisMock).toHaveBeenCalledWith(expect.objectContaining({ kind: "comparison" }));
+  });
+});
+
 describe("AI analysis with a mocked provider", () => {
   it("includes interpretation when a key is supplied", async () => {
     mockAnalysisResponse();

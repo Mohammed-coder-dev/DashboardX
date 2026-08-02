@@ -160,6 +160,30 @@ test.describe("deterministic analysis without an API key", () => {
   });
 });
 
+test.describe("deterministic file comparison", () => {
+  test("compares a baseline and current file with schema and metric deltas", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator('[data-analysis-mode="compare"]').click();
+    await expect(page.locator("#analysisModeHint")).toContainText(/baseline/i);
+    await expect(page.locator("#urlInputWrap")).toBeHidden();
+
+    await page.locator("#fileInput").setInputFiles([
+      { name: "baseline.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue\nNorth,100\nSouth,120\nNorth,110\n") },
+      { name: "current.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue,channel\nWest,200,direct\nWest,220,direct\nSouth,210,partner\n") },
+    ]);
+    await expect(page.locator("#analyzeBtn")).toContainText(/Compare baseline to current/i);
+    await page.locator("#analyzeBtn").click();
+
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#compareSection")).toBeVisible();
+    await expect(page.locator("#fileDashboard")).toBeHidden();
+    await expect(page.locator("#compareTitle")).toContainText("baseline.csv → current.csv");
+    await expect(page.locator("#compareSchema")).toContainText("channel");
+    await expect(page.locator("#compareColumnRows")).toContainText("revenue");
+    await expect(page.locator("#analysisRecordSummary")).toContainText(/deterministic comparison/i);
+  });
+});
+
 test.describe("target column selection", () => {
   test("re-runs the analysis focused on a target", async ({ page }) => {
     await page.goto("/app");

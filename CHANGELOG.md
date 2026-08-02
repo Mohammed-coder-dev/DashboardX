@@ -18,6 +18,9 @@ All notable changes to this project are documented here. The format follows
   graceful shutdown, secret-safe build context, and a private-deployment
   runbook with explicit scaling limits.
 - One-click sample analysis from the landing page.
+- Deterministic two-file comparison mode with baseline/current semantics,
+  schema drift, quality movement, row and column deltas, and exportable shared
+  column changes. Comparison works without an API key.
 
 ### Changed
 
