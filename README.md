@@ -67,7 +67,8 @@ Everything below is computed on the server. No model is involved and nothing is
 sent to Anthropic.
 
 - **Column statistics** — valid/missing/invalid counts, coverage, min, max,
-  mean, median, standard deviation, quantiles, and IQR outlier fences.
+  mean with a 95% t interval, median, standard deviation, quantiles, and IQR
+  outlier fences.
 - **Categorical profiles** — top values ranked by *frequency* with counts and
   percentages, unique counts, and whether a field reads as an identifier, a
   category, or high-cardinality text.
@@ -75,10 +76,15 @@ sent to Anthropic.
   period-over-period change, gaps, and irregular intervals.
 - **Correlations** — Pearson and Spearman over pairwise-complete observations,
   each reported with method, `n`, coverage, strength and caveats.
+- **Inference and change detection** — Welch mean intervals, chi-square with
+  Cramér's V, two-sample KS distribution shifts, and exploratory robust level
+  shifts over dated targets.
 - **Data quality** — a weighted health grade with per-column issues,
   missingness, type consistency and duplicate detection.
 - **Evidence Mode** — see below.
 - **Exports** — JSON and a printable HTML report.
+- **Comparison mode** — baseline/current schema drift, quality movement,
+  descriptive deltas, mean intervals, and distribution shifts for two files.
 
 ## Optional AI
 
@@ -109,12 +115,20 @@ Every material finding is a structured object rather than a sentence:
   "coverage": 98.9,
   "strength": "very strong",
   "caveat": "Pearson and Spearman disagree, suggesting a non-linear or outlier-driven pattern",
-  "engineVersion": "1.0.0"
+  "statistics": null,
+  "engineVersion": "1.1.0",
+  "provenance": {
+    "formula": "ρ = Pearson correlation of the paired value ranks",
+    "includedRows": 90,
+    "excludedRows": 1,
+    "sourceRows": [{ "rowNumber": 1, "values": { "revenue": 100, "spend": 45 } }]
+  }
 }
 ```
 
 Pick an optional **target column** and the engine focuses on that outcome:
-group comparisons across categories with a standardized effect size,
+group comparisons across categories with a standardized effect size and Welch
+interval, categorical associations with Cramér's V,
 correlations involving the target, missingness impact, and trends over time.
 
 The AI layer may summarize and contextualize these objects and must carry their

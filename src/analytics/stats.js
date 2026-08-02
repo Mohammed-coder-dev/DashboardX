@@ -11,6 +11,7 @@
 //     first, labelled as the most common.
 import { looksLikeDateColumn, profileDates } from "./dates.js";
 import { coveragePct, isMissing, quantile, round, toFiniteNumber } from "./values.js";
+import { meanConfidenceInterval } from "./inference.js";
 
 /**
  * Share of present values that must parse as numbers for a column to be typed
@@ -168,6 +169,7 @@ function numericField(rawValues, total, totalRows) {
     min: sorted[0],
     max: sorted[sorted.length - 1],
     mean: round(mean),
+    meanConfidence95: meanConfidenceInterval(numbers),
     median: round(quantile(sorted, 0.5)),
     std: round(Math.sqrt(variance)),
     quantiles: {

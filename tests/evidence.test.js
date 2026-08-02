@@ -10,7 +10,7 @@ function evidenceFor(rows, columns, options) {
 
 const EVIDENCE_KEYS = [
   "claim", "metric", "value", "columns", "method",
-  "sampleSize", "coverage", "strength", "caveat", "engineVersion", "provenance",
+  "sampleSize", "coverage", "strength", "caveat", "statistics", "engineVersion", "provenance",
 ];
 
 // A sales-style dataset with a numeric target, a category, a date column,
@@ -78,6 +78,8 @@ describe("buildEvidence", () => {
       expect(group.claim).toContain("south");
       expect(group.sampleSize).toBeGreaterThan(30);
       expect(["weak", "moderate", "strong", "very strong"]).toContain(group.strength);
+      expect(group.statistics.welch.confidenceInterval).toBeDefined();
+      expect(group.statistics.multipleComparisonCorrection).toBe("none");
     });
 
     it("keeps correlation evidence focused on the target", () => {
@@ -111,6 +113,19 @@ describe("buildEvidence", () => {
       expect(trend.columns).toEqual(["kpi", "when"]);
     });
 
+    it("flags a robust candidate level shift with exploratory inference", () => {
+      const rows = Array.from({ length: 24 }, (_, index) => ({
+        when: `2024-01-${String(index + 1).padStart(2, "0")}`,
+        kpi: index < 12 ? 10 : 30,
+      }));
+      const evidence = evidenceFor(rows, ["when", "kpi"], { target: "kpi" });
+      const shift = evidence.find((item) => item.metric === "candidate_level_shift");
+      expect(shift).toBeDefined();
+      expect(shift.statistics.boundary).toBe("2024-01-13");
+      expect(shift.statistics.exploratory).toBe(true);
+      expect(shift.caveat).toContain("unadjusted");
+    });
+
     it("flags anomalies in the target first", () => {
       const evidence = evidenceFor(salesRows(), columns, { target: "revenue" });
       const anomaly = evidence.find((e) => e.metric === "iqr_outliers");
@@ -127,6 +142,18 @@ describe("buildEvidence", () => {
   });
 
   describe("without a target", () => {
+    it("reports categorical association with Cramér's V and a chi-square p-value", () => {
+      const rows = Array.from({ length: 40 }, (_, index) => ({
+        plan: index < 20 ? "free" : "paid",
+        retained: index < 20 ? "no" : "yes",
+      }));
+      const evidence = evidenceFor(rows, ["plan", "retained"]);
+      const association = evidence.find((item) => item.metric === "cramers_v");
+      expect(association.value).toBe(1);
+      expect(association.statistics.pValue).toBeLessThan(0.001);
+      expect(association.provenance.includedRows).toBe(40);
+    });
+
     it("reports category dominance with its share", () => {
       const rows = Array.from({ length: 30 }, (_, i) => ({
         status: i < 21 ? "active" : i < 27 ? "paused" : "closed",

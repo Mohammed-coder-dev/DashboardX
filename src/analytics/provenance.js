@@ -15,6 +15,8 @@ const FORMULAS = {
   period_over_period_change: "change % = (current period count − previous period count) / previous period count × 100",
   target_time_trend: "ρ = rank correlation between the numeric target and chronological row order",
   iqr_outliers: "outlier when value < Q1 − 1.5 × IQR or value > Q3 + 1.5 × IQR",
+  cramers_v: "V = √(χ² / (n × min(rows − 1, columns − 1)))",
+  candidate_level_shift: "scan valid splits; compare segment medians and scale their difference by the global median absolute deviation",
 };
 
 function numericRequirement(row, column) {
@@ -63,6 +65,8 @@ function requirementsFor(evidence) {
     case "pearson_r":
     case "spearman_rho":
       return { rule: `Rows where ${first} and ${second} are both finite numbers`, checks: [[numericRequirement, first], [numericRequirement, second]] };
+    case "cramers_v":
+      return { rule: `Rows where ${first} and ${second} are both non-missing`, checks: [[presentRequirement, first], [presentRequirement, second]] };
     case "group_mean_difference":
       return evidence._provenanceContext?.retainedLevels
         ? { rule: `Rows with a finite ${first} in one of ${evidence._provenanceContext.retainedLevels.length} retained ${second} groups`, checks: [[numericRequirement, first], [(row, column) => retainedLevelRequirement(row, column, evidence._provenanceContext.retainedLevels), second]] }
@@ -78,6 +82,7 @@ function requirementsFor(evidence) {
         ? { rule: `Rows in the two compared ${evidence._provenanceContext.granularity} periods (${evidence._provenanceContext.periods.join(" and ")})`, checks: [[dateRequirement, first], [(row, column) => retainedPeriodRequirement(row, column, evidence._provenanceContext), first]] }
         : { rule: `Rows with a valid ${first} date`, checks: [[dateRequirement, first]] };
     case "target_time_trend":
+    case "candidate_level_shift":
       return { rule: `Rows with a finite ${first} and valid ${second} date`, checks: [[numericRequirement, first], [dateRequirement, second]] };
     case "iqr_outliers":
       return { rule: `Rows where ${first} is a finite number; fences are computed over all included values`, checks: [[numericRequirement, first]] };

@@ -543,6 +543,12 @@ function signed(value, suffix = "") {
   return `${value > 0 ? "+" : ""}${value}${suffix}`;
 }
 
+function formatPValue(value) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  if (value < 0.0001) return "<0.0001";
+  return value.toFixed(value < 0.01 ? 4 : 3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
 function comparisonColumnValue(side, type) {
   if (!side) return "—";
   if (type === "numeric") return `mean ${side.mean} · median ${side.median} · ${side.coverage}% coverage`;
@@ -556,7 +562,13 @@ function comparisonColumnValue(side, type) {
 function comparisonColumnChange(column) {
   if (column.type === "numeric") {
     const pct = column.deltas.meanPct === null ? "" : ` (${signed(column.deltas.meanPct, "%")})`;
-    return `mean ${signed(column.deltas.mean)}${pct}`;
+    const meanTest = column.inference?.meanDifference;
+    const distribution = column.inference?.distributionShift;
+    const interval = meanTest?.confidenceInterval
+      ? ` · 95% CI ${meanTest.confidenceInterval.lower} to ${meanTest.confidenceInterval.upper}, p=${formatPValue(meanTest.pValue)}`
+      : "";
+    const shift = distribution ? ` · KS D=${distribution.statistic}, p=${formatPValue(distribution.pValue)}` : "";
+    return `mean ${signed(column.deltas.mean)}${pct}${interval}${shift}`;
   }
   if (column.type === "categorical") {
     if (column.dominantChanged) return "leading category changed";
@@ -809,7 +821,7 @@ function renderSingleFile(data, isTabbed) {
           : "";
         return `<div class="stat-card">
         <div class="stat-col-name">${esc(col)}</div><span class="stat-type-badge numeric">numeric</span>
-        ${statRow("mean",s.mean)}${statRow("median",s.median)}${statRow("min",s.min)}${statRow("max",s.max)}${statRow("std",s.std)}${statRow("count",s.count)}${coverage}
+        ${statRow("mean",s.mean)}${s.meanConfidence95 ? statRow("95% CI", `${s.meanConfidence95.lower} to ${s.meanConfidence95.upper}`) : ""}${statRow("median",s.median)}${statRow("min",s.min)}${statRow("max",s.max)}${statRow("std",s.std)}${statRow("count",s.count)}${coverage}
       </div>`;
       }
       if (s.type === "date") return `<div class="stat-card">
@@ -997,6 +1009,23 @@ function renderAnalysisRecord(meta = {}) {
 // ─── Evidence panel (deterministic) ───────────────────────────
 const STRENGTH_CLASS = { "very strong": "strong", strong: "strong", moderate: "moderate", weak: "weak", negligible: "weak" };
 
+function evidenceStatisticsText(evidence) {
+  const statistics = evidence.statistics;
+  if (!statistics) return "";
+  if (evidence.metric === "cramers_v") {
+    return `χ²(${statistics.degreesFreedom})=${statistics.chiSquare} · Cramér's V=${statistics.cramersV} · p=${formatPValue(statistics.pValue)}`;
+  }
+  if (evidence.metric === "group_mean_difference" && statistics.welch) {
+    const test = statistics.welch;
+    return `Cohen's d=${statistics.effectSize} · Welch difference=${test.difference}${test.confidenceInterval ? ` · 95% CI ${test.confidenceInterval.lower} to ${test.confidenceInterval.upper} · p=${formatPValue(test.pValue)}` : " · interval unavailable because both compared groups have zero observed variance"}`;
+  }
+  if (evidence.metric === "candidate_level_shift") {
+    const test = statistics.inference;
+    return `Robust effect=${statistics.robustEffect} · median difference=${statistics.medianDifference}${test?.confidenceInterval ? ` · Welch 95% CI ${test.confidenceInterval.lower} to ${test.confidenceInterval.upper} · p=${formatPValue(test.pValue)}` : " · confirmatory interval unavailable"}`;
+  }
+  return "";
+}
+
 function renderEvidence(evidence) {
   if (!evidence.length) { evidenceSection.style.display = "none"; return; }
   evidenceSection.style.display = "";
@@ -1005,6 +1034,7 @@ function renderEvidence(evidence) {
     const headers = e.columns || [];
     const sourceRows = provenance?.sourceRows || [];
     const exclusions = (provenance?.exclusionReasons || []).map((reason) => `${reason.count} ${reason.reason}`).join(" · ") || "None";
+    const statistics = evidenceStatisticsText(e);
     const drilldown = provenance ? `<details class="evidence-provenance">
       <summary>Inspect formula and source rows</summary>
       <div class="evidence-provenance-grid">
@@ -1013,6 +1043,7 @@ function renderEvidence(evidence) {
         <div><span>Rule</span><strong>${esc(provenance.inclusionRule)}</strong></div>
         <div><span>Excluded</span><strong>${esc(provenance.excludedRows)} rows · ${esc(exclusions)}</strong></div>
       </div>
+      ${statistics ? `<div class="evidence-inference">${esc(statistics)}</div>` : ""}
       ${sourceRows.length ? `<div class="evidence-source-note">${esc(provenance.sourceRowsPolicy)}</div>
         <div class="evidence-source-wrap"><table class="evidence-source-table"><thead><tr><th>Row</th>${headers.map((column) => `<th>${esc(column)}</th>`).join("")}</tr></thead><tbody>
           ${sourceRows.map((source) => `<tr><td>${esc(source.rowNumber)}</td>${headers.map((column) => `<td>${esc(source.values?.[column] ?? "—")}</td>`).join("")}</tr>`).join("")}
@@ -1099,6 +1130,7 @@ function buildReportHtml(data) {
   const evidenceRows = evidence.map(e => `
     <div class="ev"><strong>[${esc(e.strength)}]</strong> ${esc(e.claim)}
       <div class="muted">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage</div>
+      ${evidenceStatisticsText(e) ? `<div class="muted">Inference: ${esc(evidenceStatisticsText(e))}</div>` : ""}
       ${e.provenance ? `<div class="muted">Formula: ${esc(e.provenance.formula)} · included ${esc(e.provenance.includedRows)}/${esc(e.provenance.inputRows)} rows · source rows ${esc(e.provenance.sourceRows.map((row) => row.rowNumber).join(", ") || "none")}</div>` : ""}
       ${e.caveat ? `<div class="muted">⚠ ${esc(e.caveat)}</div>` : ""}</div>`).join("") || `<p class="muted">None met the reporting thresholds.</p>`;
   const corrRows = correlations.map(c =>

@@ -9,17 +9,19 @@ import { computeCorrelations } from "./correlations.js";
 import { toDate } from "./dates.js";
 import { coveragePct, isMissing, round, toFiniteNumber } from "./values.js";
 import { attachEvidenceProvenance } from "./provenance.js";
+import { categoricalAssociation, detectLevelShift, welchMeanDifference } from "./inference.js";
 
 /** Bumped when evidence computation changes meaning, not just wording. */
-export const EVIDENCE_ENGINE_VERSION = "1.0.0";
+export const EVIDENCE_ENGINE_VERSION = "1.1.0";
 /** Version of the saved/exported analysis payload shape. */
-export const ANALYSIS_SCHEMA_VERSION = "2.4";
+export const ANALYSIS_SCHEMA_VERSION = "2.5";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;
 const MAX_GROUPS = 6;
+const MAX_ASSOCIATION_COLUMNS = 12;
 
-function evidenceObject({ claim, metric, columns, method, sampleSize, coverage, strength, caveat = null, value = null, provenanceContext = null }) {
+function evidenceObject({ claim, metric, columns, method, sampleSize, coverage, strength, caveat = null, value = null, statistics = null, provenanceContext = null }) {
   return {
     claim,
     metric,
@@ -30,6 +32,7 @@ function evidenceObject({ claim, metric, columns, method, sampleSize, coverage, 
     coverage,
     strength,
     caveat,
+    statistics,
     engineVersion: EVIDENCE_ENGINE_VERSION,
     ...(provenanceContext ? { _provenanceContext: provenanceContext } : {}),
   };
@@ -92,7 +95,7 @@ function groupComparisonEvidence(rows, target, stats, categoricalColumn) {
       const v = toFiniteNumber(row?.[target]);
       if (v !== null) values.push(v);
     }
-    if (values.length >= MIN_GROUP) groups.push({ level: level.value, ...meanAndStd(values) });
+    if (values.length >= MIN_GROUP) groups.push({ level: level.value, ...meanAndStd(values), values });
   }
   if (groups.length < 2) return null;
 
@@ -119,8 +122,55 @@ function groupComparisonEvidence(rows, target, stats, categoricalColumn) {
     coverage: coveragePct(sampleSize, rows.length),
     strength: effectStrength(d),
     caveat: caveats.length ? caveats.join("; ") : null,
+    statistics: {
+      effectSize: round(d, 4),
+      welch: welchMeanDifference(bottom.values, top.values),
+      exploratory: true,
+      multipleComparisonCorrection: "none",
+    },
     provenanceContext: { retainedLevels: groups.map((group) => group.level) },
   });
+}
+
+function associationStrength(value) {
+  if (value >= 0.5) return "strong";
+  if (value >= 0.3) return "moderate";
+  if (value >= 0.1) return "weak";
+  return "negligible";
+}
+
+/** Pairwise categorical associations using chi-square and Cramér's V. */
+function categoricalAssociationEvidence(rows, columns, stats, target) {
+  let candidates = columns.filter((column) => stats[column]?.type === "categorical"
+    && stats[column].role === "category" && stats[column].unique >= 2);
+  if (target && candidates.includes(target)) candidates = [target, ...candidates.filter((column) => column !== target)];
+  candidates = candidates.slice(0, MAX_ASSOCIATION_COLUMNS);
+  const out = [];
+  for (let leftIndex = 0; leftIndex < candidates.length; leftIndex++) {
+    for (let rightIndex = leftIndex + 1; rightIndex < candidates.length; rightIndex++) {
+      const columnA = candidates[leftIndex];
+      const columnB = candidates[rightIndex];
+      if (target && columnA !== target && columnB !== target) continue;
+      const association = categoricalAssociation(rows, columnA, columnB);
+      if (!association || association.cramersV < 0.1) continue;
+      const caveats = ["exploratory pairwise test; p-value is not adjusted for multiple comparisons"];
+      if (association.sparse) caveats.push(`sparse contingency table (minimum expected count ${association.expectedMin})`);
+      if (association.pValue >= 0.05) caveats.push("not statistically distinguishable from independence at the 5% level");
+      out.push(evidenceObject({
+        claim: `${columnA} and ${columnB} have ${associationStrength(association.cramersV)} categorical association (Cramér's V ${association.cramersV})`,
+        metric: "cramers_v",
+        value: association.cramersV,
+        columns: [columnA, columnB],
+        method: "chi-square contingency test with Cramér's V effect size",
+        sampleSize: association.n,
+        coverage: coveragePct(association.n, rows.length),
+        strength: associationStrength(association.cramersV),
+        caveat: caveats.join("; "),
+        statistics: association,
+      }));
+    }
+  }
+  return out;
 }
 
 /** Does the target differ where another column is missing vs present? */
@@ -273,6 +323,22 @@ function dateEvidence(rows, columns, stats, target) {
           caveat: trend.caveat,
         }));
       }
+      const shift = detectLevelShift(ordered.map((point) => point.value));
+      if (shift) {
+        const boundary = new Date(ordered[shift.splitIndex].time).toISOString().slice(0, 10);
+        out.push(evidenceObject({
+          claim: `${target} has a candidate level shift near ${boundary} (median ${shift.baselineMedian} to ${shift.currentMedian})`,
+          metric: "candidate_level_shift",
+          value: shift.robustEffect,
+          columns: [target, dateColumn],
+          method: "robust split scan using segment medians and global median absolute deviation",
+          sampleSize: ordered.length,
+          coverage: coveragePct(ordered.length, rows.length),
+          strength: effectStrength(shift.robustEffect),
+          caveat: "exploratory candidate selected after scanning possible splits; the reported Welch interval and p-value are unadjusted and require confirmation",
+          statistics: { ...shift, boundary },
+        }));
+      }
     }
   }
   return out;
@@ -325,6 +391,7 @@ export function buildEvidence(rows, columns, stats, { target = null, limit = MAX
     }
   }
 
+  evidence.push(...categoricalAssociationEvidence(rows, columns, stats, target));
   evidence.push(...distributionEvidence(rows, columns, stats, target));
   evidence.push(...dateEvidence(rows, columns, stats, target));
   evidence.push(...anomalyEvidence(rows, columns, stats, target));

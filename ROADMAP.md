@@ -21,24 +21,26 @@ scope by construction.
 - Full-file deterministic charts for numeric distributions, category frequencies,
   and date trends, available without an API key.
 
+## Shipped after v2.1.0
+
+- 95% mean intervals, Welch group/file comparisons with explicit unadjusted
+  exploratory caveats, categorical chi-square with Cramér's V, two-sample KS
+  distribution shifts, and robust candidate level-shift detection.
+- Evidence provenance drill-downs with formulas, inclusion/exclusion accounting,
+  and bounded source-row excerpts.
+- Two-file baseline/current comparison mode with schema and quality deltas.
+
 ## Next — strengthening the evidence
 
-- **Significance and intervals.** Group comparisons report a standardized
-  effect size but no p-value or confidence interval. Add both, with an honest
-  note about multiple comparisons across many column pairs.
-- **Categorical-vs-categorical evidence.** Chi-square or Cramér's V for
-  association between two category columns, which the engine cannot express
-  today.
 - **Excel serial dates.** Date parsing is deliberately pattern-gated so integer
   measurements are never read as timelines. Detect true Excel serials from cell
   formatting in the workbook rather than guessing from the value.
-- **Evidence provenance in the UI.** Click a claim to see the exact rows and
-  computation behind it, closing the loop from claim back to raw data.
 
 ## Next — the product surface
 
 - **Column drill-down** — the full distribution and outlier list for one field.
-- **Comparison mode** — same schema, two files, what changed.
+- **Saved comparison alerts** — rerun a baseline/current comparison on a
+  schedule and notify only when a governed threshold is crossed.
 
 ## Considered and declined
 

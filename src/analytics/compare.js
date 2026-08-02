@@ -1,6 +1,7 @@
-import { round } from "./values.js";
+import { numericValues, round } from "./values.js";
+import { kolmogorovSmirnov, welchMeanDifference } from "./inference.js";
 
-export const COMPARISON_VERSION = "1.0.0";
+export const COMPARISON_VERSION = "1.1.0";
 
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2, neutral: 3 };
 
@@ -40,7 +41,7 @@ function compactSide(field) {
   return base;
 }
 
-function compareColumn(column, baselineField, currentField) {
+function compareColumn(column, baselineField, currentField, baselineRows = [], currentRows = []) {
   const type = baselineField.type;
   const result = {
     column,
@@ -54,6 +55,14 @@ function compareColumn(column, baselineField, currentField) {
     result.deltas.mean = delta(currentField.mean, baselineField.mean);
     result.deltas.meanPct = deltaPct(currentField.mean, baselineField.mean);
     result.deltas.median = delta(currentField.median, baselineField.median);
+    const baselineValues = numericValues(baselineRows.map((row) => row?.[column]));
+    const currentValues = numericValues(currentRows.map((row) => row?.[column]));
+    result.inference = {
+      meanDifference: welchMeanDifference(baselineValues, currentValues),
+      distributionShift: kolmogorovSmirnov(baselineValues, currentValues),
+      exploratory: true,
+      multipleComparisonCorrection: "none",
+    };
   } else if (type === "categorical") {
     const baselineTop = baselineField.top?.[0] || null;
     const currentTop = currentField.top?.[0] || null;
@@ -93,7 +102,7 @@ export function compareAnalyses(baseline, current) {
   const typeChanged = new Set(typeChanges.map((change) => change.column));
   const columns = shared
     .filter((column) => !typeChanged.has(column))
-    .map((column) => compareColumn(column, baseline.stats[column], current.stats[column]));
+    .map((column) => compareColumn(column, baseline.stats[column], current.stats[column], baseline.rows, current.rows));
 
   const rowDelta = delta(current.profile?.rows, baseline.profile?.rows);
   const rowDeltaPct = deltaPct(current.profile?.rows, baseline.profile?.rows);
@@ -123,13 +132,33 @@ export function compareAnalyses(baseline, current) {
   }
 
   for (const column of columns) {
-    if (column.type === "numeric" && column.deltas.meanPct !== null && Math.abs(column.deltas.meanPct) >= 10
+    if (column.type === "numeric" && column.inference?.meanDifference?.significant) {
+      const test = column.inference.meanDifference;
+      findings.push(makeFinding(
+        "medium",
+        `${column.column} mean difference excludes zero at 95% confidence`,
+        `${column.baseline.mean} to ${column.current.mean}; difference ${test.difference}, 95% CI ${test.confidenceInterval.lower} to ${test.confidenceInterval.upper}, p=${test.pValue}. Exploratory and unadjusted across columns.`,
+        "numeric.mean_shift",
+        [column.column],
+      ));
+    } else if (column.type === "numeric" && column.deltas.meanPct !== null && Math.abs(column.deltas.meanPct) >= 10
       && column.baseline.validCount >= 3 && column.current.validCount >= 3) {
       findings.push(makeFinding(
         "low",
         `${column.column} mean ${column.deltas.meanPct > 0 ? "increased" : "decreased"} ${Math.abs(column.deltas.meanPct)}%`,
         `${column.baseline.mean} to ${column.current.mean}; descriptive change, before significance testing.`,
         "numeric.mean",
+        [column.column],
+      ));
+    }
+    if (column.type === "numeric" && column.inference?.distributionShift?.significant
+      && column.inference.distributionShift.statistic >= 0.2) {
+      const test = column.inference.distributionShift;
+      findings.push(makeFinding(
+        "medium",
+        `${column.column} distribution shifted`,
+        `Two-sample KS D=${test.statistic}, p=${test.pValue}. This tests the full distribution and is exploratory and unadjusted across columns.`,
+        "numeric.distribution_shift",
         [column.column],
       ));
     }

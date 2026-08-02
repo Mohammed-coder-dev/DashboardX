@@ -4,6 +4,13 @@ import {
 } from "../src/analytics/stats.js";
 
 describe("computeStats — numeric fields", () => {
+  it("includes a deterministic 95% confidence interval for the mean", () => {
+    const rows = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((x) => ({ x }));
+    const interval = computeStats(rows, ["x"]).x.meanConfidence95;
+    expect(interval.lower).toBeCloseTo(3.334, 2);
+    expect(interval.upper).toBeCloseTo(7.666, 2);
+  });
+
   it("computes descriptive statistics with coverage", () => {
     const rows = [{ x: 1 }, { x: 2 }, { x: 3 }, { x: 4 }];
     const s = computeStats(rows, ["x"]).x;

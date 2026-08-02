@@ -24,6 +24,10 @@ All notable changes to this project are documented here. The format follows
 - Evidence provenance drill-downs with the exact formula, inclusion rule,
   excluded-row accounting, and bounded source-row excerpts containing only the
   columns used by each finding.
+- Deterministic inference: 95% t intervals for numeric means, Welch intervals
+  and p-values for group/file mean differences, chi-square with Cramér's V for
+  categorical associations, two-sample KS distribution-shift tests, and an
+  explicitly exploratory median/MAD level-shift detector for dated targets.
 
 ### Changed
 
@@ -31,8 +35,8 @@ All notable changes to this project are documented here. The format follows
   finance, operations, and analytics teams, with hosted and self-hosted paths.
 - Raised the supported Node.js floor to Node 22; the production container uses
   the current Node 24 LTS line.
-- Analysis schema version is now `2.4`; numeric histograms separate IQR outlier
-  tails and evidence objects include row-level provenance.
+- Analysis schema version is now `2.5`, evidence engine `1.1.0`, and comparison
+  engine `1.1.0`; inference results and row-level provenance are exportable.
 
 ### Fixed
 

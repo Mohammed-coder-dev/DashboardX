@@ -64,11 +64,11 @@ Response:
     "requestId": "92a...",      // also returned in the X-Request-ID header
     "generatedAt": "2026-08-01T18:30:00.000Z",
     "processingMs": 42,
-    "schemaVersion": "2.4", "evidenceEngine": "1.0.0"
+    "schemaVersion": "2.5", "evidenceEngine": "1.1.0"
   },
   "stats": { "revenue": { "type": "numeric", "validCount": 90, "missing": 1, "invalid": 0,
                           "coverage": 98.9, "min": 100, "max": 4980, "mean": 0, "median": 0,
-                          "std": 0, "quantiles": {},
+                          "std": 0, "meanConfidence95": { "lower": 0, "upper": 0 }, "quantiles": {},
                           "histogram": { "method": "iqr-tail-aware", "bins": [] }, "outliers": {} } },
   "correlations": [ { "columnA": "revenue", "columnB": "spend", "method": "spearman",
                       "coefficient": 0.9068, "pearson": -0.0895, "spearman": 0.9068,
@@ -78,7 +78,7 @@ Response:
   "evidence": [ { "claim": "...", "metric": "spearman_rho", "value": 0.9068,
                   "columns": ["revenue","spend"], "method": "...", "sampleSize": 90,
                   "coverage": 98.9, "strength": "very strong", "caveat": null,
-                  "engineVersion": "1.0.0",
+                  "statistics": null, "engineVersion": "1.1.0",
                   "provenance": { "formula": "ρ = ...", "inclusionRule": "...",
                     "inputRows": 91, "includedRows": 90, "excludedRows": 1,
                     "exclusionReasons": [], "sourceRowsPolicy": "...",
@@ -142,7 +142,7 @@ and never invokes an AI provider; an API key is neither required nor used.
 ```jsonc
 {
   "kind": "comparison",
-  "meta": { "comparisonVersion": "1.0.0", "schemaVersion": "2.4", "saved": false },
+  "meta": { "comparisonVersion": "1.1.0", "schemaVersion": "2.5", "saved": false },
   "files": [ /* compact deterministic profile for each file */ ],
   "comparison": {
     "deterministic": true,
@@ -150,7 +150,7 @@ and never invokes an AI provider; an API key is neither required nor used.
     "summary": { "rowDelta": 120, "healthScoreDelta": 4, "sharedColumns": 8 },
     "schema": { "added": [], "removed": [], "shared": [], "typeChanges": [] },
     "quality": { "baseline": {}, "current": {}, "deltas": {} },
-    "columns": [ /* numeric, categorical, and date descriptive deltas */ ],
+    "columns": [ /* descriptive deltas plus Welch mean and two-sample KS inference */ ],
     "findings": [ /* thresholded, deterministic material changes */ ]
   },
   "analysisId": null

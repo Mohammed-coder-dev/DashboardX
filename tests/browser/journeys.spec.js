@@ -115,6 +115,7 @@ test.describe("deterministic analysis without an API key", () => {
     const evidenceCount = await page.locator(".evidence-item").count();
     expect(evidenceCount).toBeGreaterThan(0);
     await expect(page.locator("#statsSection")).toBeVisible();
+    await expect(page.locator("#statsSection")).toContainText("95% CI");
     await expect(page.locator("#qualitySection")).toBeVisible();
     await expect(page.locator("#chartsSection")).toBeVisible();
     await expect(page.locator("#chartsSection .ai-badge")).toContainText(/full dataset/i);
@@ -172,8 +173,8 @@ test.describe("deterministic file comparison", () => {
     await expect(page.locator("#urlInputWrap")).toBeHidden();
 
     await page.locator("#fileInput").setInputFiles([
-      { name: "baseline.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue\nNorth,100\nSouth,120\nNorth,110\n") },
-      { name: "current.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue,channel\nWest,200,direct\nWest,220,direct\nSouth,210,partner\n") },
+      { name: "baseline.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue\nNorth,100\nSouth,120\nNorth,110\nSouth,130\n") },
+      { name: "current.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue,channel\nWest,200,direct\nWest,220,direct\nSouth,210,partner\nWest,230,direct\n") },
     ]);
     await expect(page.locator("#analyzeBtn")).toContainText(/Compare baseline to current/i);
     await page.locator("#analyzeBtn").click();
@@ -184,6 +185,8 @@ test.describe("deterministic file comparison", () => {
     await expect(page.locator("#compareTitle")).toContainText("baseline.csv → current.csv");
     await expect(page.locator("#compareSchema")).toContainText("channel");
     await expect(page.locator("#compareColumnRows")).toContainText("revenue");
+    await expect(page.locator("#compareColumnRows")).toContainText("95% CI");
+    await expect(page.locator("#compareColumnRows")).toContainText("KS D=");
     await expect(page.locator("#analysisRecordSummary")).toContainText(/deterministic comparison/i);
   });
 });

@@ -13,12 +13,14 @@ describe("compareAnalyses", () => {
       { region: "North", revenue: 100, legacy: "a" },
       { region: "South", revenue: 110, legacy: "b" },
       { region: "North", revenue: 120, legacy: "c" },
+      { region: "South", revenue: 130, legacy: "d" },
     ];
     const currentRows = [
       { region: "West", revenue: 200, channel: "direct" },
       { region: "West", revenue: 210, channel: "direct" },
       { region: "South", revenue: 220, channel: "partner" },
       { region: "West", revenue: 230, channel: "direct" },
+      { region: "West", revenue: 240, channel: "direct" },
     ];
     const comparison = compareAnalyses(
       analyzed("baseline.csv", baselineRows, ["region", "revenue", "legacy"]),
@@ -31,7 +33,9 @@ describe("compareAnalyses", () => {
     expect(comparison.schema.removed).toEqual(["legacy"]);
     expect(comparison.summary.rowDelta).toBe(1);
     expect(comparison.columns.find((column) => column.column === "revenue").deltas.mean).toBe(105);
-    expect(comparison.findings.some((finding) => finding.metric === "numeric.mean")).toBe(true);
+    expect(comparison.columns.find((column) => column.column === "revenue").inference.meanDifference.confidenceInterval.lower).toBeGreaterThan(0);
+    expect(comparison.columns.find((column) => column.column === "revenue").inference.distributionShift.statistic).toBe(1);
+    expect(comparison.findings.some((finding) => finding.metric === "numeric.mean_shift")).toBe(true);
     expect(comparison.findings.some((finding) => finding.metric === "categorical.dominant")).toBe(true);
   });
 

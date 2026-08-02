@@ -194,6 +194,7 @@ describe("POST /api/compare", () => {
     expect(body.comparison.deterministic).toBe(true);
     expect(body.comparison.schema.added).toEqual(["channel"]);
     expect(body.comparison.columns.find((column) => column.column === "revenue").deltas.mean).toBe(100);
+    expect(body.comparison.columns.find((column) => column.column === "revenue").inference.meanDifference.significant).toBe(true);
     expect(body.meta.comparisonVersion).toBeTruthy();
     expect(body.meta.aiIncluded).toBe(false);
     expect(createMessage).not.toHaveBeenCalled();

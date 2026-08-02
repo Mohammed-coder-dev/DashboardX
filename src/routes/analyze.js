@@ -228,7 +228,10 @@ router.post("/compare", rateLimit(), upload.array("files", 2), async (req, res) 
       profile,
     };
   });
-  const comparison = compareAnalyses(results[0], results[1]);
+  const comparison = compareAnalyses(
+    { ...results[0], rows: parsedFiles[0].rows },
+    { ...results[1], rows: parsedFiles[1].rows },
+  );
   const body = {
     kind: "comparison",
     meta: {
