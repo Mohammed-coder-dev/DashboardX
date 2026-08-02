@@ -153,7 +153,7 @@ function keyMissing()  { return !serverHasKey && !getApiKey(); }
 
 function updateSettingsBtn() {
   settingsBtn.classList.toggle("needs-key", keyMissing());
-  settingsBtn.textContent = keyMissing() ? "⚙ Add API key for AI" : "⚙ AI settings";
+  settingsBtn.textContent = keyMissing() ? "Add AI explanation" : "AI settings";
 }
 
 async function initSettings() {
@@ -238,7 +238,7 @@ async function loadHistory() {
     historySection.style.display = "";
     historyList.innerHTML = data.items.map(item => {
       const when = new Date(item.created_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
-      const icon = item.kind === "comparison" ? "↔" : (item.kind === "multi" ? "🗂️" : (FILE_ICONS[item.filename.split(".").pop().toLowerCase()] || "📄"));
+      const icon = item.kind === "comparison" ? "A/B" : (item.kind === "multi" ? "FILES" : (FILE_ICONS[item.filename.split(".").pop().toLowerCase()] || "FILE"));
       return `<div class="history-item" data-id="${esc(item.id)}">
         <span>${icon}</span>
         <span class="history-item-name">${esc(item.filename)}</span>
@@ -305,7 +305,7 @@ shareBtn.addEventListener("click", async () => {
   } catch (_) {
     prompt("Copy this share link:", link);
   }
-  setTimeout(() => { shareBtn.textContent = "🔗 Share"; }, 1500);
+  setTimeout(() => { shareBtn.textContent = "Share"; }, 1500);
 });
 
 loadHistory();
@@ -313,8 +313,8 @@ const sharedId = new URLSearchParams(location.search).get("a");
 if (sharedId) openSaved(sharedId);
 
 const FILE_ICONS = {
-  xlsx:"📊",xls:"📊",csv:"📋",json:"🗂️",pdf:"📄",
-  pptx:"📑",ppt:"📑",docx:"📝",doc:"📝",txt:"🔤",md:"🔤",
+  xlsx:"XLSX",xls:"XLS",csv:"CSV",json:"JSON",pdf:"PDF",
+  pptx:"PPTX",ppt:"PPT",docx:"DOCX",doc:"DOC",txt:"TXT",md:"MD",
 };
 const MAX_FILES = 10;
 
@@ -403,7 +403,7 @@ function renderFileList() {
   dropzoneTitle.textContent = comparing ? "Add baseline and current files" : "Drop files here or click to browse";
   if (selectedFiles.length === 0) {
     fileListEl.style.display = "none";
-    dropzoneIcon.textContent = "📁";
+    dropzoneIcon.textContent = "↑";
     analyzeBtn.disabled = comparing || !urlValue();
     analyzeBtn.textContent = comparing ? "Select two files to compare" : (urlValue() ? "Analyze link →" : "Analyze data →");
     uploadReadiness.className = `upload-status${urlValue() ? " ready" : ""}`;
@@ -414,13 +414,13 @@ function renderFileList() {
   }
 
   dropzoneIcon.textContent = selectedFiles.length === 1
-    ? (FILE_ICONS[selectedFiles[0].name.split(".").pop().toLowerCase()] || "📁")
-    : "📁";
+    ? (FILE_ICONS[selectedFiles[0].name.split(".").pop().toLowerCase()] || "FILE")
+    : `${selectedFiles.length}`;
 
   fileListEl.style.display = "flex";
   fileListEl.innerHTML = selectedFiles.map((f, i) => {
     const ext  = f.name.split(".").pop().toLowerCase();
-    const icon = FILE_ICONS[ext] || "📄";
+    const icon = FILE_ICONS[ext] || "FILE";
     const size = f.size > 1024*1024 ? `${(f.size/1024/1024).toFixed(1)}MB` : `${(f.size/1024).toFixed(0)}KB`;
     const role = comparing ? (i === 0 ? "Baseline" : "Current") : (selectedFiles.length > 1 ? `File ${i + 1}` : "Ready");
     return `<div class="file-chip">
@@ -842,7 +842,7 @@ function renderMultiDashboard(data) {
   fileTabs.style.display = "";
   tabsBar.innerHTML = files.map((f, i) => {
     const ext  = f.filename.split(".").pop().toLowerCase();
-    const icon = FILE_ICONS[ext] || "📄";
+    const icon = FILE_ICONS[ext] || "FILE";
     const hasErr = !!f.error;
     return `<button class="tab-btn ${i === 0 ? "active" : ""} ${hasErr ? "tab-error" : ""}"
       data-idx="${i}" type="button">${icon} ${esc(f.filename)}${hasErr ? " ⚠" : ""}</button>`;
@@ -1764,7 +1764,7 @@ function resetDashboard() {
   overviewSection.style.display="none";
   resultNavObserver?.disconnect();
   if (columnInspector.open) columnInspector.close();
-  fileListEl.style.display="none"; dropzoneIcon.textContent="📁";
+  fileListEl.style.display="none"; dropzoneIcon.textContent="↑";
   questionInput.value=""; urlInput.value="";
   renderFileList();
   chartInstances.forEach(c=>c.destroy()); chartInstances=[];

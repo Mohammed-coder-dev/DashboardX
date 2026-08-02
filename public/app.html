@@ -39,7 +39,7 @@
     <div class="topbar-nav">
       <a class="topbar-link" href="/privacy">Privacy</a>
       <a class="topbar-link" href="/docs">Docs</a>
-      <button id="settingsBtn" class="settings-btn" type="button" aria-expanded="false" aria-controls="settingsPanel">⚙ API Settings</button>
+      <button id="settingsBtn" class="settings-btn" type="button" aria-expanded="false" aria-controls="settingsPanel">AI settings</button>
     </div>
   </nav>
 
@@ -68,36 +68,30 @@
 
     <!-- Upload Screen -->
     <div id="uploadScreen" class="upload-section animate">
-      <h1 class="upload-headline">Evidence-backed analysis<br>for spreadsheets.</h1>
-      <p class="upload-sub">Ridge turns spreadsheets and structured files into traceable findings, quality diagnostics and statistical evidence. Runs without an API key — add one only if you want the results explained.</p>
+      <p class="upload-eyebrow">Private, deterministic spreadsheet analysis</p>
+      <h1 class="upload-headline">Turn messy files into<br>defensible answers.</h1>
+      <p class="upload-sub">Ridge profiles your data, surfaces quality issues and builds traceable statistical evidence. The analysis runs without an API key; AI interpretation is optional.</p>
 
-      <div class="file-type-pills">
-        <span class="pill">📊 Excel</span>
-        <span class="pill">📋 CSV</span>
-        <span class="pill">🗂️ JSON</span>
-        <span class="pill">📄 PDF</span>
-        <span class="pill">📑 PowerPoint</span>
-        <span class="pill">📝 Word</span>
-        <span class="pill">🔤 Text</span>
+      <div class="format-line" aria-label="Supported file types">
+        <span>Supports</span>
+        <strong>XLSX</strong><strong>CSV</strong><strong>JSON</strong><strong>PDF</strong><strong>PPTX</strong><strong>DOCX</strong><strong>TXT</strong>
       </div>
 
       <div class="analysis-mode" role="group" aria-label="Analysis mode">
         <button class="analysis-mode-btn active" data-analysis-mode="analyze" type="button" aria-pressed="true">
-          <span class="analysis-mode-kicker">Explore</span>
-          <strong>Analyze files</strong>
-          <small>Profile, visualize and find evidence</small>
+          <strong>Analyze</strong>
+          <small>Profile one or more files</small>
         </button>
         <button class="analysis-mode-btn" data-analysis-mode="compare" type="button" aria-pressed="false">
-          <span class="analysis-mode-kicker">Monitor</span>
-          <strong>Compare versions</strong>
-          <small>Measure what changed between two files</small>
+          <strong>Compare</strong>
+          <small>Measure baseline-to-current changes</small>
         </button>
       </div>
       <p id="analysisModeHint" class="analysis-mode-hint">Upload one file for a focused analysis, or several to explore them side by side.</p>
 
       <div class="dropzone" id="dropzone" aria-describedby="dropzoneHelp uploadReadiness">
         <input type="file" id="fileInput" aria-label="Choose files to analyze" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
-        <span class="dropzone-icon" id="dropzoneIcon">📁</span>
+        <span class="dropzone-icon" id="dropzoneIcon" aria-hidden="true">↑</span>
         <div class="dropzone-title" id="dropzoneTitle">Drop files here or click to browse</div>
         <div class="dropzone-sub" id="dropzoneHelp">Up to 10 files · 4 MB total — larger files work through a public HTTPS link</div>
         <div id="fileList" class="file-list" style="display:none;"></div>
@@ -108,7 +102,7 @@
         <span>Choose a file to begin. Deterministic analysis does not need an API key.</span>
       </div>
 
-      <button id="sampleBtn" class="sample-btn" type="button">✨ Try sample data — no upload, no API key needed</button>
+      <button id="sampleBtn" class="sample-btn" type="button">Open a sample analysis</button>
 
       <div id="urlInputWrap" class="url-input-wrap input-field">
         <label for="urlInput">Analyze from a link <span>optional</span></label>
@@ -167,10 +161,10 @@
           </div>
           <div class="dash-actions">
             <a class="reset-btn feedback-btn" href="https://github.com/MohammedAlkindi/Ridge/issues/new?template=pilot-feedback.yml" target="_blank" rel="noopener">Give feedback</a>
-            <button class="reset-btn" id="exportJsonBtn">⬇ JSON</button>
-            <button class="reset-btn" id="exportReportBtn">🖨 Report</button>
-            <button class="reset-btn" id="shareBtn" style="display:none;">🔗 Share</button>
-            <button class="reset-btn" id="resetBtn">← New Files</button>
+            <button class="reset-btn" id="exportJsonBtn">Export JSON</button>
+            <button class="reset-btn" id="exportReportBtn">Print report</button>
+            <button class="reset-btn" id="shareBtn" style="display:none;">Share</button>
+            <button class="reset-btn" id="resetBtn">New analysis</button>
           </div>
         </div>
 
