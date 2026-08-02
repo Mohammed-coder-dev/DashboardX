@@ -102,6 +102,25 @@ test.describe("the application at /app", () => {
     await page.goto("/about");
     expect(new URL(page.url()).pathname).toBe("/");
   });
+
+  test("shows honest, cancellable analysis progress", async ({ page }) => {
+    await page.route("**/api/analyze", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      await route.continue();
+    });
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(SAMPLE_CSV);
+    await page.locator("#analyzeBtn").click();
+
+    await expect(page.locator("#loadingScreen")).toBeVisible();
+    await expect(page.locator("#loadingTitle")).toContainText("team-sales.csv");
+    await expect(page.locator("#step3")).toContainText(/computing evidence/i);
+    await expect(page.locator("#loadingScreen")).not.toContainText(/running AI analysis/i);
+    await page.locator("#cancelAnalysisBtn").click();
+    await expect(page.locator("#uploadScreen")).toBeVisible();
+    await expect(page.locator("#errorBox")).toContainText(/cancelled/i);
+    await expect(page.locator(".file-chip-name")).toContainText("team-sales.csv");
+  });
 });
 
 test.describe("deterministic analysis without an API key", () => {

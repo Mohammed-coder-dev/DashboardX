@@ -134,16 +134,21 @@
     </div>
 
     <!-- Loading Screen -->
-    <div id="loadingScreen" style="display:none;">
+    <div id="loadingScreen" role="status" aria-live="polite" aria-busy="true" style="display:none;">
       <div class="loading-wrap">
-        <div class="spinner"></div>
-        <div class="loading-steps">
-          <div class="loading-step active" id="step1">PARSING FILES</div>
-          <div class="loading-step" id="step2">EXTRACTING CONTENT</div>
-          <div class="loading-step" id="step3">RUNNING AI ANALYSIS</div>
-          <div class="loading-step" id="step4">BUILDING DASHBOARD</div>
+        <div class="loading-orbit" aria-hidden="true"><span></span></div>
+        <div class="loading-eyebrow">Analysis in progress</div>
+        <h1 id="loadingTitle" class="loading-title">Preparing your results</h1>
+        <p id="loadingFileCount" class="loading-file-count">Reading the selected source…</p>
+        <div class="loading-progress" aria-hidden="true"><span id="loadingProgressBar"></span></div>
+        <div class="loading-steps" aria-label="Analysis stages">
+          <div class="loading-step active" id="step1"><span>1</span><strong>Parsing source</strong></div>
+          <div class="loading-step" id="step2"><span>2</span><strong>Profiling columns</strong></div>
+          <div class="loading-step" id="step3"><span>3</span><strong>Computing evidence</strong></div>
+          <div class="loading-step" id="step4"><span>4</span><strong>Building results</strong></div>
         </div>
-        <div id="loadingFileCount" style="font-size:12px;color:var(--text-3);font-family:'DM Mono',monospace;margin-top:8px;"></div>
+        <p class="loading-trust">Your numbers are computed from the file. AI is only used for optional interpretation.</p>
+        <button id="cancelAnalysisBtn" class="loading-cancel" type="button" style="display:none;">Cancel analysis</button>
       </div>
     </div>
 

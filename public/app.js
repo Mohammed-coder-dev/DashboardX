@@ -12,6 +12,11 @@ const analyzeBtn      = document.getElementById("analyzeBtn");
 const errorBox        = document.getElementById("errorBox");
 const resetBtn        = document.getElementById("resetBtn");
 const loadingFileCount = document.getElementById("loadingFileCount");
+const loadingTitle    = document.getElementById("loadingTitle");
+const loadingProgressBar = document.getElementById("loadingProgressBar");
+const cancelAnalysisBtn = document.getElementById("cancelAnalysisBtn");
+let activeRequestController = null;
+let loadingTimers = [];
 const uploadReadiness = document.getElementById("uploadReadiness");
 const dropzoneTitle   = document.getElementById("dropzoneTitle");
 
@@ -247,6 +252,10 @@ async function loadHistory() {
 }
 
 async function openSaved(id) {
+  cancelAnalysisBtn.style.display = "none";
+  loadingTitle.textContent = "Opening saved analysis";
+  loadingFileCount.textContent = "Loading the stored result and its analysis record.";
+  animateLoadingSteps({ kind: "saved" });
   showScreen("loading");
   hideError();
   try {
@@ -265,6 +274,8 @@ async function openSaved(id) {
   } catch (err) {
     showScreen("upload");
     showError(err.message);
+  } finally {
+    clearLoadingTimers();
   }
 }
 
@@ -490,17 +501,24 @@ async function runAnalysis(sheet) {
     showError("Uploads are limited to 4 MB per request in total — analyze a larger file by pasting a link instead.");
     return;
   }
-  showScreen("loading");
-  hideError();
-  animateLoadingSteps();
-
   const isMulti  = selectedFiles.length > 1 && !isComparison;
   const question = questionInput.value.trim();
+  const requestController = new AbortController();
+  activeRequestController = requestController;
+  cancelAnalysisBtn.style.display = "";
+  showScreen("loading");
+  hideError();
+  animateLoadingSteps({ kind: isComparison ? "compare" : "analyze", withAI: !isComparison && !keyMissing() });
 
   if (isComparison) {
-    loadingFileCount.textContent = "Comparing baseline to current file...";
+    loadingTitle.textContent = "Comparing two versions";
+    loadingFileCount.textContent = `${selectedFiles[0].name} → ${selectedFiles[1].name}`;
   } else if (isMulti) {
-    loadingFileCount.textContent = `Analyzing ${selectedFiles.length} files in parallel...`;
+    loadingTitle.textContent = `Analyzing ${selectedFiles.length} files`;
+    loadingFileCount.textContent = "Each file is profiled independently before the results are combined.";
+  } else {
+    loadingTitle.textContent = `Analyzing ${selectedFiles[0].name}`;
+    loadingFileCount.textContent = "Reading the full file and computing its evidence profile.";
   }
 
   lastSheet = sheet || null;
@@ -522,11 +540,12 @@ async function runAnalysis(sheet) {
     const endpoint = isComparison ? "/api/compare" : (isMulti ? "/api/analyze-multi" : "/api/analyze");
     const headers  = { "x-ridge-session": getSessionId() };
     if (!isComparison && getApiKey()) headers["x-anthropic-key"] = getApiKey();
-    const response = await fetch(endpoint, { method:"POST", headers, body:formData });
+    const response = await fetch(endpoint, { method:"POST", headers, body:formData, signal:requestController.signal });
     const data     = await response.json()
       .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}) — the upload may be too large.` }));
     if (!response.ok) throw new Error(apiErrorMessage(data, "Analysis failed."));
     await delay(500);
+    if (requestController.signal.aborted) return;
 
     lastSource = isMulti || isComparison ? null : { kind: "upload" };
     if (isComparison) {
@@ -543,16 +562,25 @@ async function runAnalysis(sheet) {
     loadHistory();
     showScreen("dashboard");
   } catch (err) {
+    if (err.name === "AbortError") return;
     showScreen("upload");
     showError(err.message);
+  } finally {
+    if (activeRequestController === requestController) activeRequestController = null;
+    cancelAnalysisBtn.style.display = "none";
+    clearLoadingTimers();
   }
 }
 
 async function runUrlAnalysis(sheet) {
+  const requestController = new AbortController();
+  activeRequestController = requestController;
+  cancelAnalysisBtn.style.display = "";
   showScreen("loading");
   hideError();
-  animateLoadingSteps();
-  loadingFileCount.textContent = "Fetching file from URL...";
+  animateLoadingSteps({ kind: "url", withAI: !keyMissing() });
+  loadingTitle.textContent = "Analyzing linked data";
+  loadingFileCount.textContent = "Fetching the HTTPS source before running the same deterministic checks.";
 
   try {
     const headers = { "Content-Type": "application/json", "x-ridge-session": getSessionId() };
@@ -560,6 +588,7 @@ async function runUrlAnalysis(sheet) {
     const response = await fetch("/api/analyze-url", {
       method: "POST",
       headers,
+      signal: requestController.signal,
       body: JSON.stringify({
         url: urlValue(),
         question: questionInput.value.trim(),
@@ -573,6 +602,7 @@ async function runUrlAnalysis(sheet) {
       .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}).` }));
     if (!response.ok) throw new Error(apiErrorMessage(data, "Analysis failed."));
     await delay(500);
+    if (requestController.signal.aborted) return;
     lastSource = { kind: "url" };
     allFileResults = [data];
     renderSingleFile(data, false);
@@ -582,23 +612,56 @@ async function runUrlAnalysis(sheet) {
     loadHistory();
     showScreen("dashboard");
   } catch (err) {
+    if (err.name === "AbortError") return;
     showScreen("upload");
     showError(err.message);
+  } finally {
+    if (activeRequestController === requestController) activeRequestController = null;
+    cancelAnalysisBtn.style.display = "none";
+    clearLoadingTimers();
   }
 }
 
-function animateLoadingSteps() {
-  // Honest step label: no AI runs when no key is configured.
-  steps[2].textContent = keyMissing() ? "COMPUTING EVIDENCE" : "RUNNING AI ANALYSIS";
-  steps.forEach(s => s.classList.remove("active"));
-  steps[0].classList.add("active");
+function clearLoadingTimers() {
+  loadingTimers.forEach((timer) => clearTimeout(timer));
+  loadingTimers = [];
+}
+
+function setLoadingStep(index) {
+  steps.forEach((step, stepIndex) => {
+    step.classList.toggle("active", stepIndex === index);
+    step.classList.toggle("complete", stepIndex < index);
+    if (stepIndex === index) step.setAttribute("aria-current", "step");
+    else step.removeAttribute("aria-current");
+  });
+  loadingProgressBar.style.width = `${(index + 1) * 25}%`;
+}
+
+function animateLoadingSteps({ kind = "analyze", withAI = false } = {}) {
+  clearLoadingTimers();
+  const labels = kind === "compare"
+    ? ["Validating file pair", "Profiling baseline", "Profiling current", "Calculating deltas"]
+    : kind === "saved"
+      ? ["Locating record", "Loading results", "Verifying metadata", "Opening dashboard"]
+    : kind === "url"
+      ? ["Fetching source", "Profiling columns", withAI ? "Interpreting evidence" : "Computing evidence", "Building results"]
+      : ["Parsing source", "Profiling columns", withAI ? "Interpreting evidence" : "Computing evidence", "Building results"];
+  steps.forEach((step, index) => { step.querySelector("strong").textContent = labels[index]; });
+  setLoadingStep(0);
   [900, 1800, 2700].forEach((d, i) => {
-    setTimeout(() => {
-      steps[i].classList.remove("active");
-      if (steps[i+1]) steps[i+1].classList.add("active");
-    }, d);
+    loadingTimers.push(setTimeout(() => setLoadingStep(i + 1), d));
   });
 }
+
+cancelAnalysisBtn.addEventListener("click", () => {
+  if (!activeRequestController) return;
+  activeRequestController.abort();
+  activeRequestController = null;
+  clearLoadingTimers();
+  cancelAnalysisBtn.style.display = "none";
+  showScreen("upload");
+  showError("Analysis cancelled. Your selected files are still ready when you want to try again.");
+});
 
 // ─── Deterministic comparison dashboard ───────────────────────
 function signed(value, suffix = "") {
