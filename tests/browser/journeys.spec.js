@@ -13,6 +13,8 @@ test.describe("landing page at the root", () => {
     await page.goto("/");
     await expect(page).toHaveTitle(/Ridge/);
     await expect(page.locator("h1")).toContainText(/answers you can defend/i);
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /og-ridge\.png$/);
+    await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
     // The workspace must not be the first thing a visitor meets.
     await expect(page.locator("#dropzone")).toHaveCount(0);
   });
