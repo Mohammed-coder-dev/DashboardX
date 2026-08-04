@@ -12,7 +12,12 @@
     "dev": "node --watch server.js",
     "test": "vitest run tests --exclude tests/browser",
     "test:browser": "playwright test",
-    "test:all": "npm run test && npm run test:browser"
+    "test:all": "npm run test && npm run test:browser",
+    "video": "node video/verify.js && node video/capture.js && node video/narrate.js && node video/build.js",
+    "video:verify": "node video/verify.js",
+    "video:capture": "node video/capture.js",
+    "video:narrate": "node video/narrate.js",
+    "video:build": "node video/build.js"
   },
   "repository": {
     "type": "git",

@@ -17,3 +17,8 @@ coverage/
 /test-results/
 /playwright-report/
 /blob-report/
+
+# Demo video: the pipeline under video/ is source and is tracked; everything it
+# renders is not. Frames and clips run to hundreds of megabytes, and the cut is
+# reproducible from a clean checkout with `npm run video`.
+/video/out/

@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ridge — cold open</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,600;1,500&display=swap');
+
+  /* Tokens lifted from public/styles.css so the scene and the product read as
+     one system. Kept literal rather than imported: this file is captured
+     standalone by Playwright with no server in front of it. */
+  :root {
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f1f3f6; --border:#e0e3e8; --border-2:#c9ced6;
+    --text:#15171a; --text-2:#51565f; --text-3:#747b86;
+    --accent:#315ee7; --accent-bg:#eef2ff;
+    --green:#16a34a; --green-bg:#f0fdf4;
+    --red:#dc2626; --red-bg:#fef2f2;
+    --amber:#d97706; --amber-bg:#fffbeb;
+    --radius:12px; --radius-sm:8px;
+  }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:1920px; height:1080px; overflow:hidden; background:var(--bg);
+    color:var(--text); font-family:'DM Sans',sans-serif; -webkit-font-smoothing:antialiased; }
+
+  #stage { position:relative; width:1920px; height:1080px; padding:74px 96px; display:grid;
+    grid-template-columns: 0.92fr 1.08fr; gap:76px; align-items:center; }
+
+  /* ── Left: the spreadsheet ─────────────────────────────────── */
+  .file-head { display:flex; align-items:center; gap:18px; margin-bottom:24px; }
+  .file-name { font-family:'DM Mono',monospace; font-size:30px; color:var(--text-2); }
+  .file-meta { font-size:23px; color:var(--text-3); }
+
+  .grid { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    overflow:hidden; box-shadow:0 8px 24px rgba(15,23,42,.07); }
+  table { width:100%; border-collapse:collapse; font-size:24px; }
+  th { text-align:left; font-weight:600; font-size:20px; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--text-3); padding:19px 24px; background:var(--surface-2); border-bottom:1px solid var(--border); }
+  td { padding:13px 24px; border-bottom:1px solid var(--border); color:var(--text-2);
+    font-variant-numeric:tabular-nums; }
+  tr:last-child td { border-bottom:none; }
+
+  /* Dimming everything but the column under discussion. */
+  .col-dim { opacity:1; transition:none; }
+  th.rating, td.rating { font-family:'DM Mono',monospace; position:relative; }
+
+  td.blank .cellbox { display:inline-flex; align-items:center; justify-content:center;
+    min-width:64px; height:34px; border-radius:6px; font-family:'DM Mono',monospace; }
+
+  .ellipsis { padding:14px 20px; color:var(--text-3); font-size:22px; letter-spacing:.18em; }
+
+  /* ── Right: the argument ───────────────────────────────────── */
+  .panel { align-self:center; }
+  .kicker { font-size:21px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-3);
+    font-weight:600; margin-bottom:22px; }
+
+  /* The generic assistant answer the video opens by dismantling. Deliberately
+     unbranded — the failure is structural, not one vendor's. */
+  .botcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:34px 38px; box-shadow:0 8px 24px rgba(15,23,42,.07); }
+  .botrow { display:flex; align-items:center; gap:14px; margin-bottom:22px; }
+  .botdot { width:34px; height:34px; border-radius:9px; background:var(--surface-3);
+    display:flex; align-items:center; justify-content:center; }
+  .botdot span { width:13px; height:13px; border-radius:50%; background:var(--text-3); }
+  .botname { font-size:20px; color:var(--text-3); font-weight:600; }
+  .claim { font-size:29px; line-height:1.6; color:var(--text); margin-bottom:20px; }
+  .claim:last-child { margin-bottom:0; }
+  .claim b { font-weight:600; }
+  .flag { display:block; font-size:21px; color:var(--red); margin-top:9px;
+    font-family:'DM Mono',monospace; }
+
+  .codecard { background:#17191f; border-radius:var(--radius); padding:34px 38px;
+    font-family:'DM Mono',monospace; font-size:33px; color:#f7f6f2; line-height:1.85;
+    box-shadow:0 18px 48px rgba(0,0,0,.18); }
+  .codecard .cmt { color:#b8b7b1; font-size:25px; }
+  .codecard .val { color:#ff8f8f; }
+  .codecard .ok  { color:#8ee6a8; }
+
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:26px; }
+  .stat { border-radius:var(--radius); padding:30px 32px; border:1px solid var(--border); background:var(--surface); }
+  .stat.bad  { background:var(--red-bg);   border-color:#f3c6c6; }
+  .stat.good { background:var(--green-bg); border-color:#bfe6cd; }
+  .stat .lbl { font-size:22px; color:var(--text-2); margin-bottom:12px; }
+  .stat .num { font-family:'Fraunces',serif; font-size:94px; line-height:1; font-weight:600;
+    font-variant-numeric:tabular-nums; }
+  .stat.bad  .num { color:var(--red); }
+  .stat.good .num { color:var(--green); }
+  .stat .sub { font-size:21px; color:var(--text-3); margin-top:14px; font-family:'DM Mono',monospace; }
+
+  .verdict { margin-top:38px; font-size:34px; line-height:1.5; color:var(--text); }
+  .verdict em { font-family:'Fraunces',serif; font-style:italic; font-weight:600; }
+
+  .chip { display:inline-flex; align-items:center; gap:10px; padding:11px 19px; border-radius:999px;
+    background:var(--amber-bg); border:1px solid #f0d9a8; color:var(--amber);
+    font-size:22px; font-weight:600; }
+  .chip .dot { width:9px; height:9px; border-radius:50%; background:var(--amber); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div>
+    <div class="file-head">
+      <span class="file-name">team-sales.csv</span>
+      <span class="file-meta" id="fileMeta">91 rows</span>
+      <span id="chipWrap" style="margin-left:auto"></span>
+    </div>
+    <div class="grid">
+      <table>
+        <thead>
+          <tr>
+            <th class="c-date">date</th><th class="c-region">region</th>
+            <th class="c-revenue">revenue</th><th class="c-spend">spend</th>
+            <th class="rating">rating</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="ellipsis">⋮</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="kicker" id="kicker"></div>
+    <div id="panelBody"></div>
+  </div>
+</div>
+
+<script>
+// Real rows from public/samples/team-sales.csv (source lines 22–35). Two of the
+// ten blank ratings fall inside this window; the chip reports the true total.
+const ROWS = [
+  ["2024-02-06","east","174","85","4.4"],
+  ["2024-02-09","north","231","112","4.1"],
+  ["2024-03-02","south","154","83",""],
+  ["2024-03-05","east","178","96","4.8"],
+  ["2024-03-08","north","235","123","4.5"],
+  ["2024-03-11","south","152","76","4.2"],
+  ["2024-03-14","east","199","99","4.9"],
+  ["2024-03-17","north","233","116","4.3"],
+  ["2024-03-20","south","150","84","4.0"],
+  ["2024-03-23","east","197","107","4.7"],
+  ["2024-03-26","north","231","109","4.1"],
+  ["2024-03-03","south","148","77",""],
+];
+
+const clamp = (v,a,b) => Math.min(b, Math.max(a,v));
+// Normalised progress through [a,b], eased. Every visual property is a pure
+// function of t, which is what makes frame-stepping reproducible.
+const p  = (t,a,b) => clamp((t-a)/(b-a), 0, 1);
+const ease = x => x<0.5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2;
+const pe = (t,a,b) => ease(p(t,a,b));
+const lerp = (a,b,k) => a+(b-a)*k;
+
+const tbody = document.getElementById("tbody");
+ROWS.forEach(r => {
+  const tr = document.createElement("tr");
+  tr.innerHTML =
+    `<td class="c-date">${r[0]}</td><td class="c-region">${r[1]}</td>` +
+    `<td class="c-revenue">${r[2]}</td><td class="c-spend">${r[3]}</td>` +
+    `<td class="rating${r[4]===""?" blank":""}"><span class="cellbox">${r[4]}</span></td>`;
+  tbody.appendChild(tr);
+});
+
+const otherCells = [...document.querySelectorAll(".c-date,.c-region,.c-revenue,.c-spend")];
+const ratingCells = [...document.querySelectorAll("td.rating")];
+const blankBoxes  = [...document.querySelectorAll("td.blank .cellbox")];
+const kicker = document.getElementById("kicker");
+const panelBody = document.getElementById("panelBody");
+const chipWrap = document.getElementById("chipWrap");
+
+// Phase boundaries, in seconds, tuned against the narration in script.js:
+//   bot   "it invents statistics it never saw, reports correlations without
+//          ever saying how many rows they rest on"
+//   code  "and it reads an empty cell as a zero"
+//   stats "your satisfaction score reads three point six"
+// Each boundary is placed against the line being spoken over it, so a visual
+// change never lands before or after the sentence that explains it.
+const T = {
+  grid:    0.0,  // "Ask most AI tools to analyze a spreadsheet…"
+  bot:     7.5,  // "…it invents statistics it never saw"        (flags land ~12s)
+  focus:   12.5, // "…without ever saying how many rows"
+  blanks:  14.0, // the gaps become visible before they are named
+  code:    15.5, // "…and it reads an empty cell as a zero"
+  fill:    18.5, // the coercion lands in the cells
+  stats:   25.5, // "Your satisfaction score reads three point six"
+  verdict: 32.5, // "Nothing looks broken. Nobody catches it."
+  end:     39.5,
+};
+
+function seek(t) {
+  // Whole scene eases up from below on entry.
+  const intro = pe(t, 0.0, 1.4);
+  document.getElementById("stage").style.opacity = intro;
+
+  // Columns other than `rating` recede once the argument narrows to one column.
+  const dim = pe(t, T.focus, T.focus + 1.6);
+  otherCells.forEach(c => { c.style.opacity = lerp(1, 0.32, dim); });
+  ratingCells.forEach(c => { c.style.background = `rgba(49,94,231,${lerp(0, 0.05, dim)})`; });
+
+  // Blank cells announce themselves before anything is claimed about them.
+  const bl = pe(t, T.blanks, T.blanks + 1.2);
+  blankBoxes.forEach(b => {
+    b.style.border = `2px dashed rgba(217,119,6,${bl})`;
+    b.style.background = `rgba(255,251,235,${bl})`;
+  });
+  chipWrap.style.opacity = bl;
+  // "in 91 rows" would repeat the meta line now sitting beside it.
+  chipWrap.innerHTML = bl > 0.02
+    ? `<span class="chip"><span class="dot"></span>10 blank ratings</span>` : "";
+
+  // The coercion itself, then the damage it does to the cells.
+  const fill = pe(t, T.fill, T.fill + 1.3);
+  blankBoxes.forEach(b => {
+    b.textContent = fill > 0.5 ? "0" : "";
+    b.style.color = `rgba(220,38,38,${fill})`;
+    b.style.borderColor = fill > 0.5 ? `rgba(220,38,38,${fill})` : b.style.borderColor;
+    b.style.background = fill > 0.5 ? `rgba(254,242,242,${fill})` : b.style.background;
+  });
+
+  // Right-hand panel advances through three states.
+  if (t < T.bot) {
+    kicker.style.opacity = 0; panelBody.innerHTML = "";
+  } else if (t < T.code) {
+    kicker.style.opacity = pe(t, T.bot, T.bot + 0.5);
+    kicker.textContent = "What a typical tool answers";
+    const card = pe(t, T.bot, T.bot + 0.9);
+    const c1 = pe(t, T.bot + 0.6, T.bot + 1.5);
+    const c2 = pe(t, T.bot + 2.4, T.bot + 3.3);
+    // Both flags appear late, after each claim has been read and accepted —
+    // the point is that these answers look fine until someone checks.
+    const f1 = pe(t, T.bot + 4.4, T.bot + 5.2);
+    const f2 = pe(t, T.bot + 5.0, T.bot + 5.8);
+    panelBody.innerHTML =
+      `<div class="botcard" style="opacity:${card}; transform:translateY(${lerp(14,0,card)}px)">` +
+      `<div class="botrow"><span class="botdot"><span></span></span>` +
+      `<span class="botname">Assistant</span></div>` +
+      `<div class="claim" style="opacity:${c1}">Average customer rating is <b>3.6</b> — ` +
+      `satisfaction is slipping this quarter.` +
+      `<span class="flag" style="opacity:${f1}">counted 10 empty cells as zeros · actual 4.04, n = 81</span></div>` +
+      `<div class="claim" style="opacity:${c2}">Revenue and spend are <b>strongly correlated</b> ` +
+      `(r = 0.94).` +
+      `<span class="flag" style="opacity:${f2}">no method, no n · spearman +0.91 but pearson −0.09 — they disagree</span></div>` +
+      `</div>`;
+  } else if (t < T.stats) {
+    kicker.style.opacity = pe(t, T.code, T.code + 0.6);
+    kicker.textContent = "What the tool does";
+    const a = pe(t, T.code + 0.3, T.code + 1.4);
+    const b = pe(t, T.code + 1.6, T.code + 2.6);
+    panelBody.innerHTML =
+      `<div class="codecard" style="opacity:${a}; transform:translateY(${lerp(14,0,a)}px)">` +
+      `<div class="cmt">// the empty cell</div>` +
+      `<div>Number(<span class="val">""</span>)` +
+      `<span style="opacity:${b}"> &nbsp;→&nbsp; <span class="val">0</span></span></div>` +
+      `<div class="cmt" style="opacity:${b}">// now an observation, not a gap</div></div>`;
+  } else {
+    kicker.style.opacity = 1;
+    kicker.textContent = "What it costs";
+    const a = pe(t, T.stats, T.stats + 1.0);
+    const b = pe(t, T.stats + 0.5, T.stats + 1.6);
+    const v = pe(t, T.verdict, T.verdict + 1.2);
+    // The reported figure counts down from the true mean to the corrupted one,
+    // so the loss is watched rather than asserted.
+    const shown = lerp(4.04, 3.59, pe(t, T.stats + 0.6, T.stats + 2.4)).toFixed(2);
+    panelBody.innerHTML =
+      `<div class="stats">` +
+      `<div class="stat bad" style="opacity:${a}; transform:translateY(${lerp(16,0,a)}px)">` +
+      `<div class="lbl">Reported average</div><div class="num">${shown}</div>` +
+      `<div class="sub">blanks counted as 0</div></div>` +
+      `<div class="stat good" style="opacity:${b}; transform:translateY(${lerp(16,0,b)}px)">` +
+      `<div class="lbl">Actual average</div><div class="num">4.04</div>` +
+      `<div class="sub">n = 81 · 10 excluded</div></div></div>` +
+      `<div class="verdict" style="opacity:${v}">An eleven percent drop in a satisfaction score — ` +
+      `<em>and nothing on the screen looks wrong.</em></div>`;
+  }
+}
+
+window.seek = seek;
+window.SCENE_DURATION = T.end;
+seek(0);
+</script>
+</body>
+</html>
