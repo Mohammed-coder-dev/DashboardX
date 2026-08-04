@@ -179,6 +179,45 @@ describe("deterministic analysis without a key", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).code).toBe("unknown_target");
   });
+
+  it("computes over only the selected columns", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ columns: JSON.stringify(["region", "revenue"]) }),
+    });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(Object.keys(body.stats).sort()).toEqual(["region", "revenue"]);
+    // Rows are never filtered — excluding a column drops a measurement, not an
+    // observation, so the surviving column keeps its full record.
+    expect(body.stats.revenue.validCount).toBe(4);
+    expect(body.meta.totalRows).toBe(5);
+  });
+
+  it("discloses the exclusion rather than absorbing it", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ columns: JSON.stringify(["region", "revenue"]) }),
+    });
+    const body = await res.json();
+    expect(body.meta.activeColumns).toEqual(["region", "revenue"]);
+    expect(body.meta.excludedColumns).toEqual(["spend"]);
+    // The full column list still travels, so the picker can offer what was dropped.
+    expect(body.columns).toEqual(["region", "revenue", "spend"]);
+  });
+
+  it("reports no exclusions when every column is kept", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ columns: JSON.stringify(["region", "revenue", "spend"]) }),
+    });
+    expect((await res.json()).meta.excludedColumns).toEqual([]);
+  });
+
+  it("rejects selecting a column the file does not have", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ columns: JSON.stringify(["revenue", "profit"]) }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("unknown_column");
+  });
 });
 
 describe("POST /api/compare", () => {

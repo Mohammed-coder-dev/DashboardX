@@ -115,7 +115,9 @@ in `:root`; this is reuse, not new tokens.
 Server (`src/routes/analyze.js`):
 
 - `validateColumns(raw)` beside `validateTarget`/`validateSheet`. Accepts a JSON
-  array or comma-separated string; rejects non-string members and over-long input.
+  array only — never a delimited string. Real spreadsheet headers contain commas
+  (`Revenue, USD`), so splitting on one would silently analyze columns the user
+  never named. Rejects non-string members and over-long input.
 - `resolveColumns(requested, parsedColumns)` intersects with the parsed columns,
   rejects an empty resulting selection (`no_columns_selected`) and unknown names
   (`unknown_column`), returns `{ active, excluded }`.

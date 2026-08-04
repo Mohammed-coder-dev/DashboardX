@@ -16,6 +16,7 @@ import { AppError, normalizeError } from "../errors.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 
 const MAX_QUESTION_LENGTH = 2000;
+const MAX_COLUMN_SELECTION = 512;
 
 function analysisRecord(req, startedAt, analysis) {
   return {
@@ -90,6 +91,60 @@ function resolveTarget(target, columns) {
   return target;
 }
 
+/**
+ * Column selection arrives as a JSON array, never a delimited string. Header
+ * names in real spreadsheets contain commas ("Revenue, USD"), so splitting on
+ * one would silently analyze columns the user never named.
+ */
+export function validateColumns(raw) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  let list = raw;
+  if (typeof raw === "string") {
+    try {
+      list = JSON.parse(raw);
+    } catch {
+      throw new AppError("Column selection must be a JSON array of column names.", { status: 400, code: "invalid_columns" });
+    }
+  }
+  if (!Array.isArray(list)) {
+    throw new AppError("Column selection must be a JSON array of column names.", { status: 400, code: "invalid_columns" });
+  }
+  if (list.length > MAX_COLUMN_SELECTION) {
+    throw new AppError(`Column selection is too long (max ${MAX_COLUMN_SELECTION}).`, { status: 400, code: "invalid_columns" });
+  }
+  if (list.some((name) => typeof name !== "string")) {
+    throw new AppError("Column selection must contain only column names.", { status: 400, code: "invalid_columns" });
+  }
+  const unique = [...new Set(list.map((name) => name.trim()).filter(Boolean))];
+  return unique.length > 0 ? unique : null;
+}
+
+/**
+ * Narrows the parsed columns to the requested set. Returns the excluded names
+ * alongside the active ones: an exclusion changes what every downstream
+ * statistic is computed over, so it has to travel with the result rather than
+ * disappear into it.
+ */
+export function resolveColumns(requested, columns) {
+  if (!requested) return { active: columns, excluded: [] };
+  const known = new Set(columns);
+  const unknown = requested.filter((name) => !known.has(name));
+  if (unknown.length > 0) {
+    throw new AppError(
+      `Unknown column${unknown.length > 1 ? "s" : ""}: ${unknown.slice(0, 5).join(", ")}.`,
+      { status: 400, code: "unknown_column" },
+    );
+  }
+  // Filter the parsed order rather than adopting request order, so identical
+  // selections always produce identical output regardless of how they arrived.
+  const wanted = new Set(requested);
+  const active = columns.filter((name) => wanted.has(name));
+  if (active.length === 0) {
+    throw new AppError("Select at least one column to analyze.", { status: 400, code: "no_columns_selected" });
+  }
+  return { active, excluded: columns.filter((name) => !wanted.has(name)) };
+}
+
 export function validateQuestion(raw) {
   if (raw === undefined || raw === null || raw === "") return "";
   if (typeof raw !== "string") {
@@ -101,12 +156,18 @@ export function validateQuestion(raw) {
   return raw.trim();
 }
 
-async function analyzeParsedFile(parsed, question, { apiKey, model, target = null }) {
-  const { rows, columns, isTabular, rawText } = parsed;
+async function analyzeParsedFile(parsed, question, { apiKey, model, target = null, includeColumns = null }) {
+  const { rows, columns: parsedColumns, isTabular, rawText } = parsed;
   // columns.length > 0, not > 1: a single-column sheet is still tabular —
   // the old > 1 check routed it to the text prompt, whose r.content lookup
   // came back undefined for every row and produced an empty prompt.
-  const tabular      = isTabular && columns.length > 0;
+  const tabular      = isTabular && parsedColumns.length > 0;
+  // Narrowing happens once, here, so every downstream computation sees the
+  // same column set. Rows are never filtered — excluding a column removes a
+  // measurement, not an observation.
+  const { active: columns, excluded: excludedColumns } = tabular
+    ? resolveColumns(includeColumns, parsedColumns)
+    : { active: parsedColumns, excluded: [] };
   const stats        = tabular ? computeStats(rows, columns) : {};
   const correlations = tabular ? computeCorrelations(rows, columns, stats) : [];
   const profile      = tabular ? profileDataset(rows, columns) : null;
@@ -125,7 +186,7 @@ async function analyzeParsedFile(parsed, question, { apiKey, model, target = nul
       : buildTextPrompt(parsed.fileType, fallbackText, question);
     analysis = await runAnalysis({ apiKey, model, prompt, schema: ANALYSIS_SCHEMA });
   }
-  return { stats, correlations, profile, evidence, target: effectiveTarget, analysis };
+  return { stats, correlations, profile, evidence, target: effectiveTarget, analysis, activeColumns: columns, excludedColumns };
 }
 
 const router = Router();
@@ -143,12 +204,14 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
   const target = isTabular ? resolveTarget(validateTarget(req.body.target), columns) : null;
+  const includeColumns = validateColumns(req.body.columns);
 
-  const { stats, correlations, profile, evidence, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model, target });
+  const { stats, correlations, profile, evidence, analysis, activeColumns, excludedColumns } =
+    await analyzeParsedFile(parsed, question, { apiKey, model, target, includeColumns });
 
   const body = {
     meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model,
-      target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
+      target, activeColumns, excludedColumns, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
       ...analysisRecord(req, startedAt, analysis) },
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
@@ -175,13 +238,15 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
   const target = isTabular ? resolveTarget(validateTarget(req.body?.target), columns) : null;
+  const includeColumns = validateColumns(req.body?.columns);
 
-  const { stats, correlations, profile, evidence, analysis } = await analyzeParsedFile(parsed, question, { apiKey, model, target });
+  const { stats, correlations, profile, evidence, analysis, activeColumns, excludedColumns } =
+    await analyzeParsedFile(parsed, question, { apiKey, model, target, includeColumns });
 
   const body = {
     meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
       filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl,
-      target, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
+      target, activeColumns, excludedColumns, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
       ...analysisRecord(req, startedAt, analysis) },
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
