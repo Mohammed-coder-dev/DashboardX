@@ -14,7 +14,7 @@ import { categoricalAssociation, detectLevelShift, welchMeanDifference } from ".
 /** Bumped when evidence computation changes meaning, not just wording. */
 export const EVIDENCE_ENGINE_VERSION = "1.1.0";
 /** Version of the saved/exported analysis payload shape. */
-export const ANALYSIS_SCHEMA_VERSION = "2.5";
+export const ANALYSIS_SCHEMA_VERSION = "2.6";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;

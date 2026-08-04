@@ -8,6 +8,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Column selection: exclude ID, free-text or otherwise irrelevant fields before
+  anything is computed, so they stop polluting correlations and evidence. Rows
+  are never filtered — excluding a column removes a measurement, not an
+  observation. Selections are sent as JSON arrays, never delimited strings,
+  because real headers contain commas.
+- An analysis workspace: a setup rail holding the source, the target column,
+  the column selection and the re-run control, beside the results canvas.
+  Setup changes are staged rather than fired on change, and until the analysis
+  re-runs the results are marked stale by a filled re-run button counting the
+  pending edits, a banner above the findings and a rule across the canvas.
 - Full-file deterministic charts for numeric distributions, categorical
   frequencies, and date trends. Charts now work without AI and cover the same
   rows as the reported statistics.
@@ -34,6 +44,25 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- Results are organised into four ranked tiers — what we found, how we know,
+  the data, interpretation — replacing twelve equally-weighted cards that gave
+  the reader no way to tell what mattered. All model output is now contiguous
+  in the last tier instead of interleaved with computed output.
+- Provenance is a closed vocabulary: **Computed** is measured from the file,
+  **Derived** is calculated from those measurements, **Written** is model prose
+  quoting them. This replaces the `ai-badge` class, which carried four
+  different meanings — two of them the opposite of its name. A stamp appears on
+  a tier header, and on a claim only when it differs from its tier. The printed
+  report uses the same three words.
+- Interpretation renders on a distinct dark surface so model prose reads as a
+  different substance before a word is parsed; the printed form carries the
+  same boundary with a rule, since printers drop backgrounds.
+- Evidence and correlations share one claim-strength scale with the underlying
+  number alongside. The data-quality grade stays visually distinct: it measures
+  the input, not confidence in a claim.
+- `ANALYSIS_SCHEMA_VERSION` is 2.6: `meta.activeColumns` and
+  `meta.excludedColumns` record what an analysis was computed over. Both are
+  optional, and their absence means every column was included.
 - Repositioned the landing page around defensible spreadsheet answers for
   finance, operations, and analytics teams, with hosted and self-hosted paths.
 - Raised the supported Node.js floor to Node 22; the production container uses
