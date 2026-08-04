@@ -53,8 +53,11 @@ jobs:
           # /app is the workspace and must carry a working dropzone.
           # Captured first so a failed fetch fails the grep rather than
           # feeding an empty stream to a negated match and passing.
+          # Assert on the link to the workspace rather than on hero copy:
+          # the routing contract is what this check exists to protect, and
+          # marketing wording changes without the contract changing.
           ROOT=$(curl -sf http://127.0.0.1:3399/)
-          echo "$ROOT" | grep -q 'Evidence-backed'
+          echo "$ROOT" | grep -q 'href="/app"'
           if echo "$ROOT" | grep -q 'dropzone'; then
             echo '::error::the landing page inlines the workspace'; exit 1
           fi
