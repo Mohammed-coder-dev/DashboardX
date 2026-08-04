@@ -142,7 +142,9 @@ test.describe("deterministic analysis without an API key", () => {
     expect(evidenceCount).toBeGreaterThan(0);
     await expect(page.locator("#qualitySection")).toBeVisible();
     await expect(page.locator("#overviewSection")).toBeVisible();
-    await expect(page.locator("#overviewSection")).toContainText(/computed · not generated/i);
+    // Provenance is stated once on the tier, not repeated on every card inside it.
+    await expect(page.locator("#tierFindings .prov--computed")).toHaveText("Computed");
+    await expect(page.locator("#evidenceSection .prov--derived")).toHaveText("Derived");
     await expect(page.locator("#overviewGrid")).toContainText(/data health/i);
     await expect(page.locator("#overviewGrid")).toContainText(/completeness/i);
 
@@ -171,7 +173,7 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#statsSection")).toBeVisible();
     await expect(page.locator("#statsSection")).toContainText("95% CI");
     await expect(page.locator("#chartsSection")).toBeVisible();
-    await expect(page.locator("#chartsSection .ai-badge")).toContainText(/full dataset/i);
+    await expect(page.locator("#chartsSection .card-note")).toContainText(/full dataset/i);
     expect(await page.locator(".chart-card").count()).toBeGreaterThan(0);
   });
 
@@ -184,7 +186,10 @@ test.describe("deterministic analysis without an API key", () => {
     expect(meta).toMatch(/n=\d+/);
     expect(meta).toMatch(/\d+(\.\d+)?% coverage/);
     expect(meta).toMatch(/engine v\d+\.\d+\.\d+/);
-    await expect(page.locator(".evidence-strength").first()).toBeVisible();
+    // Evidence and correlations share one strength scale, number alongside.
+    const strength = page.locator("#evidenceSection .strength").first();
+    await expect(strength).toBeVisible();
+    await expect(strength.locator(".strength-dots i.on")).not.toHaveCount(0);
   });
 
   test("correlations report their sample size", async ({ page }) => {
@@ -193,6 +198,8 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#corrSection")).toBeVisible();
     await expect(page.locator(".corr-meta").first()).toContainText(/n=\d+/);
+    // The same scale the evidence uses, not a second visual language for it.
+    await expect(page.locator("#corrSection .strength").first()).toBeVisible();
   });
 
   test("uploading a file fixture works the same way", async ({ page }) => {
@@ -428,7 +435,7 @@ test.describe("exports", () => {
     expect(download.suggestedFilename()).toMatch(/-analysis\.json$/);
   });
 
-  test("opens a printable report labelling deterministic and AI sections", async ({ page, context }) => {
+  test("opens a printable report stamped with the provenance vocabulary", async ({ page, context }) => {
     await page.goto("/app");
     await page.locator("#sampleBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
@@ -438,7 +445,10 @@ test.describe("exports", () => {
       page.locator("#exportReportBtn").click(),
     ]);
     await expect(report.locator("h1")).toContainText("Analysis report");
-    await expect(report.locator("body")).toContainText("deterministic");
+    // The report speaks the same three words as the app.
+    await expect(report.locator("body")).toContainText("Computed");
+    await expect(report.locator("body")).toContainText("Derived");
+    await expect(report.locator("body")).toContainText("Written");
     // No key was configured, so the report says so rather than implying AI ran.
     await expect(report.locator("body")).toContainText(/ran deterministically without an API key/i);
   });

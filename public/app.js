@@ -938,8 +938,8 @@ function renderSingleFile(data, isTabbed) {
   if (!hasAI) {
     const isDoc = !meta.isTabular;
     explainSub.textContent = isDoc
-      ? "This document type has limited deterministic analysis (an excerpt is shown below). Adding an Anthropic API key enables full AI reading, insights and follow-up questions."
-      : "Statistics, quality checks and evidence below were computed deterministically — no AI involved yet. Add an interpretation when you want one.";
+      ? "This document type has limited deterministic analysis (an excerpt is shown above). Adding an Anthropic API key enables full AI reading, insights and follow-up questions."
+      : "Every statistic, quality check and piece of evidence above was computed deterministically — no AI involved yet. Add an interpretation when you want one.";
     explainBtn.textContent = keyMissing() ? "Add API key to explain →" : "Explain with Claude →";
   }
 
@@ -1029,7 +1029,7 @@ function renderSingleFile(data, isTabbed) {
       const colB = c.columnB ?? c.colB;
       const isPos = r >= 0, pct = Math.abs(r) * 100;
       const evidence = c.n !== undefined
-        ? `<div class="corr-meta">${esc(c.strength || "")} · ${esc(c.method || "pearson")} · n=${c.n} · ${c.coverage}% coverage${c.smallSample ? " · small sample" : ""}</div>`
+        ? `<div class="corr-meta">${c.strength ? strengthScale(c.strength) : ""}<span>${esc(c.method || "pearson")} · n=${c.n} · ${c.coverage}% coverage${c.smallSample ? " · small sample" : ""}</span></div>`
         : "";
       const caveat = c.caveat ? `<div class="corr-caveat">Caveat — ${esc(c.caveat)}</div>` : "";
       return `<div class="corr-item">
@@ -1387,7 +1387,19 @@ function renderAnalysisRecord(meta = {}) {
 
 // ─── Follow-up Q&A ────────────────────────────────────────────
 // ─── Evidence panel (deterministic) ───────────────────────────
-const STRENGTH_CLASS = { "very strong": "strong", strong: "strong", moderate: "moderate", weak: "weak", negligible: "weak" };
+const STRENGTH_STEPS = { "very strong": 4, strong: 3, moderate: 2, weak: 1, negligible: 1 };
+
+/** One four-step scale for every claim, evidence and correlation alike. The
+ *  underlying number always sits adjacent to it, never replaced by it. */
+function strengthScale(strength) {
+  const label = String(strength || "").toLowerCase();
+  const steps = STRENGTH_STEPS[label] ?? 1;
+  const dots = Array.from({ length: 4 }, (_, index) => `<i${index < steps ? ' class="on"' : ""}></i>`).join("");
+  return `<span class="strength" data-strength="${esc(label)}">
+    <span class="strength-dots" aria-hidden="true">${dots}</span>
+    <span class="strength-label">${esc(strength)}</span>
+  </span>`;
+}
 
 function evidenceStatisticsText(evidence) {
   const statistics = evidence.statistics;
@@ -1431,7 +1443,7 @@ function renderEvidence(evidence) {
     </details>` : "";
     return `<div class="evidence-item">
       <div class="evidence-head">
-        <span class="evidence-strength ${STRENGTH_CLASS[e.strength] || "weak"}">${esc(e.strength)}</span>
+        ${strengthScale(e.strength)}
         <span class="evidence-claim">${esc(e.claim)}</span>
       </div>
       <div class="evidence-meta">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage · engine v${esc(e.engineVersion)}</div>
@@ -1659,23 +1671,24 @@ function buildReportHtml(data) {
     .meta { color: #6b6960; font-size: 12px; margin-bottom: 4px; }
     .badge { display: inline-block; border: 1px solid #ccc; border-radius: 4px; padding: 0 6px; font-size: 10.5px; color: #6b6960; margin-left: 6px; }
     .noprint { margin: 18px 0; } @media print { .noprint { display: none; } }
+    h2.written { border-left: 4px solid #1a1916; padding-left: 10px; border-bottom: 0; }
   </style></head><body>
   <h1>Analysis report — ${esc(meta.filename || "dataset")}</h1>
   <div class="meta">${esc(meta.totalRows ?? "—")} rows · ${esc(meta.columns ?? "—")} columns${meta.target ? ` · target: ${esc(meta.target)}` : ""} · analysis schema v${esc(meta.schemaVersion || "—")} · evidence engine v${esc(meta.evidenceEngine || "—")}</div>
   <div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div>
-  <h2>Evidence <span class="badge">deterministic</span></h2>${evidenceRows}
-  ${profile ? `<h2>Data quality <span class="badge">deterministic</span></h2>
+  <h2>Evidence <span class="badge">Derived</span></h2>${evidenceRows}
+  ${profile ? `<h2>Data quality <span class="badge">Derived</span></h2>
   <p>Health ${esc(profile.healthGrade)} (${esc(profile.healthScore)}/100) · completeness ${esc(profile.completeness)}% · ${esc(profile.duplicateRows)} duplicate rows</p>
   ${issues ? `<ul class="muted">${issues}</ul>` : ""}` : ""}
-  <h2>Column statistics <span class="badge">deterministic</span></h2>
+  <h2>Column statistics <span class="badge">Computed</span></h2>
   <table><tr><th>Column</th><th>Type</th><th>Missing</th><th>Detail</th></tr>${statRows}</table>
-  ${corrRows ? `<h2>Correlations <span class="badge">deterministic</span></h2>
+  ${corrRows ? `<h2>Correlations <span class="badge">Derived</span></h2>
   <table><tr><th>Pair</th><th>Coefficient</th><th>Method</th><th>n</th><th>Coverage</th></tr>${corrRows}</table>` : ""}
-  ${analysis ? `<h2>AI interpretation <span class="badge">AI-generated</span></h2>
+  ${analysis ? `<h2 class="written">Interpretation <span class="badge">Written</span></h2>
   <p>${esc(analysis.summary || "")}</p>
   ${(analysis.insights || []).map(i => `<div class="ev"><strong>${esc(i.title)}</strong><div>${esc(i.detail)}</div></div>`).join("")}
   <p>${esc(analysis.conclusion || "")}</p>` : `<h2>AI interpretation</h2><p class="muted">Not included — this analysis ran deterministically without an API key.</p>`}
-  <p class="muted">Generated ${new Date().toISOString().slice(0, 10)}. Deterministic sections are computed; AI sections are model-generated interpretation of that computed evidence.</p>
+  <p class="muted">Generated ${new Date().toISOString().slice(0, 10)}. <b>Computed</b> is measured from the file; <b>Derived</b> is calculated from those measurements; <b>Written</b> is model prose quoting them. No number in this report was produced by a model.</p>
   </body></html>`;
 }
 

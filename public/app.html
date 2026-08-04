@@ -214,6 +214,13 @@
 
           <div class="workspace-canvas" id="workspaceCanvas">
 
+            <!-- The rule is stated once here; every stamp below is one of these three. -->
+            <p class="prov-legend">
+              <span class="prov prov--computed">Computed</span> measured from your file
+              <span class="prov prov--derived">Derived</span> calculated from those measurements
+              <span class="prov prov--written">Written</span> model prose, quoting the numbers
+            </p>
+
         <nav id="resultNav" class="result-nav" aria-label="Analysis sections" style="display:none;"></nav>
 
         <!-- Cross-file summary (multi-file only) -->
@@ -235,7 +242,7 @@
         <section id="compareSection" class="compare-section animate animate-delay-2" style="display:none;" aria-labelledby="compareTitle">
           <div class="compare-heading">
             <div>
-              <div class="card-title">Deterministic comparison <span class="ai-badge">baseline → current</span></div>
+              <div class="card-title">Comparison <span class="prov prov--derived">Derived</span></div>
               <h2 id="compareTitle" class="compare-title"></h2>
             </div>
             <p class="compare-note">The first file is the baseline. All deltas are computed from complete file statistics; no AI-generated numbers.</p>
@@ -274,6 +281,7 @@
                 <h2 class="tier-title" id="tierFindingsTitle">What we found</h2>
                 <p class="tier-note">The result, and the evidence that supports it.</p>
               </div>
+              <span class="prov prov--computed">Computed</span>
             </header>
             <div class="tier-body">
               <div id="staleBanner" class="stale-banner" role="status" aria-live="polite" hidden></div>
@@ -291,7 +299,6 @@
                     <div class="result-overview-eyebrow">Decision snapshot</div>
                     <h2 id="overviewTitle">At a glance</h2>
                   </div>
-                  <span class="result-overview-badge">Computed · not generated</span>
                 </div>
                 <div id="overviewGrid" class="result-overview-grid"></div>
                 <div class="result-overview-focus">
@@ -301,7 +308,7 @@
               </section>
 
               <div id="evidenceSection" style="display:none;">
-                <div class="card-title">Evidence <span class="ai-badge">deterministic</span></div>
+                <div class="card-title">Evidence <span class="prov prov--derived">Derived</span></div>
                 <div id="evidenceList" class="evidence-list"></div>
               </div>
             </div>
@@ -315,6 +322,7 @@
                 <h2 class="tier-title" id="tierSupportTitle">How we know</h2>
                 <p class="tier-note">Sample sizes, coverage, caveats and the record of this run.</p>
               </div>
+              <span class="prov prov--derived">Derived</span>
             </header>
             <div class="tier-body">
               <div id="qualitySection" style="display:none;">
@@ -356,6 +364,7 @@
                 <h2 class="tier-title" id="tierDataTitle">The data</h2>
                 <p class="tier-note">Full-file charts, column profiles and source preview.</p>
               </div>
+              <span class="prov prov--computed">Computed</span>
               <button class="tier-toggle" id="tierDataToggle" type="button" aria-expanded="false" aria-controls="tierDataBody">Expand</button>
             </header>
             <!-- Named while collapsed: each button expands the tier and jumps straight to its section -->
@@ -367,7 +376,7 @@
             </div>
             <div class="tier-body" id="tierDataBody" hidden>
               <div id="chartsSection">
-                <div class="card-title">Charts <span class="ai-badge">deterministic · full dataset</span></div>
+                <div class="card-title">Charts <span class="card-note">full dataset</span></div>
                 <div class="charts-grid" id="chartsGrid"></div>
               </div>
 
@@ -401,6 +410,7 @@
                 <h2 class="tier-title" id="tierInterpretationTitle">Interpretation</h2>
                 <p class="tier-note">Optional. Written by the model, quoting the numbers above.</p>
               </div>
+              <span class="prov prov--written">Written</span>
             </header>
             <div class="tier-body">
               <!-- Shown instead of the AI sections when the analysis ran without a key -->
@@ -413,7 +423,7 @@
               </div>
 
               <div class="summary-card" id="summaryCard">
-                <div class="summary-label">AI Summary <span class="ai-badge">AI-generated interpretation</span></div>
+                <div class="summary-label">Summary</div>
                 <div class="summary-text" id="summaryText"></div>
               </div>
 

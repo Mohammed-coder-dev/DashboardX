@@ -387,7 +387,7 @@ html { scroll-behavior: smooth; }
 }
 
 .tier-title { font: 700 17px 'DM Sans', sans-serif; letter-spacing: -.02em; line-height: 1.25; color: var(--text); }
-.tier-note { margin-top: 2px; color: var(--text-3); font-size: 12px; line-height: 1.45; }
+.tier-note { margin-top: 2px; color: var(--text-2); font-size: 12px; line-height: 1.45; }
 
 .tier-body { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
 .tier-body > * { min-width: 0; }
@@ -446,14 +446,14 @@ html { scroll-behavior: smooth; }
 }
 
 .rail-source strong { display: block; font: 600 13px 'DM Sans', sans-serif; overflow-wrap: anywhere; }
-.rail-source span { display: block; margin-top: 2px; color: var(--text-3); font-size: 11.5px; }
+.rail-source span { display: block; margin-top: 2px; color: var(--text-2); font-size: 11.5px; }
 
 .rail-field { display: flex; flex-direction: column; gap: 6px; }
 .rail-field-label { color: var(--text-2); font: 500 11.5px 'DM Sans', sans-serif; }
 .rail-field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .rail-field .target-select { width: 100%; }
 .rail-group .sheet-bar { flex-wrap: wrap; padding: 0; border: 0; background: none; }
-.rail-hint { color: var(--text-3); font-size: 11px; line-height: 1.4; }
+.rail-hint { color: var(--text-2); font-size: 11px; line-height: 1.4; }
 .rail-mini { padding: 0; border: 0; background: none; color: var(--accent); font: 500 11px 'DM Sans', sans-serif; cursor: pointer; }
 .rail-mini:hover { text-decoration: underline; }
 
@@ -519,10 +519,6 @@ html { scroll-behavior: smooth; }
   font: 600 9.5px 'DM Mono', monospace; letter-spacing: .12em; text-transform: uppercase;
 }
 .result-overview h2 { font: 700 22px 'DM Sans', sans-serif; letter-spacing: -.025em; line-height: 1.2; }
-.result-overview-badge {
-  padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px;
-  color: var(--text-3); background: var(--surface-2); font: 9px 'DM Mono', monospace; letter-spacing: .06em; text-transform: uppercase;
-}
 .result-overview-grid {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 20px; gap: 8px;
@@ -771,7 +767,7 @@ html { scroll-behavior: smooth; }
 .corr-val { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; width: 48px; text-align: right; }
 .corr-val.positive { color: var(--green); }
 .corr-val.negative { color: var(--red); }
-.corr-meta { flex-basis: 100%; font-size: 10.5px; color: var(--text-tertiary); margin-top: 2px; }
+.corr-meta { flex-basis: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 10.5px; color: var(--text-2); margin-top: 4px; }
 .corr-caveat { flex-basis: 100%; font-size: 10.5px; color: var(--amber, #b45309); margin-top: 2px; }
 
 /* ─── Charts ─────────────────────────────────────────────────── */
@@ -1297,10 +1293,89 @@ html { scroll-behavior: smooth; }
 .explain-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
 .explain-sub { font-size: 12.5px; color: var(--text-secondary); max-width: 560px; }
 .explain-btn { width: auto; padding: 10px 18px; font-size: 13px; flex-shrink: 0; }
-.ai-badge {
-  font-size: 10px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--text-tertiary); border: 1px solid var(--border);
-  border-radius: 999px; padding: 2px 8px; margin-left: 8px; vertical-align: middle;
+/* ─── Provenance vocabulary ──────────────────────────────────── */
+/* Exactly three values, rendered identically wherever they appear. A stamp sits
+   on a tier header, and on an individual claim only when it differs from its
+   tier — that rule is what keeps this from becoming badge soup. */
+.prov {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border: 1px solid; border-radius: 999px;
+  font: 500 9.5px 'DM Mono', monospace; letter-spacing: .07em;
+  text-transform: uppercase; white-space: nowrap; vertical-align: middle;
+}
+.prov::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.prov--computed { color: var(--text-2); border-color: var(--border-2); background: var(--surface-2); }
+.prov--derived  { color: var(--accent);  border-color: #bfdbfe; background: var(--accent-bg); }
+.prov--written  { color: var(--purple);  border-color: #ddd6fe; background: var(--purple-bg); }
+
+.prov-legend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-2); font-size: 11.5px;
+}
+
+.card-note {
+  margin-left: 8px; color: var(--text-2);
+  font: 400 10px 'DM Mono', monospace; text-transform: none; letter-spacing: 0;
+}
+
+/* ─── Claim strength ─────────────────────────────────────────── */
+/* One scale for evidence and correlations alike, with the number always
+   adjacent. The quality grade stays separate: it measures the input, not
+   confidence in a claim. */
+.strength { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.strength-dots { display: inline-flex; gap: 2px; }
+.strength-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--border-2); }
+.strength-dots i.on { background: currentColor; }
+.strength-label { font: 500 9.5px 'DM Mono', monospace; letter-spacing: .05em; text-transform: uppercase; }
+.strength[data-strength="very strong"], .strength[data-strength="strong"] { color: var(--green); }
+.strength[data-strength="moderate"] { color: var(--accent); }
+.strength[data-strength="weak"], .strength[data-strength="negligible"] { color: var(--text-2); }
+
+/* ─── Interpretation on its own material ─────────────────────── */
+/* Model prose is a different substance from engine output, and reads as one
+   before a word is parsed. Every ink pairing here measures above 7:1. */
+.tier-interpretation .tier-body {
+  padding: 20px; border-radius: var(--radius);
+  background: var(--ink-surface); color: var(--on-ink);
+}
+.tier-interpretation .tier-body .card,
+.tier-interpretation .tier-body .summary-card,
+.tier-interpretation .tier-body .conclusion-card,
+.tier-interpretation .tier-body .explain-bar {
+  background: var(--ink-surface-2); border-color: var(--on-ink-border);
+  color: var(--on-ink); box-shadow: none;
+}
+.tier-interpretation .tier-body .card-title,
+.tier-interpretation .tier-body .summary-label,
+.tier-interpretation .tier-body .conclusion-label,
+.tier-interpretation .tier-body .explain-sub { color: var(--on-ink-muted); }
+.tier-interpretation .tier-body .summary-text,
+.tier-interpretation .tier-body .conclusion-text,
+.tier-interpretation .tier-body .explain-title,
+.tier-interpretation .tier-body .insights-list,
+.tier-interpretation .tier-body .var-list,
+.tier-interpretation .tier-body .ask-thread { color: var(--on-ink); }
+.tier-interpretation .tier-body .question-input {
+  background: var(--ink-surface); border-color: var(--on-ink-border); color: var(--on-ink);
+}
+.tier-interpretation .tier-body .question-input::placeholder { color: var(--on-ink-muted); }
+
+/* The printed report is the artifact most likely to reach a stranger, and
+   printers drop backgrounds — so the boundary is carried by a rule, not a fill. */
+@media print {
+  .tier-interpretation .tier-body {
+    padding: 0 0 0 16px; border-left: 4px solid #000; border-radius: 0;
+    background: #fff; color: #000;
+  }
+  .tier-interpretation .tier-body .card,
+  .tier-interpretation .tier-body .summary-card,
+  .tier-interpretation .tier-body .conclusion-card,
+  .tier-interpretation .tier-body .explain-bar { background: #fff; color: #000; border-color: #999; }
+  .tier-interpretation .tier-body .card-title,
+  .tier-interpretation .tier-body .summary-label,
+  .tier-interpretation .tier-body .conclusion-label { color: #333; }
+  .prov { color: #000 !important; background: #fff !important; border-color: #666 !important; }
 }
 .settings-optional { font-size: 11px; color: var(--text-tertiary); font-weight: 400; margin-left: 6px; }
 .settings-remember { margin-top: 8px; font-size: 12px; }
@@ -1334,14 +1409,6 @@ html { scroll-behavior: smooth; }
 }
 .evidence-head { display: flex; align-items: baseline; gap: 10px; }
 .evidence-claim { font-size: 14px; font-weight: 500; color: var(--text); }
-.evidence-strength {
-  font-family: 'DM Mono', monospace; font-size: 9.5px; text-transform: uppercase;
-  letter-spacing: 0.05em; padding: 2px 7px; border-radius: 4px; flex-shrink: 0;
-  border: 1px solid;
-}
-.evidence-strength.strong   { color: var(--green); background: var(--green-bg);  border-color: #bbf7d0; }
-.evidence-strength.moderate { color: var(--accent); background: var(--accent-bg); border-color: #bfdbfe; }
-.evidence-strength.weak     { color: var(--text-3); background: var(--surface-2); border-color: var(--border); }
 .evidence-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-3); margin-top: 6px; }
 .evidence-caveat { font-size: 11.5px; color: var(--amber); margin-top: 5px; }
 .evidence-provenance { margin-top: 9px; border-top: 1px solid var(--border); padding-top: 7px; }
@@ -1414,7 +1481,6 @@ html { scroll-behavior: smooth; }
   .result-overview { padding: 18px 15px; }
   .result-overview-head { align-items: flex-start; flex-direction: row; gap: 10px; }
   .result-overview h2 { font-size: 20px; }
-  .result-overview-badge { flex: 0 0 auto; font-size: 8px; }
   .result-overview-grid { grid-template-columns: 1fr 1fr; }
   .result-overview-metric { padding: 12px; }
   .result-overview-metric strong { font-size: 17px; }
@@ -1422,7 +1488,7 @@ html { scroll-behavior: smooth; }
   .result-nav { top: 64px; width: 100%; border-radius: 10px; }
   .stats-section-head { align-items: flex-start; flex-direction: column; gap: 0; margin-bottom: 12px; }
   .evidence-head { align-items: flex-start; flex-direction: column; gap: 6px; }
-  .evidence-strength { order: 2; }
+  .strength { order: 2; }
   .quality-header { align-items: flex-start; flex-direction: column; }
   .column-inspector { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
   .column-inspector-shell { padding: 20px 16px; }
