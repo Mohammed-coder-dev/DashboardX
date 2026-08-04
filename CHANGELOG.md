@@ -72,6 +72,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Text colours now meet WCAG AA (4.5:1) on every surface they appear on. The
+  tertiary text tone measured 3.84:1 across 57 rules, and the semantic colours
+  were worse — amber at 2.87:1, green at 2.96:1 — because nothing measured
+  them. The landing page carried the same two defects in its parallel palette.
+  Tokens were darkened rather than the rules edited, and `tests/contrast.test.js`
+  now fails the build if any pairing drops below AA.
 - HTTPS URL analysis no longer incorrectly requires an Anthropic key. The
   deterministic path works for URL inputs exactly as it does for uploads.
 
