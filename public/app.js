@@ -92,6 +92,20 @@ const tierDataToggle     = document.getElementById("tierDataToggle");
 const tierDataJump       = document.getElementById("tierDataJump");
 const resultTiers        = ["tierFindings", "tierSupport", "tierData", "tierInterpretation"]
   .map((id) => document.getElementById(id));
+const workspaceRail      = document.getElementById("workspaceRail");
+const workspaceCanvas    = document.getElementById("workspaceCanvas");
+const railToggle         = document.getElementById("railToggle");
+const railSource         = document.getElementById("railSource");
+const railColumns        = document.getElementById("railColumns");
+const railColumnList     = document.getElementById("railColumnList");
+const railColumnsCount   = document.getElementById("railColumnsCount");
+const railColumnsReset   = document.getElementById("railColumnsReset");
+const rerunBtn           = document.getElementById("rerunBtn");
+const rerunHint          = document.getElementById("rerunHint");
+const staleBanner        = document.getElementById("staleBanner");
+const exclusionNote      = document.getElementById("exclusionNote");
+const exclusionSummary   = document.getElementById("exclusionSummary");
+const exclusionList      = document.getElementById("exclusionList");
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -335,6 +349,8 @@ let currentComparison = null;
 let lastSource     = null;
 let lastSheet      = null;
 let currentTarget  = null;
+// null means "every column"; an array is an explicit narrowing staged in the rail.
+let currentColumns = null;
 
 document.querySelectorAll("[data-analysis-mode]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -483,7 +499,7 @@ tabsBar.addEventListener("click", (e) => {
 });
 
 // ─── Analyze ──────────────────────────────────────────────────
-analyzeBtn.addEventListener("click", () => { currentTarget = null; runAnalysis(); });
+analyzeBtn.addEventListener("click", () => { currentTarget = null; currentColumns = null; runAnalysis(); });
 resetBtn.addEventListener("click", resetDashboard);
 
 const sheetBar = document.getElementById("sheetBar");
@@ -548,6 +564,8 @@ async function runAnalysis(sheet) {
   if (!isComparison) formData.append("model", getModel() || modelSelect.value || "");
   if (sheet && !isMulti) formData.append("sheet", sheet);
   if (currentTarget && !isComparison) formData.append("target", currentTarget);
+  // Column narrowing is a single-file setting; the rail only offers it there.
+  if (currentColumns && !isComparison && !isMulti) formData.append("columns", JSON.stringify(currentColumns));
 
   if (isMulti || isComparison) {
     selectedFiles.forEach(f => formData.append("files", f));
@@ -616,6 +634,7 @@ async function runUrlAnalysis(sheet) {
         model: getModel() || modelSelect.value || "",
         sheet: sheet || undefined,
         target: currentTarget || undefined,
+        columns: currentColumns || undefined,
         save: saveToggle?.checked === true,
       }),
     });
@@ -942,7 +961,10 @@ function renderSingleFile(data, isTabbed) {
 
   renderEvidence(data.evidence || []);
   renderOverview(data);
+  syncSetupToResult(data);
   renderTargetBar(data);
+  renderExclusionNote(data);
+  renderRail(data);
   renderQuality(data.profile);
   renderAnalysisRecord(meta);
   if (!isTabbed) resetAsk(data, true);
@@ -1437,8 +1459,142 @@ function renderTargetBar(data) {
 }
 
 targetSelect?.addEventListener("change", () => {
-  if (!lastSource) return;
   currentTarget = targetSelect.value || null;
+  syncSetupState();
+});
+
+// ─── Analysis rail ────────────────────────────────────────────
+// Setup changes are staged rather than fired on change. Narrowing a wide file
+// takes several edits, and none of them should cost a round trip; the user
+// decides when the analysis re-runs.
+
+function railResult() {
+  return allFileResults.length === 1 ? allFileResults[0] : null;
+}
+
+/**
+ * After a run the server is the authority on what actually happened — a target
+ * it could not honour comes back null. Re-syncing the staged setup to the
+ * result keeps "dirty" meaning real divergence rather than stale intent.
+ */
+function syncSetupToResult(data) {
+  if (allFileResults.length > 1) return;
+  currentTarget = data?.meta?.target || null;
+  const excluded = data?.meta?.excludedColumns || [];
+  currentColumns = excluded.length > 0 ? (data.meta.activeColumns || null) : null;
+}
+
+/** How many individual setup edits separate the rail from these results. */
+function pendingChangeCount() {
+  const data = railResult();
+  if (!data?.meta) return 0;
+  const all = data.columns || [];
+  let count = (currentTarget || null) !== (data.meta.target || null) ? 1 : 0;
+  const applied = new Set(data.meta.activeColumns || all);
+  const pending = new Set(currentColumns || all);
+  for (const column of all) {
+    if (applied.has(column) !== pending.has(column)) count++;
+  }
+  return count;
+}
+
+function renderRail(data) {
+  const usable = Boolean(lastSource) && allFileResults.length === 1;
+  workspaceRail.hidden = !usable;
+  if (!usable) return;
+
+  const { meta, columns, stats } = data;
+  railSource.innerHTML = `<strong>${esc(meta.filename || "Analysis")}</strong>` +
+    `<span>${meta.totalRows.toLocaleString()} ${meta.isTabular ? "rows" : "lines"}` +
+    `${meta.isTabular ? ` · ${meta.columns} columns` : ""}</span>`;
+
+  const tabular = Boolean(meta.isTabular && columns?.length);
+  railColumns.style.display = tabular ? "" : "none";
+  if (tabular) {
+    const included = new Set(currentColumns || columns);
+    railColumnList.innerHTML = columns.map((column) => {
+      const type = stats?.[column]?.type || "";
+      return `<label class="rail-column">
+        <input type="checkbox" data-column-toggle="${esc(column)}"${included.has(column) ? " checked" : ""} />
+        <span class="rail-column-name">${esc(column)}</span>
+        ${type ? `<span class="rail-column-type">${esc(type)}</span>` : ""}
+      </label>`;
+    }).join("");
+  }
+  syncSetupState();
+}
+
+/**
+ * Stale results get three simultaneous signals — button, banner and a rule on
+ * the canvas. None of them reduce contrast: degrading legibility to convey
+ * state would fail exactly the readers most likely to misread it.
+ */
+function syncSetupState() {
+  const data = railResult();
+  const all = data?.columns || [];
+  const included = currentColumns || all;
+  railColumnsCount.textContent = all.length ? `${included.length} of ${all.length} columns included` : "";
+
+  const changes = pendingChangeCount();
+  const dirty = changes > 0;
+  rerunBtn.classList.toggle("is-dirty", dirty);
+  rerunBtn.textContent = dirty ? `Re-run · ${changes} change${changes === 1 ? "" : "s"}` : "Re-run analysis";
+  rerunHint.textContent = dirty
+    ? "These results were computed with the previous setup."
+    : "Setup matches these results.";
+
+  workspaceCanvas.classList.toggle("is-stale", dirty);
+  staleBanner.hidden = !dirty;
+  if (dirty) {
+    const appliedCount = (data?.meta?.activeColumns || all).length;
+    staleBanner.textContent = all.length
+      ? `Showing results computed from ${appliedCount} of ${all.length} columns. Your setup has changed — re-run to update.`
+      : "Your setup has changed — re-run to update these results.";
+  }
+}
+
+/** An exclusion changes what every number was computed over, so it is stated
+ *  with the findings rather than left for the record to reveal. */
+function renderExclusionNote(data) {
+  const excluded = data?.meta?.excludedColumns || [];
+  const all = data?.columns || [];
+  exclusionNote.hidden = excluded.length === 0;
+  if (excluded.length === 0) return;
+  exclusionSummary.textContent = `Computed from ${all.length - excluded.length} of ${all.length} columns`;
+  exclusionList.innerHTML = `<p>Excluded from every statistic below:</p><ul>${
+    excluded.map((column) => `<li>${esc(column)}</li>`).join("")}</ul>`;
+}
+
+railColumnList?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-column-toggle]");
+  if (!input) return;
+  const all = railResult()?.columns || [];
+  const included = new Set(currentColumns || all);
+  if (input.checked) included.add(input.dataset.columnToggle);
+  else included.delete(input.dataset.columnToggle);
+  if (included.size === 0) {
+    // Analyzing nothing is not a state the user can be left in.
+    input.checked = true;
+    return;
+  }
+  currentColumns = all.filter((column) => included.has(column));
+  syncSetupState();
+});
+
+railColumnsReset?.addEventListener("click", () => {
+  currentColumns = null;
+  const data = railResult();
+  if (data) renderRail(data);
+});
+
+railToggle?.addEventListener("click", () => {
+  const open = workspaceRail.classList.toggle("is-open");
+  railToggle.setAttribute("aria-expanded", String(open));
+  railToggle.textContent = open ? "Hide" : "Show";
+});
+
+rerunBtn?.addEventListener("click", () => {
+  if (!lastSource) return;
   if (lastSource.kind === "url") runUrlAnalysis(lastSheet);
   else runAnalysis(lastSheet);
 });
@@ -1556,6 +1712,7 @@ sampleBtn?.addEventListener("click", async () => {
     selectedFiles = [new File([blob], "team-sales-sample.csv", { type: "text/csv" })];
     renderFileList();
     currentTarget = null;
+    currentColumns = null;
     runAnalysis();
   } catch (err) {
     showError(err.message);
@@ -1831,6 +1988,7 @@ function resetDashboard() {
   chartInstances.forEach(c=>c.destroy()); chartInstances=[];
   currentAnalysisId=null; updateShareBtn();
   lastSource=null; sheetBar.style.display="none";
+  currentTarget=null; currentColumns=null; workspaceRail.hidden=true;
   if (location.search) history.replaceState(null, "", location.pathname);
   hideError(); showScreen("upload");
 }

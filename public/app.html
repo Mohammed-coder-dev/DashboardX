@@ -168,15 +168,51 @@
           </div>
         </div>
 
-        <!-- Sheet picker (multi-sheet workbooks) -->
-        <div id="sheetBar" class="sheet-bar" style="display:none;"></div>
+        <div class="workspace">
 
-        <!-- Optional target column for focused evidence -->
-        <div id="targetBar" class="sheet-bar" style="display:none;">
-          <label class="sheet-bar-label" for="targetSelect">Target column</label>
-          <select id="targetSelect" class="target-select"></select>
-          <span class="target-hint">Focus the evidence on one outcome — group differences, correlations, trends.</span>
-        </div>
+          <aside class="workspace-rail" id="workspaceRail" aria-label="Analysis setup">
+            <div class="rail-head">
+              <span class="rail-title">Setup</span>
+              <button id="railToggle" class="rail-toggle" type="button" aria-expanded="false" aria-controls="railPanel">Show</button>
+            </div>
+            <div class="rail-panel" id="railPanel">
+
+              <div class="rail-group">
+                <div class="rail-label">Source</div>
+                <div class="rail-source" id="railSource"></div>
+                <!-- Sheet picker (multi-sheet workbooks) -->
+                <div id="sheetBar" class="sheet-bar" style="display:none;"></div>
+              </div>
+
+              <div class="rail-group">
+                <div class="rail-label">Analysis</div>
+
+                <!-- Optional target column for focused evidence -->
+                <div id="targetBar" class="rail-field" style="display:none;">
+                  <label class="rail-field-label" for="targetSelect">Target column</label>
+                  <select id="targetSelect" class="target-select"></select>
+                  <span class="rail-hint">Focus the evidence on one outcome — group differences, correlations, trends.</span>
+                </div>
+
+                <div id="railColumns" class="rail-field" style="display:none;">
+                  <div class="rail-field-label rail-field-label-row">
+                    <span>Columns</span>
+                    <button id="railColumnsReset" class="rail-mini" type="button">Reset</button>
+                  </div>
+                  <div id="railColumnList" class="rail-column-list" role="group" aria-label="Columns to analyze"></div>
+                  <span class="rail-hint" id="railColumnsCount"></span>
+                </div>
+              </div>
+
+              <div class="rail-foot">
+                <button id="rerunBtn" class="rail-rerun" type="button">Re-run analysis</button>
+                <p class="rail-hint" id="rerunHint">Setup matches these results.</p>
+              </div>
+
+            </div>
+          </aside>
+
+          <div class="workspace-canvas" id="workspaceCanvas">
 
         <nav id="resultNav" class="result-nav" aria-label="Analysis sections" style="display:none;"></nav>
 
@@ -240,6 +276,15 @@
               </div>
             </header>
             <div class="tier-body">
+              <div id="staleBanner" class="stale-banner" role="status" aria-live="polite" hidden></div>
+
+              <!-- An exclusion changes what every number below was computed over,
+                   so it is disclosed here rather than left to the record. -->
+              <details id="exclusionNote" class="exclusion-note" hidden>
+                <summary><span id="exclusionSummary"></span></summary>
+                <div id="exclusionList" class="exclusion-list"></div>
+              </details>
+
               <section id="overviewSection" class="result-overview" style="display:none;" aria-labelledby="overviewTitle">
                 <div class="result-overview-head">
                   <div>
@@ -402,6 +447,9 @@
             </div>
           </section>
 
+        </div>
+
+          </div>
         </div>
 
       </div>

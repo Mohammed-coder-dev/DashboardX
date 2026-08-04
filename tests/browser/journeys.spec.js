@@ -293,11 +293,57 @@ test.describe("target column selection", () => {
     await expect(page.locator("#targetBar")).toBeVisible();
     await page.locator("#targetSelect").selectOption("revenue");
 
-    // The re-run returns to the dashboard with the target applied.
+    // Setup changes are staged, not fired on change — the results are marked
+    // stale and the user chooses when to spend the round trip.
+    await expect(page.locator("#staleBanner")).toBeVisible();
+    await expect(page.locator("#rerunBtn")).toHaveText("Re-run · 1 change");
+    await page.locator("#rerunBtn").click();
+
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#staleBanner")).toBeHidden();
     await expect(page.locator("#targetSelect")).toHaveValue("revenue");
     const claims = await page.locator(".evidence-claim").allInnerTexts();
     expect(claims.join(" ")).toContain("revenue");
+  });
+
+  test("narrowing columns re-runs the engine and discloses the exclusion", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#exclusionNote")).toBeHidden();
+
+    await page.locator('[data-column-toggle="revenue"]').uncheck();
+    await expect(page.locator("#staleBanner")).toBeVisible();
+    await expect(page.locator("#rerunBtn")).toHaveClass(/is-dirty/);
+    await page.locator("#rerunBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // The exclusion is stated with the findings, not buried in the record.
+    await expect(page.locator("#exclusionNote")).toBeVisible();
+    await expect(page.locator("#exclusionSummary")).toContainText(/Computed from \d+ of \d+ columns/);
+    await page.locator("#exclusionNote summary").click();
+    await expect(page.locator("#exclusionList")).toContainText("revenue");
+    await expect(page.locator("#staleBanner")).toBeHidden();
+
+    // The engine really did narrow: the dropped column has no profile.
+    await page.locator('[data-tier-jump="statsSection"]').click();
+    await expect(page.locator("#statsSection")).toBeVisible();
+    await expect(page.locator('[data-column="revenue"]')).toHaveCount(0);
+  });
+
+  test("refuses to leave the user analyzing nothing", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // click(), not uncheck(): uncheck() asserts the box ends clear, and the
+    // guard deliberately restores the last one.
+    const boxes = page.locator("#railColumnList input[type=checkbox]");
+    const count = await boxes.count();
+    for (let index = 0; index < count; index++) await boxes.nth(index).click();
+
+    // The last box refuses to clear rather than staging an empty analysis.
+    expect(await page.locator("#railColumnList input:checked").count()).toBe(1);
   });
 });
 

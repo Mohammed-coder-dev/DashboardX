@@ -39,6 +39,22 @@ test("the dashboard renders and stays within the viewport", async ({ page }) => 
   await expect(page.locator("#columnInspector")).toBeHidden();
 });
 
+test("the setup rail collapses into a drawer and still fits", async ({ page }) => {
+  await page.goto("/app");
+  await page.locator("#sampleBtn").tap();
+  await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 25_000 });
+
+  // Collapsed by default on a phone, so setup never buries the results.
+  await expect(page.locator("#railColumnList")).toBeHidden();
+  await page.locator("#railToggle").tap();
+  await expect(page.locator("#railColumnList")).toBeVisible();
+  await expect(page.locator("#railToggle")).toHaveAttribute("aria-expanded", "true");
+
+  const overflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test("the explain bar stacks instead of squeezing", async ({ page }) => {
   await page.goto("/app");
   await page.locator("#sampleBtn").tap();
