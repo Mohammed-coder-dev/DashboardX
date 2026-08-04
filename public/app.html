@@ -178,14 +178,6 @@
           <span class="target-hint">Focus the evidence on one outcome — group differences, correlations, trends.</span>
         </div>
 
-        <details id="analysisRecord" class="analysis-record" style="display:none;">
-          <summary>
-            <span>Analysis record</span>
-            <span id="analysisRecordSummary" class="analysis-record-summary"></span>
-          </summary>
-          <div id="analysisRecordGrid" class="analysis-record-grid"></div>
-        </details>
-
         <nav id="resultNav" class="result-nav" aria-label="Analysis sections" style="display:none;"></nav>
 
         <!-- Cross-file summary (multi-file only) -->
@@ -238,113 +230,177 @@
         <!-- Per-file dashboard -->
         <div id="fileDashboard">
 
-          <section id="overviewSection" class="result-overview animate animate-delay-1" style="display:none;" aria-labelledby="overviewTitle">
-            <div class="result-overview-head">
-              <div>
-                <div class="result-overview-eyebrow">Decision snapshot</div>
-                <h2 id="overviewTitle">At a glance</h2>
+          <!-- ① What we found — the headline result and its supporting evidence -->
+          <section class="tier tier-findings animate animate-delay-1" id="tierFindings" aria-labelledby="tierFindingsTitle">
+            <header class="tier-head">
+              <span class="tier-index" aria-hidden="true">1</span>
+              <div class="tier-heading">
+                <h2 class="tier-title" id="tierFindingsTitle">What we found</h2>
+                <p class="tier-note">The result, and the evidence that supports it.</p>
               </div>
-              <span class="result-overview-badge">Computed · not generated</span>
-            </div>
-            <div id="overviewGrid" class="result-overview-grid"></div>
-            <div class="result-overview-focus">
-              <span>Start here</span>
-              <p id="overviewFocus"></p>
+            </header>
+            <div class="tier-body">
+              <section id="overviewSection" class="result-overview" style="display:none;" aria-labelledby="overviewTitle">
+                <div class="result-overview-head">
+                  <div>
+                    <div class="result-overview-eyebrow">Decision snapshot</div>
+                    <h2 id="overviewTitle">At a glance</h2>
+                  </div>
+                  <span class="result-overview-badge">Computed · not generated</span>
+                </div>
+                <div id="overviewGrid" class="result-overview-grid"></div>
+                <div class="result-overview-focus">
+                  <span>Start here</span>
+                  <p id="overviewFocus"></p>
+                </div>
+              </section>
+
+              <div id="evidenceSection" style="display:none;">
+                <div class="card-title">Evidence <span class="ai-badge">deterministic</span></div>
+                <div id="evidenceList" class="evidence-list"></div>
+              </div>
             </div>
           </section>
 
-          <!-- Shown instead of the AI sections when the analysis ran without a key -->
-          <div id="explainBar" class="explain-bar animate animate-delay-2" style="display:none;">
-            <div>
-              <div class="explain-title">Deterministic results ready</div>
-              <div class="explain-sub" id="explainSub">Statistics, quality checks and evidence below were computed locally on the server — no AI involved yet.</div>
-            </div>
-            <button id="explainBtn" class="analyze-btn explain-btn" type="button">Explain with Claude →</button>
-          </div>
-
-          <div id="evidenceSection" class="animate animate-delay-2" style="display:none;">
-            <div class="card-title">Evidence <span class="ai-badge">deterministic</span></div>
-            <div id="evidenceList" class="evidence-list"></div>
-          </div>
-
-          <div class="summary-card animate animate-delay-2" id="summaryCard">
-            <div class="summary-label">AI Summary <span class="ai-badge">AI-generated interpretation</span></div>
-            <div class="summary-text" id="summaryText"></div>
-          </div>
-
-          <div id="qualitySection" style="display:none;" class="animate animate-delay-2">
-            <div class="card">
-              <div class="quality-header">
-                <div class="card-title">Data Quality</div>
-                <div class="quality-badges">
-                  <span id="qualityGrade" class="quality-grade"></span>
-                  <span id="qualityMeta" class="quality-meta"></span>
+          <!-- ② How we know — support, caveats and the record of how it was produced -->
+          <section class="tier tier-support animate animate-delay-2" id="tierSupport" aria-labelledby="tierSupportTitle">
+            <header class="tier-head">
+              <span class="tier-index" aria-hidden="true">2</span>
+              <div class="tier-heading">
+                <h2 class="tier-title" id="tierSupportTitle">How we know</h2>
+                <p class="tier-note">Sample sizes, coverage, caveats and the record of this run.</p>
+              </div>
+            </header>
+            <div class="tier-body">
+              <div id="qualitySection" style="display:none;">
+                <div class="card">
+                  <div class="quality-header">
+                    <div class="card-title">Data Quality</div>
+                    <div class="quality-badges">
+                      <span id="qualityGrade" class="quality-grade"></span>
+                      <span id="qualityMeta" class="quality-meta"></span>
+                    </div>
+                  </div>
+                  <div id="qualityIssues" class="quality-issues"></div>
+                  <div id="qualityColumns" class="quality-columns"></div>
                 </div>
               </div>
-              <div id="qualityIssues" class="quality-issues"></div>
-              <div id="qualityColumns" class="quality-columns"></div>
+
+              <div id="corrSection" style="display:none;">
+                <div class="card">
+                  <div class="card-title">Correlations</div>
+                  <div class="corr-list" id="corrList"></div>
+                </div>
+              </div>
+
+              <details id="analysisRecord" class="analysis-record" style="display:none;">
+                <summary>
+                  <span>Analysis record</span>
+                  <span id="analysisRecordSummary" class="analysis-record-summary"></span>
+                </summary>
+                <div id="analysisRecordGrid" class="analysis-record-grid"></div>
+              </details>
             </div>
-          </div>
+          </section>
 
-          <div id="topicsSection" style="display:none;" class="animate animate-delay-2">
-            <div class="card">
-              <div class="card-title">Key Topics</div>
-              <div class="topics-list" id="topicsList"></div>
+          <!-- ③ The data — reference material, collapsed but never more than one click away -->
+          <section class="tier tier-data animate animate-delay-3" id="tierData" aria-labelledby="tierDataTitle">
+            <header class="tier-head">
+              <span class="tier-index" aria-hidden="true">3</span>
+              <div class="tier-heading">
+                <h2 class="tier-title" id="tierDataTitle">The data</h2>
+                <p class="tier-note">Full-file charts, column profiles and source preview.</p>
+              </div>
+              <button class="tier-toggle" id="tierDataToggle" type="button" aria-expanded="false" aria-controls="tierDataBody">Expand</button>
+            </header>
+            <!-- Named while collapsed: each button expands the tier and jumps straight to its section -->
+            <div class="tier-jump" id="tierDataJump">
+              <button type="button" data-tier-jump="chartsSection">Charts</button>
+              <button type="button" data-tier-jump="statsSection">Statistical summary</button>
+              <button type="button" data-tier-jump="topicsSection">Key topics</button>
+              <button type="button" data-tier-jump="rawTextSection">Content preview</button>
             </div>
-          </div>
+            <div class="tier-body" id="tierDataBody" hidden>
+              <div id="chartsSection">
+                <div class="card-title">Charts <span class="ai-badge">deterministic · full dataset</span></div>
+                <div class="charts-grid" id="chartsGrid"></div>
+              </div>
 
-          <div id="aiDetailGrid" class="grid-2 animate animate-delay-3">
-            <div class="card">
-              <div class="card-title">Key Insights</div>
-              <div class="insights-list" id="insightsList"></div>
-            </div>
-            <div class="card">
-              <div class="card-title" id="varListTitle">Variable Explanations</div>
-              <div class="var-list" id="varList"></div>
-            </div>
-          </div>
+              <div id="statsSection" class="card">
+                <div class="stats-section-head">
+                  <div class="card-title">Statistical Summary</div>
+                  <span>Select a column to inspect its full profile</span>
+                </div>
+                <div class="stat-grid" id="statGrid"></div>
+              </div>
 
-          <div id="statsSection" class="card animate animate-delay-3">
-            <div class="stats-section-head">
-              <div class="card-title">Statistical Summary</div>
-              <span>Select a column to inspect its full profile</span>
-            </div>
-            <div class="stat-grid" id="statGrid"></div>
-          </div>
+              <div id="topicsSection" style="display:none;">
+                <div class="card">
+                  <div class="card-title">Key Topics</div>
+                  <div class="topics-list" id="topicsList"></div>
+                </div>
+              </div>
 
-          <div id="rawTextSection" style="display:none;" class="card animate animate-delay-3">
-            <div class="card-title">Content Preview</div>
-            <pre class="raw-text-preview" id="rawTextPreview"></pre>
-          </div>
-
-          <div id="chartsSection">
-            <div class="card-title" style="margin-bottom:16px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);">Charts <span class="ai-badge">deterministic · full dataset</span></div>
-            <div class="charts-grid" id="chartsGrid"></div>
-          </div>
-
-          <div id="corrSection" style="display:none;">
-            <div class="card">
-              <div class="card-title">Correlations</div>
-              <div class="corr-list" id="corrList"></div>
-            </div>
-          </div>
-
-          <div class="conclusion-card animate animate-delay-4" id="conclusionSection">
-            <div class="conclusion-label">Analytical Conclusion</div>
-            <div class="conclusion-text" id="conclusionText"></div>
-          </div>
-
-          <div id="askSection" class="animate animate-delay-4" style="display:none;">
-            <div class="card">
-              <div class="card-title">Ask a follow-up</div>
-              <div id="askThread" class="ask-thread"></div>
-              <div class="ask-input-row">
-                <input id="askInput" class="question-input" type="text"
-                  placeholder="e.g. What is driving the outliers in this data?" />
-                <button id="askBtn" class="ask-btn" type="button">Ask</button>
+              <div id="rawTextSection" style="display:none;" class="card">
+                <div class="card-title">Content Preview</div>
+                <pre class="raw-text-preview" id="rawTextPreview"></pre>
               </div>
             </div>
-          </div>
+          </section>
+
+          <!-- ④ Interpretation — every word the model wrote, contiguous and separable -->
+          <section class="tier tier-interpretation animate animate-delay-4" id="tierInterpretation" aria-labelledby="tierInterpretationTitle">
+            <header class="tier-head">
+              <span class="tier-index" aria-hidden="true">4</span>
+              <div class="tier-heading">
+                <h2 class="tier-title" id="tierInterpretationTitle">Interpretation</h2>
+                <p class="tier-note">Optional. Written by the model, quoting the numbers above.</p>
+              </div>
+            </header>
+            <div class="tier-body">
+              <!-- Shown instead of the AI sections when the analysis ran without a key -->
+              <div id="explainBar" class="explain-bar" style="display:none;">
+                <div>
+                  <div class="explain-title">Deterministic results ready</div>
+                  <div class="explain-sub" id="explainSub">Statistics, quality checks and evidence above were computed locally on the server — no AI involved yet.</div>
+                </div>
+                <button id="explainBtn" class="analyze-btn explain-btn" type="button">Explain with Claude →</button>
+              </div>
+
+              <div class="summary-card" id="summaryCard">
+                <div class="summary-label">AI Summary <span class="ai-badge">AI-generated interpretation</span></div>
+                <div class="summary-text" id="summaryText"></div>
+              </div>
+
+              <div id="aiDetailGrid" class="grid-2">
+                <div class="card">
+                  <div class="card-title">Key Insights</div>
+                  <div class="insights-list" id="insightsList"></div>
+                </div>
+                <div class="card">
+                  <div class="card-title" id="varListTitle">Variable Explanations</div>
+                  <div class="var-list" id="varList"></div>
+                </div>
+              </div>
+
+              <div class="conclusion-card" id="conclusionSection">
+                <div class="conclusion-label">Analytical Conclusion</div>
+                <div class="conclusion-text" id="conclusionText"></div>
+              </div>
+
+              <div id="askSection" style="display:none;">
+                <div class="card">
+                  <div class="card-title">Ask a follow-up</div>
+                  <div id="askThread" class="ask-thread"></div>
+                  <div class="ask-input-row">
+                    <input id="askInput" class="question-input" type="text"
+                      placeholder="e.g. What is driving the outliers in this data?" />
+                    <button id="askBtn" class="ask-btn" type="button">Ask</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
         </div>
 

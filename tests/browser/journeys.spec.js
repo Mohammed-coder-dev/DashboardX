@@ -32,7 +32,8 @@ test.describe("landing page at the root", () => {
     await expect(page).toHaveURL(/\/app\?sample=1$/);
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#evidenceSection")).toBeVisible();
-    await expect(page.locator("#chartsSection")).toBeVisible();
+    // Charts were produced; tier ③ keeps them one click away rather than open.
+    await expect(page.locator('[data-tier-jump="chartsSection"]')).toBeVisible();
   });
 
   test("covers problem, audience, trust and a footer", async ({ page }) => {
@@ -139,16 +140,12 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#evidenceSection")).toBeVisible();
     const evidenceCount = await page.locator(".evidence-item").count();
     expect(evidenceCount).toBeGreaterThan(0);
-    await expect(page.locator("#statsSection")).toBeVisible();
-    await expect(page.locator("#statsSection")).toContainText("95% CI");
     await expect(page.locator("#qualitySection")).toBeVisible();
     await expect(page.locator("#overviewSection")).toBeVisible();
     await expect(page.locator("#overviewSection")).toContainText(/computed · not generated/i);
     await expect(page.locator("#overviewGrid")).toContainText(/data health/i);
     await expect(page.locator("#overviewGrid")).toContainText(/completeness/i);
-    await expect(page.locator("#chartsSection")).toBeVisible();
-    await expect(page.locator("#chartsSection .ai-badge")).toContainText(/full dataset/i);
-    expect(await page.locator(".chart-card").count()).toBeGreaterThan(0);
+
     await expect(page.locator("#aiDetailGrid")).toBeHidden();
     await expect(page.locator("#resultNav")).toBeVisible();
     await expect(page.locator('#resultNav a[href="#overviewSection"]')).toHaveAttribute("aria-current", "location");
@@ -164,6 +161,18 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator(".evidence-provenance").first()).toContainText(/Formula/i);
     await expect(page.locator(".evidence-provenance").first()).toContainText(/Included/i);
     await expect(page.locator(".evidence-source-table").first()).toBeVisible();
+
+    // Tier ③ is reference material: collapsed on arrival, named while collapsed,
+    // and never more than one click away. Asserted last because opening it
+    // scrolls, which moves the nav's active section off the overview.
+    await expect(page.locator("#statsSection")).toBeHidden();
+    await expect(page.locator("#tierDataToggle")).toHaveAttribute("aria-expanded", "false");
+    await page.locator('[data-tier-jump="statsSection"]').click();
+    await expect(page.locator("#statsSection")).toBeVisible();
+    await expect(page.locator("#statsSection")).toContainText("95% CI");
+    await expect(page.locator("#chartsSection")).toBeVisible();
+    await expect(page.locator("#chartsSection .ai-badge")).toContainText(/full dataset/i);
+    expect(await page.locator(".chart-card").count()).toBeGreaterThan(0);
   });
 
   test("evidence carries method, sample size and coverage", async ({ page }) => {
@@ -198,7 +207,9 @@ test.describe("deterministic analysis without an API key", () => {
   test("opens a full deterministic profile for any column", async ({ page }) => {
     await page.goto("/app");
     await page.locator("#sampleBtn").click();
-    await expect(page.locator("#statsSection")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await page.locator('[data-tier-jump="statsSection"]').click();
+    await expect(page.locator("#statsSection")).toBeVisible();
 
     await page.locator('[data-column="revenue"]').click();
     await expect(page.locator("#columnInspector")).toBeVisible();
@@ -209,6 +220,22 @@ test.describe("deterministic analysis without an API key", () => {
 
     await page.keyboard.press("Escape");
     await expect(page.locator("#columnInspector")).toBeHidden();
+  });
+
+  test("the section nav expands the collapsed tier before jumping into it", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // An anchor alone cannot reach a collapsed tier, so the nav opens it first.
+    await expect(page.locator("#chartsSection")).toBeHidden();
+    await page.locator('#resultNav a[href="#chartsSection"]').click();
+    await expect(page.locator("#chartsSection")).toBeVisible();
+    await expect(page.locator("#tierDataToggle")).toHaveAttribute("aria-expanded", "true");
+
+    await page.locator("#tierDataToggle").click();
+    await expect(page.locator("#chartsSection")).toBeHidden();
+    await expect(page.locator("#tierDataToggle")).toHaveAttribute("aria-expanded", "false");
   });
 });
 

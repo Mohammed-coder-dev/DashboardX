@@ -86,6 +86,12 @@ const columnInspectorMeta = document.getElementById("columnInspectorMeta");
 const columnInspectorMetrics = document.getElementById("columnInspectorMetrics");
 const columnInspectorVisual = document.getElementById("columnInspectorVisual");
 const columnInspectorClose = document.getElementById("columnInspectorClose");
+const tierData           = document.getElementById("tierData");
+const tierDataBody       = document.getElementById("tierDataBody");
+const tierDataToggle     = document.getElementById("tierDataToggle");
+const tierDataJump       = document.getElementById("tierDataJump");
+const resultTiers        = ["tierFindings", "tierSupport", "tierData", "tierInterpretation"]
+  .map((id) => document.getElementById(id));
 
 const steps = [document.getElementById("step1"),document.getElementById("step2"),
                document.getElementById("step3"),document.getElementById("step4")];
@@ -1042,7 +1048,55 @@ function renderSingleFile(data, isTabbed) {
   renderResultNav();
 }
 
+function sectionVisible(element) {
+  return Boolean(element) && element.style.display !== "none" && !element.hidden;
+}
+
+/**
+ * Tier ③ holds reference material, so it opens collapsed — but its contents
+ * stay named on the collapsed header and reachable in a single click. Nothing
+ * in there is ever buried.
+ */
+function setDataTierOpen(open) {
+  if (!tierData) return;
+  tierDataBody.hidden = !open;
+  tierDataToggle.setAttribute("aria-expanded", String(open));
+  tierDataToggle.textContent = open ? "Collapse" : "Expand";
+  tierData.classList.toggle("is-open", open);
+}
+
+function revealResultSection(id) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  if (tierDataBody?.contains(element)) setDataTierOpen(true);
+  element.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+tierDataToggle?.addEventListener("click", () => setDataTierOpen(tierDataBody.hidden));
+
+tierDataJump?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-tier-jump]");
+  if (button) revealResultSection(button.dataset.tierJump);
+});
+
+/**
+ * A tier band with nothing visible inside it is noise — a text file has no
+ * correlations, a keyless run has no interpretation. Hide the whole band, and
+ * hide the jump buttons whose sections this file never produced.
+ */
+function syncTiers() {
+  tierDataJump?.querySelectorAll("[data-tier-jump]").forEach((button) => {
+    button.hidden = !sectionVisible(document.getElementById(button.dataset.tierJump));
+  });
+  for (const tier of resultTiers) {
+    if (!tier) continue;
+    const body = tier.querySelector(".tier-body");
+    tier.style.display = [...(body?.children || [])].some(sectionVisible) ? "" : "none";
+  }
+}
+
 function renderResultNav() {
+  syncTiers();
   const sections = [
     ["overviewSection", "Overview"],
     ["evidenceSection", "Evidence"],
@@ -1051,10 +1105,7 @@ function renderResultNav() {
     ["chartsSection", "Charts"],
     ["corrSection", "Relationships"],
     ["askSection", "Ask"],
-  ].filter(([id]) => {
-    const element = document.getElementById(id);
-    return element && element.style.display !== "none";
-  });
+  ].filter(([id]) => sectionVisible(document.getElementById(id)));
   if (sections.length < 2) {
     resultNav.style.display = "none";
     return;
@@ -1063,6 +1114,16 @@ function renderResultNav() {
   resultNav.innerHTML = sections.map(([id, label], index) => `<a href="#${esc(id)}"${index === 0 ? ` class="active" aria-current="location"` : ""}>${esc(label)}</a>`).join("");
   observeResultSections(sections.map(([id]) => id));
 }
+
+// Anchor jumps cannot reach a collapsed tier, so the nav expands it first.
+resultNav?.addEventListener("click", (event) => {
+  const link = event.target.closest("a[href^='#']");
+  if (!link) return;
+  const id = link.getAttribute("href").slice(1);
+  if (!tierDataBody?.contains(document.getElementById(id))) return;
+  event.preventDefault();
+  revealResultSection(id);
+});
 
 let resultNavObserver = null;
 

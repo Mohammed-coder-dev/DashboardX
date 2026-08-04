@@ -24,6 +24,10 @@ test("the dashboard renders and stays within the viewport", async ({ page }) => 
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 
+  // Column profiles live in tier ③, which arrives collapsed.
+  await page.locator('[data-tier-jump="statsSection"]').tap();
+  await expect(page.locator("#statsSection")).toBeVisible();
+
   await page.locator('[data-column="revenue"]').tap();
   await expect(page.locator("#columnInspector")).toBeVisible();
   const closeButton = await page.locator("#columnInspectorClose").boundingBox();

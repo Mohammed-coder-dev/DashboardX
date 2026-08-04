@@ -367,6 +367,54 @@ html { scroll-behavior: smooth; }
 .result-nav a.active { color: var(--accent); background: var(--surface); box-shadow: var(--shadow-sm); }
 #overviewSection, #evidenceSection, #qualitySection, #statsSection, #chartsSection, #corrSection, #askSection { scroll-margin-top: 112px; }
 
+/* ─── Result Tiers ───────────────────────────────────────────── */
+/* Four ranked bands replace twelve equally-weighted cards. Rank is carried by
+   the numeral, the rule above each band and the order — not by decoration. */
+#fileDashboard { display: flex; flex-direction: column; gap: 28px; }
+
+.tier { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.tier + .tier { padding-top: 28px; border-top: 1px solid var(--border); }
+
+.tier-head { display: flex; align-items: flex-start; gap: 12px; }
+.tier-heading { min-width: 0; flex: 1; }
+
+.tier-index {
+  flex: 0 0 auto; width: 22px; height: 22px; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-2); border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-3); font: 500 11px 'DM Mono', monospace;
+}
+
+.tier-title { font: 700 17px 'DM Sans', sans-serif; letter-spacing: -.02em; line-height: 1.25; color: var(--text); }
+.tier-note { margin-top: 2px; color: var(--text-3); font-size: 12px; line-height: 1.45; }
+
+.tier-body { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.tier-body > * { min-width: 0; }
+/* Setting display above outranks the UA [hidden] rule; without this the
+   collapsed tier renders open while its toggle still reads "Expand". */
+.tier-body[hidden] { display: none; }
+
+.tier-toggle {
+  flex: 0 0 auto; padding: 6px 12px;
+  border: 1px solid var(--border-2); border-radius: 7px;
+  background: var(--surface); color: var(--text-2);
+  font: 500 11.5px 'DM Sans', sans-serif; cursor: pointer;
+}
+.tier-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Collapsed, tier ③ still names everything inside it — one click, not a hunt. */
+.tier-jump { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 34px; }
+.tier-jump button {
+  padding: 5px 11px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface-2); color: var(--text-2);
+  font: 500 11.5px 'DM Sans', sans-serif; cursor: pointer;
+}
+.tier-jump button:hover { color: var(--accent); border-color: var(--accent); background: var(--surface); }
+.tier-jump button[hidden] { display: none; }
+.tier.is-open .tier-jump { display: none; }
+
 .result-overview {
   overflow: hidden; padding: 24px;
   border: 1px solid var(--border); border-radius: var(--radius);
