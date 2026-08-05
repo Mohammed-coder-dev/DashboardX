@@ -237,6 +237,65 @@ describe("inferStructure", () => {
     ]);
   });
 
+  it("says it is unsure when the row it lands on reads like data", () => {
+    // Nothing here fills the block's width except the data itself, so picking a
+    // header is a genuine judgement call rather than a reading of the file.
+    const report = inferStructure([
+      ["Report"],
+      ["A", 1],
+      ["B", 2],
+    ]);
+
+    expect(report.confidence).toBe("uncertain");
+    expect(report.alternatives).toContainEqual(expect.objectContaining({ headerRow: 3 }));
+  });
+
+  it("does not silently resolve a labelled row that the arithmetic contradicts", () => {
+    // "Total" is a legitimate category name. Mid-table, with the numbers
+    // refusing to add up, the honest answer is that we cannot tell.
+    const report = inferStructure([
+      ["Category", "Score"],
+      ["Alpha", 5],
+      ["Beta", 9],
+      ["Total", 3],
+      ["Gamma", 2],
+    ]);
+
+    expect(report.excluded).toEqual([
+      expect.objectContaining({ row: 4, reason: "aggregate", confidence: "uncertain" }),
+    ]);
+    expect(report.confidence).toBe("uncertain");
+  });
+
+  it("does not silently resolve an unlabelled row that only the arithmetic accuses", () => {
+    const report = inferStructure([
+      ["Item", "Qty"],
+      ["A", 10],
+      ["B", 20],
+      ["Snapshot", 30],
+      ["C", 5],
+    ]);
+
+    expect(report.excluded).toEqual([
+      expect.objectContaining({ row: 4, reason: "aggregate", confidence: "uncertain" }),
+    ]);
+  });
+
+  it("still excludes what it is unsure about, having said so", () => {
+    // The asymmetry the design turns on: wrongly keeping an aggregate corrupts
+    // every statistic and reports full coverage doing it; wrongly dropping an
+    // observation costs one row and announces itself.
+    const report = inferStructure([
+      ["Category", "Score"],
+      ["Alpha", 5],
+      ["Beta", 9],
+      ["Total", 3],
+      ["Gamma", 2],
+    ]);
+
+    expect(report.observations).toBe(3);
+  });
+
   it("will not call a lone row above a candidate an arithmetic match", () => {
     // With one contributing row, "equals the sum above" is just "equals the row
     // above" — a coincidence, not evidence of an aggregate.
