@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- An `includeRows` correction that matches no exclusion is no longer a silent
+  no-op. It is reported in `meta.structure.unapplied` with the reason — outside
+  the file, at or above the header row, or simply not an excluded row — shown in
+  the workspace and the printable report, and it makes the reading `uncertain`,
+  because the caller is working from a picture of the file that this one
+  contradicts. It is reported rather than raised as an error: the request is well
+  formed, and failing the whole analysis would make corrections brittle, since
+  changing the header row restates every row number in the file.
 - A trailing row labelled `Total` whose numbers do not add up is now reported as
   an **uncertain** exclusion rather than a confident one. Arithmetic is the
   evidence; the label is a naming convention, and "Total" is a legitimate final

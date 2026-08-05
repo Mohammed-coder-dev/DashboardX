@@ -365,6 +365,44 @@ describe("inferStructure", () => {
     ]);
   });
 
+  describe("a correction that cannot be applied", () => {
+    // Silently doing nothing is the one response ruled out. A caller who asks
+    // for a row back and is answered with silence cannot tell whether it worked,
+    // and the numbers change either way.
+    const grid = [
+      ["Q3 Report"],
+      ["Item", "Qty"],
+      ["A", 10],
+      ["B", 20],
+      ["Total", 30],
+    ];
+
+    it("names a row that was never excluded", () => {
+      const report = inferStructure(grid, { includeRows: [3] });
+      expect(report.unapplied).toEqual([{ row: 3, reason: "not an excluded row" }]);
+    });
+
+    it("names a row past the end of the file", () => {
+      const report = inferStructure(grid, { includeRows: [99] });
+      expect(report.unapplied).toEqual([{ row: 99, reason: "outside the file" }]);
+    });
+
+    it("names a row at or above the header, which cannot become data", () => {
+      const report = inferStructure(grid, { includeRows: [1] });
+      expect(report.unapplied).toEqual([{ row: 1, reason: "at or above the header row" }]);
+    });
+
+    it("keeps a request that did apply out of the unapplied list", () => {
+      const report = inferStructure(grid, { includeRows: [5] });
+      expect(report.restored).toEqual([expect.objectContaining({ row: 5 })]);
+      expect(report.unapplied).toEqual([]);
+    });
+
+    it("makes the reading uncertain, since the caller believes something was applied", () => {
+      expect(inferStructure(grid, { includeRows: [3] }).confidence).toBe("uncertain");
+    });
+  });
+
   it("will not call a lone row above a candidate an arithmetic match", () => {
     // With one contributing row, "equals the sum above" is just "equals the row
     // above" — a coincidence, not evidence of an aggregate.

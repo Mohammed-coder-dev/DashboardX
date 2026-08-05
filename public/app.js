@@ -1608,12 +1608,13 @@ function renderStructureNote(data) {
   const structure    = data?.meta?.structure;
   const excluded     = structure?.excluded || [];
   const restored     = structure?.restored || [];
+  const unapplied    = structure?.unapplied || [];
   const alternatives = structure?.alternatives || [];
   const uncertain    = structure?.confidence === "uncertain";
   const specified    = structure?.headerSource === "specified";
 
   const worthShowing = Boolean(structure)
-    && (uncertain || specified || excluded.length > 0 || restored.length > 0);
+    && (uncertain || specified || excluded.length > 0 || restored.length > 0 || unapplied.length > 0);
   structureNote.hidden = !worthShowing;
   structureNote.classList.toggle("structure-note--uncertain", worthShowing && uncertain);
   if (!worthShowing) return;
@@ -1623,12 +1624,15 @@ function renderStructureNote(data) {
   counts.push(`${structure.observations} observation${structure.observations === 1 ? "" : "s"}`);
   if (excluded.length > 0) counts.push(`${excluded.length} row${excluded.length === 1 ? "" : "s"} excluded`);
   if (restored.length > 0) counts.push(`${restored.length} put back`);
+  if (unapplied.length > 0) counts.push(`${unapplied.length} correction${unapplied.length === 1 ? "" : "s"} not applied`);
   structureSummary.textContent = `${uncertain ? "Check how this file was read — " : ""}${counts.join(" · ")}`;
 
   structureDetail.innerHTML = `
     ${uncertain ? `<p class="structure-warning">Ridge could not settle this from the file alone. Confirm it before relying on the numbers below.</p>` : ""}
     ${excluded.length > 0 ? `<p>Left out of every statistic below:</p><ul>${excluded.map(structureRowLine).join("")}</ul>` : ""}
     ${restored.length > 0 ? `<p>Put back at your request:</p><ul>${restored.map(structureRowLine).join("")}</ul>` : ""}
+    ${unapplied.length > 0 ? `<p>Asked for, but could not be applied:</p><ul>${unapplied.map((entry) =>
+      `<li><strong>Row ${esc(entry.row)}</strong> — ${esc(entry.reason)}</li>`).join("")}</ul>` : ""}
     ${alternatives.length > 0 ? `<p>The header might instead be:</p><ul>${alternatives.map((alt) =>
       `<li>Row ${esc(alt.headerRow)} — <code>${esc((alt.cells || []).join(" | "))}</code>
         <button type="button" class="structure-fix" data-structure-header="${esc(alt.headerRow)}">Use this row</button></li>`).join("")}</ul>` : ""}
@@ -1761,9 +1765,13 @@ function buildReportHtml(data) {
   // in which case the report says nothing rather than implying a clean read.
   const structure = meta.structure;
   const structureRows = structure
-    ? [...(structure.excluded || []), ...(structure.restored || [])].map(entry =>
-        `<li>Row ${esc(entry.row)} — ${esc(entry.reason)}${entry.restoredBy ? " (put back on request)" : ""}${
-          entry.confidence ? ` · ${esc(entry.confidence)}` : ""}${entry.detail ? `: ${esc(entry.detail)}` : ""}</li>`).join("")
+    ? [
+        ...[...(structure.excluded || []), ...(structure.restored || [])].map(entry =>
+          `<li>Row ${esc(entry.row)} — ${esc(entry.reason)}${entry.restoredBy ? " (put back on request)" : ""}${
+            entry.confidence ? ` · ${esc(entry.confidence)}` : ""}${entry.detail ? `: ${esc(entry.detail)}` : ""}</li>`),
+        ...(structure.unapplied || []).map(entry =>
+          `<li>Row ${esc(entry.row)} — requested, not applied: ${esc(entry.reason)}</li>`),
+      ].join("")
     : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Analysis report — ${esc(meta.filename || "dataset")}</title>
   <style>

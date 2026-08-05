@@ -232,6 +232,22 @@ function arithmeticMatch(row, priors, columnNames) {
   return { matched, comparable };
 }
 
+/**
+ * Why a requested row could not be put back.
+ *
+ * Doing nothing quietly is the one response ruled out: a caller answered with
+ * silence cannot tell whether the correction took, and the statistics differ
+ * either way. This is reported rather than raised as an error because the
+ * request is well formed — the row simply does not correspond to an exclusion
+ * in *this* reading. Failing the whole analysis would make the correction path
+ * brittle, since changing the header row restates every row number.
+ */
+function unapplicableReason(row, totalRows, headerIndex) {
+  if (row > totalRows) return "outside the file";
+  if (row <= headerIndex + 1) return "at or above the header row";
+  return "not an excluded row";
+}
+
 function joinNames(names) {
   if (names.length === 1) return names[0];
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
@@ -305,7 +321,7 @@ export function inferStructure(grid, overrides = {}) {
   const rows = Array.isArray(grid) ? grid : [];
   const empty = {
     headerRow: null, headerSource: "detected", confidence: "none", observations: 0,
-    excluded: [], restored: [], alternatives: [], version: STRUCTURE_VERSION,
+    excluded: [], restored: [], unapplied: [], alternatives: [], version: STRUCTURE_VERSION,
   };
   if (rows.length === 0) return empty;
 
@@ -351,8 +367,19 @@ export function inferStructure(grid, overrides = {}) {
     else excluded.push(entry);
   }
 
-  const uncertain = !header.certain || excluded.some((entry) => entry.confidence === "uncertain");
-  const untouched = headerIndex === 0 && excluded.length === 0 && restored.length === 0 && specified === null;
+  const appliedRows = new Set(restored.map((entry) => entry.row));
+  const unapplied = [...includeRows]
+    .filter((row) => !appliedRows.has(row))
+    .sort((a, b) => a - b)
+    .map((row) => ({ row, reason: unapplicableReason(row, rows.length, headerIndex) }));
+
+  // A correction that did not take makes the reading unsettled by definition:
+  // the caller is working from a picture of the file that this one contradicts.
+  const uncertain = !header.certain
+    || unapplied.length > 0
+    || excluded.some((entry) => entry.confidence === "uncertain");
+  const untouched = headerIndex === 0 && excluded.length === 0 && restored.length === 0
+    && unapplied.length === 0 && specified === null;
 
   return {
     headerRow: headerIndex + 1,
@@ -361,6 +388,7 @@ export function inferStructure(grid, overrides = {}) {
     observations: dataIndexes.length - excluded.filter((entry) => entry.reason === "aggregate").length,
     excluded,
     restored,
+    unapplied,
     alternatives: header.certain ? [] : header.others.map((c) => ({ headerRow: c.index + 1, cells: preview(rows[c.index]) })),
     version: STRUCTURE_VERSION,
   };

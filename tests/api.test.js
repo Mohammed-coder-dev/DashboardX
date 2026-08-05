@@ -291,6 +291,18 @@ describe("structural inference over the API", () => {
     expect(body.meta.totalRows).toBe(3);
   });
 
+  it("says so when a requested row could not be put back", async () => {
+    // Row 4 is ordinary data — it was never excluded, so there is nothing to
+    // restore. Answering that with silence would leave the caller unable to
+    // tell whether their correction took.
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ includeRows: JSON.stringify([4]) }, { body: MESSY }),
+    });
+    const body = await res.json();
+    expect(body.meta.structure.unapplied).toEqual([{ row: 4, reason: "not an excluded row" }]);
+    expect(body.meta.structure.confidence).toBe("uncertain");
+  });
+
   it("rejects a header row that is not a positive integer", async () => {
     const res = await fetch(`${base}/api/analyze`, {
       method: "POST", body: csvForm({ headerRow: "nope" }, { body: MESSY }),
