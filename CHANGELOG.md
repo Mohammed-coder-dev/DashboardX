@@ -26,6 +26,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- **Numbers written in a spreadsheet's own notation are numbers again.**
+  `$48,000`, `12.5%`, `1,200` and the accounting `(1,200)` all read as
+  non-numeric, so a currency or percentage column was typed categorical and
+  produced no statistics whatsoever — or, worse, kept only the cells that
+  happened to parse: a column of `1,200 / 950 / 1,400 / 880` reported a mean of
+  915, computed from the two values without separators and presented as if it
+  described the column. All four notations now parse, and a numeric column
+  carries `formats` naming the conventions it was read through, shown in the
+  column inspector and the printable report. Two limits are deliberate: a
+  percentage reads at the magnitude the cell displays (`12.5%` is 12.5, not
+  0.125), and European decimal notation is left unparsed rather than guessed at,
+  since `1.234,56` is 1234.56 in much of the world and 1.234 in the rest.
 - A title row wide enough to look like a header no longer passes undetected.
   "Q3 Report" in A1 with a date in C1 reaches all three columns, so the span
   test alone could not tell it from the header beneath it, and it was taken as

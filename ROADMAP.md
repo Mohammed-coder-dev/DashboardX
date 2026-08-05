@@ -41,10 +41,21 @@ scope by construction.
 - **Excel serial dates.** Date parsing is deliberately pattern-gated so integer
   measurements are never read as timelines. Detect true Excel serials from cell
   formatting in the workbook rather than guessing from the value.
-- **Structural shapes still out of scope.** Grouped or hierarchical subtotals,
-  multi-row merged headers, transposed sheets, several tables in one sheet, and
-  non-English total labels are not attempted. Where they are visible at all they
-  surface as an uncertain reading; they are never silently guessed at.
+- **Structural shapes still out of scope**, with what each currently does when
+  run through the real parser:
+
+  | Shape | What happens today | Reported as |
+  |---|---|---|
+  | Multi-row merged header | Group row excluded as preamble, real header found; the `Q1`/`Q2` grouping is lost to `Units`/`Units_1` | `uncertain` — degrades safely |
+  | Two tables in one sheet | Both merged into one; the second table's header becomes a data row and its values join the first table's statistics | **`none` — silently wrong** |
+  | Transposed sheet | Field names become a column, records become columns; means average unrelated measures | **`none` — silently wrong** |
+  | Grouped/hierarchical subtotals | Each subtotal row is judged on its own; nesting is not modelled | varies |
+  | Non-English total labels | Not matched by label; caught only when the arithmetic gives them away | varies |
+
+  The two marked **silently wrong** are the priority: claiming `none` — that
+  nothing unusual was found — is the failure this engine exists to prevent, and
+  is worse than declaring the reading uncertain. Full support for either shape is
+  a larger piece of work; making them stop claiming certainty is not.
 
 ## Next — the product surface
 

@@ -1,7 +1,72 @@
 import { describe, it, expect } from "vitest";
 import {
-  coveragePct, isMissing, numericValues, pairedNumericValues, quantile, round, toFiniteNumber,
+  coveragePct, isMissing, numberFormats, numericValues, pairedNumericValues, quantile, round, toFiniteNumber,
 } from "../src/analytics/values.js";
+
+describe("numbers that arrive wearing their formatting", () => {
+  // Real finance exports write 48000 as "$48,000". Before this, every one of
+  // these read as non-numeric, so the column either vanished from the analysis
+  // entirely or — worse — kept the cells that happened to parse and reported a
+  // confident mean over half its data.
+  it("reads a thousands separator", () => {
+    expect(toFiniteNumber("1,200")).toBe(1200);
+    expect(toFiniteNumber("12,345,678")).toBe(12345678);
+  });
+
+  it("reads a currency symbol on either side", () => {
+    expect(toFiniteNumber("$48,000")).toBe(48000);
+    expect(toFiniteNumber("48000 €")).toBe(48000);
+    expect(toFiniteNumber("£1,234.56")).toBe(1234.56);
+  });
+
+  it("reads a percentage at the magnitude the cell displays", () => {
+    // 12.5% reads as 12.5, not 0.125. The cell says 12.5 and so does Ridge;
+    // rescaling silently would make the reported number disagree with the file.
+    expect(toFiniteNumber("12.5%")).toBe(12.5);
+    expect(toFiniteNumber("0%")).toBe(0);
+  });
+
+  it("reads the accounting convention for a negative", () => {
+    expect(toFiniteNumber("(1,200)")).toBe(-1200);
+    expect(toFiniteNumber("($48,000)")).toBe(-48000);
+  });
+
+  it("still refuses anything that is not a number wearing formatting", () => {
+    for (const value of ["abc", "N/A", "-", "$", "%", "(abc)", "1,2,3", "12,34"]) {
+      expect(toFiniteNumber(value)).toBeNull();
+    }
+  });
+
+  it("leaves European decimal notation alone rather than guessing at it", () => {
+    // "1.234,56" is 1234.56 in much of the world and 1.234 in the rest. Guessing
+    // wrong is a 1000x error in a reported mean, so it stays unparsed — exactly
+    // as it was before — and shows up as an invalid value instead.
+    expect(toFiniteNumber("1.234,56")).toBeNull();
+  });
+
+  it("does not disturb what already parsed", () => {
+    expect(toFiniteNumber("0")).toBe(0);
+    expect(toFiniteNumber("0.00")).toBe(0);
+    expect(toFiniteNumber(-5)).toBe(-5);
+    expect(toFiniteNumber("1e3")).toBe(1000);
+    expect(toFiniteNumber("")).toBeNull();
+    expect(toFiniteNumber("   ")).toBeNull();
+    expect(toFiniteNumber(true)).toBeNull();
+  });
+});
+
+describe("numberFormats", () => {
+  // Reading formatting is still a reading, so it is named rather than assumed.
+  it("names every convention it had to look through", () => {
+    expect(numberFormats(["$48,000", "$39,250"])).toEqual(["currency", "thousands"]);
+    expect(numberFormats(["12.5%", "9.8%"])).toEqual(["percent"]);
+    expect(numberFormats(["(1,200)"])).toEqual(["negated parentheses", "thousands"]);
+  });
+
+  it("says nothing about plain numbers", () => {
+    expect(numberFormats([1, 2, "3", "4.5"])).toEqual([]);
+  });
+});
 
 describe("isMissing", () => {
   it("treats null, undefined and blank strings as missing", () => {

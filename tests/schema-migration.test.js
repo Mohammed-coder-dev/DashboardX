@@ -40,10 +40,11 @@ describe("an analysis saved before structural inference", () => {
   });
 
   it("is distinguishable by the versions it was stamped with", () => {
-    // Bumped because what an observation *is* changed: a row that used to enter
-    // every statistic may now be excluded from all of them.
-    expect(EVIDENCE_ENGINE_VERSION).toBe("1.2.0");
-    expect(ANALYSIS_SCHEMA_VERSION).toBe("2.7");
+    // Bumped whenever what an observation *is* changes: first when rows began
+    // being excluded from every statistic, then when values written in a
+    // spreadsheet's own notation began counting as numbers at all.
+    expect(EVIDENCE_ENGINE_VERSION).toBe("1.3.0");
+    expect(ANALYSIS_SCHEMA_VERSION).toBe("2.8");
   });
 });
 

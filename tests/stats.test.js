@@ -94,6 +94,36 @@ describe("computeStats — numeric fields", () => {
   });
 });
 
+describe("a column written in a spreadsheet's own formatting", () => {
+  // Before this, "$48,000" was not a number, so a currency column was typed
+  // categorical and produced no statistics at all — or kept only the cells that
+  // happened to parse and reported a confident mean over part of its data.
+  it("is a numeric column, with the mean of what the cells say", () => {
+    const field = profileField(["$48,000", "$39,250", "$61,000", "$35,500"]);
+    expect(field.type).toBe("numeric");
+    expect(field.mean).toBe(45937.5);
+    expect(field.coverage).toBe(100);
+  });
+
+  it("no longer computes a mean from only the rows without commas", () => {
+    // The exact silent failure: two of these four used to be dropped for
+    // carrying a thousands separator, and the survivors' mean was reported as
+    // if it described the column.
+    const field = profileField(["1,200", "950", "1,400", "880"]);
+    expect(field.validCount).toBe(4);
+    expect(field.mean).toBe(1107.5);
+  });
+
+  it("names the conventions it read through", () => {
+    expect(profileField(["$48,000", "$39,250"]).formats).toEqual(["currency", "thousands"]);
+    expect(profileField(["12.5%", "9.8%", "15.1%"]).formats).toEqual(["percent"]);
+  });
+
+  it("says nothing about formatting when a column had none", () => {
+    expect(profileField([1, 2, 3]).formats).toBeUndefined();
+  });
+});
+
 describe("computeStats — categorical fields", () => {
   it("ranks top values by frequency, not first appearance", () => {
     // Insertion order here is rare, common, common... The old implementation

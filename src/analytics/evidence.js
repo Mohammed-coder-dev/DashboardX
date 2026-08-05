@@ -18,16 +18,26 @@ import { categoricalAssociation, detectLevelShift, welchMeanDifference } from ".
  * aggregate row that used to enter every statistic is now excluded from all of
  * them, so evidence computed by 1.1.0 over the same file can legitimately
  * differ from evidence computed by this version.
+ *
+ * 1.3.0 — numbers written in a spreadsheet's own formatting (`$48,000`,
+ * `12.5%`, `(1,200)`) are now read as numbers. A currency column that produced
+ * no evidence at all under 1.2.0 produces evidence here, and a column that
+ * reported a mean over only the cells without separators now reports it over
+ * the whole column.
  */
-export const EVIDENCE_ENGINE_VERSION = "1.2.0";
+export const EVIDENCE_ENGINE_VERSION = "1.3.0";
 /**
  * Version of the saved/exported analysis payload shape.
  *
  * 2.7 — `meta.structure` carries the header row, the observation count and
  * every excluded or restored row. Absent on payloads written before 2.7, where
  * it means the question was never asked, not that nothing was excluded.
+ *
+ * 2.8 — `meta.structure.unapplied` records corrections that matched nothing,
+ * and a numeric column carries `formats` naming the notation it was read
+ * through. Both are present only when they have something to say.
  */
-export const ANALYSIS_SCHEMA_VERSION = "2.7";
+export const ANALYSIS_SCHEMA_VERSION = "2.8";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;

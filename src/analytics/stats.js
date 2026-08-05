@@ -10,7 +10,7 @@
 //     is insertion order — it reported whichever values happened to appear
 //     first, labelled as the most common.
 import { looksLikeDateColumn, profileDates } from "./dates.js";
-import { coveragePct, isMissing, quantile, round, toFiniteNumber } from "./values.js";
+import { coveragePct, isMissing, numberFormats, quantile, round, toFiniteNumber } from "./values.js";
 import { meanConfidenceInterval } from "./inference.js";
 
 /**
@@ -156,9 +156,14 @@ function numericField(rawValues, total, totalRows) {
   const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
   const variance = numbers.reduce((a, b) => a + (b - mean) ** 2, 0) / numbers.length;
   const outliers = outlierReport(numbers);
+  // Reading `$48,000` as 48000 is a reading, not a computation — but it is
+  // still a reading, so the column says which conventions it was made through.
+  // Absent means none were needed, never that the question went unasked.
+  const formats = numberFormats(rawValues);
 
   return {
     type: "numeric",
+    ...(formats.length > 0 ? { formats } : {}),
     // `count` keeps its historical meaning (valid numeric observations) so
     // existing consumers and saved analyses stay readable.
     count: numbers.length,

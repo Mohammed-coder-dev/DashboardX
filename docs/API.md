@@ -85,9 +85,13 @@ Response:
       "alternatives": [],         // other candidate header rows, when uncertain
       "version": "1.0.0"
     },
-    "schemaVersion": "2.7", "evidenceEngine": "1.2.0"
+    "schemaVersion": "2.8", "evidenceEngine": "1.3.0"
   },
-  "stats": { "revenue": { "type": "numeric", "validCount": 90, "missing": 1, "invalid": 0,
+  // A numeric column carries `formats` only when it was written in a
+  // spreadsheet's own notation — "currency", "thousands", "percent",
+  // "negated parentheses". Absent means none were needed.
+  "stats": { "revenue": { "type": "numeric", "formats": ["currency", "thousands"],
+                          "validCount": 90, "missing": 1, "invalid": 0,
                           "coverage": 98.9, "min": 100, "max": 4980, "mean": 0, "median": 0,
                           "std": 0, "meanConfidence95": { "lower": 0, "upper": 0 }, "quantiles": {},
                           "histogram": { "method": "iqr-tail-aware", "bins": [] }, "outliers": {} } },

@@ -1297,7 +1297,10 @@ function openColumnInspector(column) {
         ];
 
   columnInspectorTitle.textContent = column;
-  columnInspectorMeta.textContent = `${field.type} · ${Number(valid).toLocaleString()} valid · ${field.coverage ?? "—"}% coverage${field.invalid ? ` · ${field.invalid} invalid` : ""}${field.missing ? ` · ${field.missing} missing` : ""}`;
+  // Reading "$48,000" as 48000 changes what the column is; say so where the
+  // column is being read, not only in the payload.
+  const formats = field.formats?.length ? ` · read through ${field.formats.join(", ")}` : "";
+  columnInspectorMeta.textContent = `${field.type} · ${Number(valid).toLocaleString()} valid · ${field.coverage ?? "—"}% coverage${field.invalid ? ` · ${field.invalid} invalid` : ""}${field.missing ? ` · ${field.missing} missing` : ""}${formats}`;
   columnInspectorMetrics.innerHTML = metrics.map(([label, value]) => inspectorMetric(label, value)).join("");
   columnInspectorVisual.innerHTML = renderColumnInspectorVisual(field);
   if (typeof columnInspector.showModal === "function") columnInspector.showModal();
@@ -1745,7 +1748,7 @@ function buildReportHtml(data) {
   const { meta = {}, stats = {}, correlations = [], evidence = [], profile, analysis } = data;
   const statRows = Object.entries(stats).map(([col, s]) => {
     const detail = s.type === "numeric"
-      ? `mean ${s.mean} · median ${s.median} · min ${s.min} · max ${s.max} · std ${s.std} · ${s.coverage}% coverage${s.invalid ? ` · ${s.invalid} invalid` : ""}`
+      ? `mean ${s.mean} · median ${s.median} · min ${s.min} · max ${s.max} · std ${s.std} · ${s.coverage}% coverage${s.invalid ? ` · ${s.invalid} invalid` : ""}${s.formats?.length ? ` · read through ${s.formats.join(", ")}` : ""}`
       : s.type === "date"
         ? `${s.earliest || "—"} → ${s.latest || "—"} · ${s.validCount} valid${s.trend ? ` · trend ${s.trend}` : ""}`
         : `${s.unique} unique · top: ${(s.top || []).slice(0, 3).map(t => `${t.value} (${t.percentage}%)`).join(", ")}`;
