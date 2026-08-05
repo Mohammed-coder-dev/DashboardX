@@ -220,6 +220,94 @@ describe("deterministic analysis without a key", () => {
   });
 });
 
+describe("structural inference over the API", () => {
+  // A title line, the real header on line 3, and a trailing total: the shape
+  // that made the engine report a mean it could not defend.
+  const MESSY = "Q3 Report\n\nregion,revenue\nnorth,200\nsouth,100\nTOTAL,300\n";
+
+  it("reports the header it found and the rows it set aside", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({}, { body: MESSY }),
+    });
+    const body = await res.json();
+    expect(body.meta.structure.headerRow).toBe(3);
+    expect(body.meta.structure.excluded).toEqual([
+      expect.objectContaining({ row: 1, reason: "preamble" }),
+      expect.objectContaining({ row: 6, reason: "aggregate" }),
+    ]);
+    expect(body.meta.totalRows).toBe(2);
+    expect(body.columns).toEqual(["region", "revenue"]);
+  });
+
+  it("computes the statistics over the observations only", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({}, { body: MESSY }),
+    });
+    const body = await res.json();
+    expect(body.stats.revenue.mean).toBe(150);
+    expect(body.stats.revenue.max).toBe(200);
+  });
+
+  it("carries the structure into the saved payload", async () => {
+    saveAnalysisMock.mockResolvedValue("saved-id");
+    await fetch(`${base}/api/analyze`, {
+      method: "POST",
+      headers: { "x-ridge-session": "session-abcdefgh" },
+      body: csvForm({ save: "true" }, { body: MESSY }),
+    });
+    const { payload } = saveAnalysisMock.mock.calls[0][0];
+    expect(payload.meta.structure.excluded).toHaveLength(2);
+    expect(payload.meta.structure.headerRow).toBe(3);
+  });
+
+  it("says nothing was set aside for an ordinary file", async () => {
+    const res = await fetch(`${base}/api/analyze`, { method: "POST", body: csvForm() });
+    const structure = (await res.json()).meta.structure;
+    expect(structure.confidence).toBe("none");
+    expect(structure.excluded).toEqual([]);
+  });
+
+  it("honours a caller-specified header row", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ headerRow: "3" }, { body: MESSY }),
+    });
+    const body = await res.json();
+    expect(body.meta.structure.headerRow).toBe(3);
+    expect(body.meta.structure.headerSource).toBe("specified");
+    expect(body.columns).toEqual(["region", "revenue"]);
+  });
+
+  it("puts back a row the caller asks to include, and still shows it", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ includeRows: JSON.stringify([6]) }, { body: MESSY }),
+    });
+    const body = await res.json();
+    expect(body.meta.structure.excluded).toEqual([
+      expect.objectContaining({ row: 1, reason: "preamble" }),
+    ]);
+    expect(body.meta.structure.restored).toEqual([
+      expect.objectContaining({ row: 6, reason: "aggregate" }),
+    ]);
+    expect(body.meta.totalRows).toBe(3);
+  });
+
+  it("rejects a header row that is not a positive integer", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ headerRow: "nope" }, { body: MESSY }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("invalid_header_row");
+  });
+
+  it("rejects an includeRows value that is not a JSON array of row numbers", async () => {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST", body: csvForm({ includeRows: "6" }, { body: MESSY }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("invalid_include_rows");
+  });
+});
+
 describe("POST /api/compare", () => {
   it("compares exactly two tabular files without invoking the model", async () => {
     const form = new FormData();

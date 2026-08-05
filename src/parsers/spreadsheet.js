@@ -16,7 +16,7 @@ function normalizeDates(row) {
   return row;
 }
 
-export function parseSpreadsheet(buffer, filename, sheet) {
+export function parseSpreadsheet(buffer, filename, sheet, overrides = {}) {
   const ext      = path.extname(filename).toLowerCase();
   const input    = ext === ".csv" ? buffer.toString("utf-8") : buffer;
   const workbook = XLSX.read(input, { type: ext === ".csv" ? "string" : "buffer", cellDates: true });
@@ -36,7 +36,7 @@ export function parseSpreadsheet(buffer, filename, sheet) {
   // this wrong: it takes the first row as the header before anything has had a
   // chance to ask whether it is one.
   const grid = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null, blankrows: true });
-  const structure = inferStructure(grid);
+  const structure = inferStructure(grid, overrides);
   const headerIndex = structure.headerRow === null ? 0 : structure.headerRow - 1;
 
   // Object mode is still what builds the rows, now pointed at the header we

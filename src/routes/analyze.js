@@ -17,6 +17,7 @@ import { rateLimit } from "../middleware/rateLimit.js";
 
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_COLUMN_SELECTION = 512;
+const MAX_INCLUDE_ROWS = 512;
 
 function analysisRecord(req, startedAt, analysis) {
   return {
@@ -145,6 +146,44 @@ export function resolveColumns(requested, columns) {
   return { active, excluded: columns.filter((name) => !wanted.has(name)) };
 }
 
+/**
+ * Corrections to the inferred structure. Both are 1-indexed source row numbers,
+ * because that is what the user is reading off their own spreadsheet.
+ *
+ * Parsed with a pattern rather than `Number()`: `Number("")` and `Number(" ")`
+ * are both 0, and a blank field has to mean "no override", never row zero.
+ */
+export function validateHeaderRow(raw) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const text = String(raw).trim();
+  if (!/^[1-9][0-9]{0,6}$/.test(text)) {
+    throw new AppError("Header row must be a positive row number.", { status: 400, code: "invalid_header_row" });
+  }
+  return Number.parseInt(text, 10);
+}
+
+export function validateIncludeRows(raw) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const invalid = () => new AppError(
+    "Rows to include must be a JSON array of row numbers.",
+    { status: 400, code: "invalid_include_rows" },
+  );
+  let list = raw;
+  if (typeof raw === "string") {
+    try {
+      list = JSON.parse(raw);
+    } catch {
+      throw invalid();
+    }
+  }
+  if (!Array.isArray(list)) throw invalid();
+  if (list.length > MAX_INCLUDE_ROWS) {
+    throw new AppError(`Too many rows to include (max ${MAX_INCLUDE_ROWS}).`, { status: 400, code: "invalid_include_rows" });
+  }
+  if (list.some((row) => !Number.isInteger(row) || row < 1)) throw invalid();
+  return [...new Set(list)];
+}
+
 export function validateQuestion(raw) {
   if (raw === undefined || raw === null || raw === "") return "";
   if (typeof raw !== "string") {
@@ -199,7 +238,11 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
   const apiKey   = resolveApiKey(req, { required: false });
   const model    = resolveModel(req.body.model);
   const sheet    = validateSheet(req.body.sheet);
-  const parsed   = await parseFile(req.file, { sheet });
+  const parsed   = await parseFile(req.file, {
+    sheet,
+    headerRow: validateHeaderRow(req.body.headerRow),
+    includeRows: validateIncludeRows(req.body.includeRows),
+  });
   const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
@@ -211,7 +254,8 @@ router.post("/analyze", rateLimit(), upload.single("file"), async (req, res) => 
 
   const body = {
     meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages, filename:req.file.originalname, size:req.file.size, model,
-      target, activeColumns, excludedColumns, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
+      target, activeColumns, excludedColumns, structure: parsed.structure ?? null,
+      schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
       ...analysisRecord(req, startedAt, analysis) },
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
@@ -233,7 +277,11 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
   const model    = resolveModel(req.body?.model);
   const sheet    = validateSheet(req.body?.sheet);
   const file     = await fetchRemoteFile(req.body?.url);
-  const parsed   = await parseFile(file, { sheet });
+  const parsed   = await parseFile(file, {
+    sheet,
+    headerRow: validateHeaderRow(req.body?.headerRow),
+    includeRows: validateIncludeRows(req.body?.includeRows),
+  });
   const { rows, columns, sheetName, totalRows, isTabular, rawText, pages } = parsed;
 
   if (rows.length === 0 && !rawText) throw new AppError("File appears empty.", { status: 400, code: "empty_file" });
@@ -246,7 +294,8 @@ router.post("/analyze-url", rateLimit(), async (req, res) => {
   const body = {
     meta: { sheetName, sheets:parsed.sheets, totalRows, columns:columns.length, fileType:parsed.fileType, isTabular, pages,
       filename:file.originalname, size:file.size, model, sourceUrl:file.sourceUrl,
-      target, activeColumns, excludedColumns, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
+      target, activeColumns, excludedColumns, structure: parsed.structure ?? null,
+      schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
       ...analysisRecord(req, startedAt, analysis) },
     stats, correlations, profile, evidence, analysis, chartData:isTabular ? rows.slice(0,100) : [], columns,
     rawText: isTabular ? null : (rawText||"").slice(0,2000),
@@ -287,6 +336,7 @@ router.post("/compare", rateLimit(), upload.array("files", 2), async (req, res) 
         totalRows: parsed.totalRows,
         columns: parsed.columns.length,
         size: req.files[index].size,
+        structure: parsed.structure ?? null,
       },
       columns: parsed.columns,
       stats,
@@ -342,7 +392,8 @@ router.post("/analyze-multi", rateLimit(), upload.array("files", 10), async (req
         fileType: parsed.fileType,
         meta: { sheetName:parsed.sheetName, totalRows:parsed.totalRows, columns:columns.length,
           fileType:parsed.fileType, isTabular, pages:parsed.pages, filename:file.originalname, size:file.size, model,
-          target: fileTarget, schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
+          target: fileTarget, structure: parsed.structure ?? null,
+          schemaVersion: ANALYSIS_SCHEMA_VERSION, evidenceEngine: EVIDENCE_ENGINE_VERSION,
           ...analysisRecord(req, startedAt, analysis) },
         stats, correlations, profile, evidence, analysis,
         chartData: isTabular ? rows.slice(0,100) : [],

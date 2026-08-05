@@ -267,20 +267,38 @@ function detectAggregates(grid, dataIndexes, columnNames) {
 /**
  * Infer the structure of a raw grid.
  *
+ * Overrides are corrections, not configuration: the caller re-submits the file
+ * saying where the header really is, or which rows to put back. What they
+ * override still travels in the report — a row the caller restored appears
+ * under `restored`, so the result stays as auditable as the one inference
+ * produced on its own.
+ *
  * @param {Array<Array<unknown>>} grid rows of cells, in source order
+ * @param {{headerRow?: number|null, includeRows?: number[]}} [overrides]
  * @returns {{
- *   headerRow: number|null, confidence: "none"|"confident"|"uncertain",
- *   observations: number, excluded: Array<object>, alternatives: Array<object>,
- *   version: string,
+ *   headerRow: number|null, headerSource: "detected"|"specified",
+ *   confidence: "none"|"confident"|"uncertain", observations: number,
+ *   excluded: Array<object>, restored: Array<object>,
+ *   alternatives: Array<object>, version: string,
  * }} 1-indexed to match what the user sees in their spreadsheet
  */
-export function inferStructure(grid) {
+export function inferStructure(grid, overrides = {}) {
   const rows = Array.isArray(grid) ? grid : [];
-  const empty = { headerRow: null, confidence: "none", observations: 0, excluded: [], alternatives: [], version: STRUCTURE_VERSION };
+  const empty = {
+    headerRow: null, headerSource: "detected", confidence: "none", observations: 0,
+    excluded: [], restored: [], alternatives: [], version: STRUCTURE_VERSION,
+  };
   if (rows.length === 0) return empty;
 
+  const specified = Number.isInteger(overrides.headerRow) && overrides.headerRow >= 1 && overrides.headerRow <= rows.length
+    ? overrides.headerRow
+    : null;
+  const includeRows = new Set(Array.isArray(overrides.includeRows) ? overrides.includeRows : []);
+
   const dataWidth = modalWidth(rows);
-  const header = findHeader(rows, dataWidth);
+  const header = specified === null
+    ? findHeader(rows, dataWidth)
+    : { chosen: { index: specified - 1 }, certain: true, others: [] };
   if (!header) return empty;
 
   const headerIndex = header.chosen.index;
@@ -305,17 +323,25 @@ export function inferStructure(grid) {
     if (!isBlank(rows[index])) dataIndexes.push(index);
   }
 
-  const aggregates = detectAggregates(rows, dataIndexes, columnNames);
-  excluded.push(...aggregates.excluded);
+  // Only aggregates can be put back. A preamble row sits above the header, so
+  // "include it as data" has no meaning — the correction for that is to say
+  // where the header really is.
+  const restored = [];
+  for (const entry of detectAggregates(rows, dataIndexes, columnNames).excluded) {
+    if (includeRows.has(entry.row)) restored.push({ ...entry, restoredBy: "caller" });
+    else excluded.push(entry);
+  }
 
   const uncertain = !header.certain || excluded.some((entry) => entry.confidence === "uncertain");
-  const untouched = headerIndex === 0 && excluded.length === 0;
+  const untouched = headerIndex === 0 && excluded.length === 0 && restored.length === 0 && specified === null;
 
   return {
     headerRow: headerIndex + 1,
+    headerSource: specified === null ? "detected" : "specified",
     confidence: uncertain ? "uncertain" : untouched ? "none" : "confident",
-    observations: aggregates.kept.length,
+    observations: dataIndexes.length - excluded.filter((entry) => entry.reason === "aggregate").length,
     excluded,
+    restored,
     alternatives: header.certain ? [] : header.others.map((c) => ({ headerRow: c.index + 1, cells: preview(rows[c.index]) })),
     version: STRUCTURE_VERSION,
   };

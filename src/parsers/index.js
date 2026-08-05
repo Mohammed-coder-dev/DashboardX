@@ -17,11 +17,13 @@ export function getFileType(filename) {
   return "unknown";
 }
 
-export async function parseFile(file, { sheet } = {}) {
+export async function parseFile(file, { sheet, headerRow = null, includeRows = null } = {}) {
   const fileType = getFileType(file.originalname);
   try {
     switch (fileType) {
-      case "spreadsheet": return parseSpreadsheet(file.buffer, file.originalname, sheet);
+      // Structural overrides only mean anything for a grid; the other parsers
+      // produce their own row shapes and ignore them.
+      case "spreadsheet": return parseSpreadsheet(file.buffer, file.originalname, sheet, { headerRow, includeRows });
       case "json":        return parseJSON(file.buffer);
       case "text":        return parseText(file.buffer);
       case "pdf":         return await parsePDF(file.buffer);
