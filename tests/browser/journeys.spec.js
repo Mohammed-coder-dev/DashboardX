@@ -7,6 +7,8 @@ const SAMPLE_CSV = path.resolve(here, "../../public/samples/team-sales.csv");
 // A title line, the real header on line 3, and a trailing TOTAL: the shape a
 // finance export actually arrives in.
 const MESSY_CSV = path.resolve(here, "../fixtures/messy-export.csv");
+// Clean, tiny, and entirely ordinary — and so clears no reporting threshold.
+const THIN_CSV = path.resolve(here, "../fixtures/thin-table.csv");
 
 // The server runs without an Anthropic key, so these journeys exercise the
 // deterministic product exactly as a first-time visitor experiences it.
@@ -212,6 +214,24 @@ test.describe("deterministic analysis without an API key", () => {
     await page.locator("#analyzeBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#evidenceSection")).toBeVisible();
+  });
+
+  test("explains an empty evidence panel instead of removing it", async ({ page }) => {
+    // A small, clean, entirely ordinary file — the kind someone tries first —
+    // clears no reporting threshold. The panel used to vanish, leaving a
+    // first-time reader unable to tell a result from a breakage.
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(THIN_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    const evidence = page.locator("#evidenceSection");
+    await expect(evidence).toBeVisible();
+    await expect(evidence).toContainText(/no finding cleared the reporting thresholds/i);
+    await expect(evidence).toContainText(/result, not a failure/i);
+    // And it points at what was computed, so the page still has somewhere to go.
+    await expect(evidence).toContainText(/column statistics/i);
+    await expect(page.locator("#statsSection, [data-tier-jump=\"statsSection\"]").first()).toBeVisible();
   });
 
   test("confirms an ordinary file was read as-is, rather than saying nothing", async ({ page }) => {

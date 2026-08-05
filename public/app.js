@@ -974,7 +974,7 @@ function renderSingleFile(data, isTabbed) {
       <div class="var-notable">→ ${esc(v.notable)}</div>
     </div>`).join("") : "";
 
-  renderEvidence(data.evidence || []);
+  renderEvidence(data.evidence || [], data);
   renderOverview(data);
   syncSetupToResult(data);
   renderTargetBar(data);
@@ -1437,8 +1437,33 @@ function evidenceStatisticsText(evidence) {
   return "";
 }
 
-function renderEvidence(evidence) {
-  if (!evidence.length) { evidenceSection.style.display = "none"; return; }
+/**
+ * @param {Array} evidence findings that cleared the reporting thresholds
+ * @param {object} [data] the full result, to tell "nothing qualified" apart
+ *   from "evidence was never applicable to this file"
+ */
+function renderEvidence(evidence, data) {
+  // A file with no evidence used to make this panel disappear — the headline of
+  // tier ①, gone, with nothing said. A reader could not tell "Ridge found
+  // nothing worth claiming" from "Ridge broke" or "I uploaded it wrong". A
+  // finding that did not qualify is still a result, and it is now reported as
+  // one. Non-tabular files stay hidden: evidence was never computed for them,
+  // so claiming nothing qualified would describe a test that never ran.
+  if (!evidence.length) {
+    const tabular = data?.meta?.isTabular;
+    evidenceSection.style.display = tabular ? "" : "none";
+    if (!tabular) return;
+    const rows = data?.meta?.totalRows ?? 0;
+    evidenceList.innerHTML = `<div class="evidence-empty">
+      <strong>No finding cleared the reporting thresholds.</strong>
+      <p>That is a result, not a failure. Ridge states a claim only when the support behind it is
+      strong enough to defend — often this means too few rows${rows ? ` (${esc(rows)} here)` : ""},
+      no relationship strong enough to report, or no column pair with enough overlap to compare.</p>
+      <p>Everything below was still computed in full: column statistics, data quality, and the
+      distributions for every field.</p>
+    </div>`;
+    return;
+  }
   evidenceSection.style.display = "";
   evidenceList.innerHTML = evidence.map(e => {
     const provenance = e.provenance;

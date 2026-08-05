@@ -8,6 +8,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- An empty evidence panel is explained rather than removed. When no finding
+  cleared the reporting thresholds — which an ordinary small file routinely does
+  not — the Evidence panel, the headline of tier ① *What we found*, set itself to
+  `display: none` and disappeared without a word. A first-time reader could not
+  tell "Ridge found nothing worth claiming" from "Ridge is broken" or "I uploaded
+  it wrong". It now states that nothing qualified, why that happens, and that the
+  statistics and quality diagnostics below were still computed in full.
+  Non-tabular files stay hidden: evidence was never computed for them, so
+  reporting that nothing qualified would describe a test that never ran.
 - A file read without incident now says so. The structure note was hidden
   whenever nothing unusual was found, which made a file Ridge had checked look
   exactly like a file Ridge had never checked — withholding the one fact the

@@ -527,6 +527,16 @@ html { scroll-behavior: smooth; }
   display: inline-block; margin-top: 2px; padding: 1px 5px;
   border-radius: 4px; background: var(--surface); font-size: 11.5px; color: var(--text);
 }
+/* "Nothing qualified" is a finding of its own, so it is presented as one
+   rather than as an absence the reader has to interpret. */
+.evidence-empty {
+  padding: 14px 16px; border: 1px dashed var(--border-2);
+  border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2);
+}
+.evidence-empty strong { display: block; margin-bottom: 6px; color: var(--text); font-size: 13px; }
+.evidence-empty p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.55; }
+.evidence-empty p:last-child { margin-bottom: 0; }
+
 .structure-warning { margin: 0 0 8px; color: var(--text); font-weight: 500; }
 .structure-fix {
   margin-left: 6px; padding: 1px 8px; border: 1px solid var(--border-2);
