@@ -1608,19 +1608,35 @@ function structureRowLine(entry) {
  * claiming a clean read the engine of the day never performed.
  */
 function renderStructureNote(data) {
-  const structure    = data?.meta?.structure;
-  const excluded     = structure?.excluded || [];
-  const restored     = structure?.restored || [];
-  const unapplied    = structure?.unapplied || [];
-  const alternatives = structure?.alternatives || [];
-  const uncertain    = structure?.confidence === "uncertain";
-  const specified    = structure?.headerSource === "specified";
-
-  const worthShowing = Boolean(structure)
-    && (uncertain || specified || excluded.length > 0 || restored.length > 0 || unapplied.length > 0);
+  const structure = data?.meta?.structure;
+  // An analysis saved before inference existed has nothing to report. That is
+  // unknown, not a clean read, so the note stays hidden rather than confirming
+  // something the engine of the day never checked.
+  const worthShowing = Boolean(structure);
   structureNote.hidden = !worthShowing;
-  structureNote.classList.toggle("structure-note--uncertain", worthShowing && uncertain);
   if (!worthShowing) return;
+
+  const excluded     = structure.excluded || [];
+  const restored     = structure.restored || [];
+  const unapplied    = structure.unapplied || [];
+  const alternatives = structure.alternatives || [];
+  const uncertain    = structure.confidence === "uncertain";
+  const specified    = structure.headerSource === "specified";
+  const clean        = structure.confidence === "none";
+
+  structureNote.classList.toggle("structure-note--uncertain", uncertain);
+  structureNote.classList.toggle("structure-note--clean", clean);
+
+  // A clean read still gets said. Hiding it made a checked file and an
+  // unchecked one look identical, so the one piece of information the reader
+  // needed — that the question was asked at all — was the one never given.
+  if (clean) {
+    structureSummary.textContent =
+      `Read as-is · header on row ${structure.headerRow} · ${structure.observations} observation${structure.observations === 1 ? "" : "s"}`;
+    structureDetail.innerHTML =
+      `<p>Every row below the header was read as an observation. Ridge found no title block above the header, no total or subtotal rows, and no second table sharing the sheet.</p>`;
+    return;
+  }
 
   const counts = [];
   if (structure.headerRow) counts.push(`Header on row ${structure.headerRow}`);

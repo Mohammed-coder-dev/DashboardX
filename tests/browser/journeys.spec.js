@@ -214,6 +214,22 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#evidenceSection")).toBeVisible();
   });
 
+  test("confirms an ordinary file was read as-is, rather than saying nothing", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // A file Ridge checked and found ordinary used to look exactly like a file
+    // Ridge never checked.
+    const note = page.locator("#structureNote");
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("Read as-is");
+    await expect(note).toContainText("header on row 1");
+
+    await note.locator("summary").click();
+    await expect(page.locator("#structureDetail")).toContainText(/no total or subtotal rows/i);
+  });
+
   test("says how a messy file was read, above the numbers it produced", async ({ page }) => {
     await page.goto("/app");
     await page.locator("#fileInput").setInputFiles(MESSY_CSV);

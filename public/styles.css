@@ -514,6 +514,9 @@ html { scroll-behavior: smooth; }
 .structure-note[open] summary::before { content: "−"; }
 /* An unsettled reading is not a footnote: it qualifies every number below it,
    so it carries the same weight as the stale-results banner. */
+/* A clean read is a quiet confirmation, not an alert — it recedes, but it is
+   there, so a checked file never looks like an unchecked one. */
+.structure-note--clean { border-style: dashed; background: transparent; }
 .structure-note--uncertain { border-color: var(--amber); background: var(--amber-bg); }
 .structure-note--uncertain summary { color: var(--text); font-weight: 600; }
 .structure-note--uncertain summary::before { content: "！"; color: var(--amber); }

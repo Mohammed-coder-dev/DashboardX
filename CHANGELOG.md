@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- A file read without incident now says so. The structure note was hidden
+  whenever nothing unusual was found, which made a file Ridge had checked look
+  exactly like a file Ridge had never checked — withholding the one fact the
+  reader needed, that the question was asked at all. A clean read now shows a
+  quiet dashed confirmation (`Read as-is · header on row 1 · 4 observations`)
+  that expands to say what was looked for and not found. Analyses saved before
+  structural inference still show nothing, because for those the question really
+  was never asked.
 - An `includeRows` correction that matches no exclusion is no longer a silent
   no-op. It is reported in `meta.structure.unapplied` with the reason — outside
   the file, at or above the header row, or simply not an excluded row — shown in

@@ -22,15 +22,13 @@ const APP_SOURCE = readFileSync(new URL("../public/app.js", import.meta.url), "u
  * contract. `public/app.js` touches the DOM on import and cannot be loaded
  * under vitest, so a test below asserts the shipped source still matches this
  * rather than letting the copy drift.
+ *
+ * The whole guard is the presence of a structure. A clean read is shown too —
+ * hiding it made a checked file and an unchecked one look identical — so the
+ * only thing this decides is the pre-inference case.
  */
 function worthShowing(structure) {
-  const excluded = structure?.excluded || [];
-  const restored = structure?.restored || [];
-  return Boolean(structure)
-    && (structure.confidence === "uncertain"
-      || structure.headerSource === "specified"
-      || excluded.length > 0
-      || restored.length > 0);
+  return Boolean(structure);
 }
 
 describe("an analysis saved before structural inference", () => {
@@ -49,8 +47,11 @@ describe("an analysis saved before structural inference", () => {
 });
 
 describe("a structure the current engine produced", () => {
-  it("stays quiet when the file was read exactly as it came", () => {
-    expect(worthShowing({ confidence: "none", headerRow: 1, headerSource: "detected", excluded: [], restored: [] })).toBe(false);
+  it("confirms a clean read rather than saying nothing at all", () => {
+    // Previously hidden. A file Ridge checked and found ordinary looked exactly
+    // like a file Ridge never checked, which withheld the one fact the reader
+    // needed: that the question was asked.
+    expect(worthShowing({ confidence: "none", headerRow: 1, headerSource: "detected", excluded: [], restored: [] })).toBe(true);
   });
 
   it("speaks up as soon as a row was set aside", () => {
@@ -73,9 +74,21 @@ describe("a structure the current engine produced", () => {
 describe("the shipped frontend", () => {
   it("guards the structure note on the same condition as this test", () => {
     expect(APP_SOURCE).toContain("const worthShowing = Boolean(structure)");
-    expect(APP_SOURCE).toContain('structure.confidence === "uncertain"');
-    expect(APP_SOURCE).toContain('structure?.headerSource === "specified"');
     expect(APP_SOURCE).toContain("structureNote.hidden = !worthShowing;");
+  });
+
+  it("does not repeat the tier's provenance badge on the structure note", () => {
+    // Provenance is stated once per tier. The structure note sits inside tier ①,
+    // which already says "Computed"; badging the note as well is the duplication
+    // that rule exists to prevent.
+    const APP_HTML = readFileSync(new URL("../public/app.html", import.meta.url), "utf8");
+    const note = APP_HTML.match(/<details id="structureNote"[\s\S]*?<\/details>/)?.[0] ?? "";
+    expect(note).not.toContain("prov--");
+  });
+
+  it("distinguishes a clean read from an unsettled one in the markup", () => {
+    expect(APP_SOURCE).toContain('structureNote.classList.toggle("structure-note--clean", clean)');
+    expect(APP_SOURCE).toContain('structureNote.classList.toggle("structure-note--uncertain", uncertain)');
   });
 
   it("omits the printable report's structure section when there is none", () => {
