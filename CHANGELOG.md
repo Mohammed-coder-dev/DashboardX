@@ -18,6 +18,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A title row wide enough to look like a header no longer passes undetected.
+  "Q3 Report" in A1 with a date in C1 reaches all three columns, so the span
+  test alone could not tell it from the header beneath it, and it was taken as
+  the header in silence. Such a row does not *fill* the block, and scores worse
+  on the header signals than the row below it; where a later candidate beats a
+  sparse first choice, that candidate is preferred and the reading is reported
+  as uncertain, with the title offered back as an alternative and excluded as
+  preamble rather than quietly becoming the column names.
 - **Spreadsheets are read for their shape before anything is computed.** Parsing
   took row 1 as the header and every other row as an observation. On an ordinary
   corporate export — a title in A1, the real header on row 3, a `TOTAL` row at

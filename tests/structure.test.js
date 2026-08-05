@@ -237,6 +237,43 @@ describe("inferStructure", () => {
     ]);
   });
 
+  describe("a title row that reaches as far as the header below it", () => {
+    // The gap the span gate leaves open: a title with a date in the last column
+    // reaches all three columns, so width alone cannot tell it from a header.
+    const grid = [
+      ["Q3 Report", null, "2026-09-30"],
+      ["Region", "Units", "Revenue"],
+      ["North", 120, 48000],
+      ["South", 95, 39250],
+    ];
+
+    it("is beaten by the real header rather than taken at face value", () => {
+      expect(inferStructure(grid).headerRow).toBe(2);
+    });
+
+    it("is reported as an uncertain reading, not a settled one", () => {
+      expect(inferStructure(grid).confidence).toBe("uncertain");
+    });
+
+    it("offers itself back as the alternative it is", () => {
+      expect(inferStructure(grid).alternatives).toContainEqual(
+        expect.objectContaining({ headerRow: 1 }),
+      );
+    });
+
+    it("does not disappear — it is excluded, and said to be", () => {
+      expect(inferStructure(grid).excluded).toContainEqual(
+        expect.objectContaining({ row: 1, reason: "preamble", confidence: "uncertain" }),
+      );
+    });
+
+    it("leaves the real column names in place", () => {
+      const parsed = parseSpreadsheet(xlsxBuffer(grid), "q3.xlsx");
+      expect(parsed.columns).toEqual(["Region", "Units", "Revenue"]);
+      expect(parsed.totalRows).toBe(2);
+    });
+  });
+
   it("says it is unsure when the row it lands on reads like data", () => {
     // Nothing here fills the block's width except the data itself, so picking a
     // header is a genuine judgement call rather than a reading of the file.

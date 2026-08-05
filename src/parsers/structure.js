@@ -165,12 +165,25 @@ function findHeader(grid, dataWidth) {
     return { chosen: best, certain: false, others: candidates.filter((c) => c !== best) };
   }
 
-  const chosen = viable[0];
+  const first = viable[0];
+  // Reaching across the block is necessary but not sufficient. A title carrying
+  // a date in the last column reaches exactly as far as the header beneath it,
+  // so width alone cannot separate the two. What separates them is that such a
+  // row does not *fill* the block, and scores worse on the header signals than
+  // the row below it. Where a later candidate beats a sparse first choice,
+  // prefer it — defaulting to the title is not neutral, only wrong in a
+  // different way — and report the reading as unsettled either way.
+  const sparse = presentCells(grid[first.index]).length < dataWidth;
+  const better = sparse
+    ? viable.find((candidate) => candidate.index > first.index && candidate.score > first.score)
+    : null;
+
+  const chosen = better || first;
   const steppedOver = chosen.index > candidates[0].index;
   // Ambiguity is only possible where a choice was made. If the first non-blank
-  // row already fills the width, it is the header and there is nothing to weigh.
-  const certain = !steppedOver || chosen.contrast > 0;
-  return { chosen, certain, others: viable.filter((c) => c !== chosen) };
+  // row fills the width outright, it is the header and there is nothing to weigh.
+  const certain = (!steppedOver || chosen.contrast > 0) && !better;
+  return { chosen, certain, others: viable.filter((candidate) => candidate !== chosen) };
 }
 
 function aggregateLabel(row) {
