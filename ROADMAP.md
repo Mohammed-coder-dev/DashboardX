@@ -29,12 +29,22 @@ scope by construction.
 - Evidence provenance drill-downs with formulas, inclusion/exclusion accounting,
   and bounded source-row excerpts.
 - Two-file baseline/current comparison mode with schema and quality deltas.
+- Structural inference at ingest: the header located by span against the data
+  block, preamble and aggregate rows excluded from every statistic, aggregates
+  found by label *and* by column-wise arithmetic so unlabelled totals are caught
+  too. Uncertain readings are declared rather than resolved quietly, everything
+  excluded is reported, and both the header row and individual rows are
+  correctable.
 
 ## Next — strengthening the evidence
 
 - **Excel serial dates.** Date parsing is deliberately pattern-gated so integer
   measurements are never read as timelines. Detect true Excel serials from cell
   formatting in the workbook rather than guessing from the value.
+- **Structural shapes still out of scope.** Grouped or hierarchical subtotals,
+  multi-row merged headers, transposed sheets, several tables in one sheet, and
+  non-English total labels are not attempted. Where they are visible at all they
+  surface as an uncertain reading; they are never silently guessed at.
 
 ## Next — the product surface
 

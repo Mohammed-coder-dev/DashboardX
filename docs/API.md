@@ -48,6 +48,8 @@ interpretation only when a key is present.
 | `model` | string | Optional; one of the ids from `/health`. |
 | `sheet` | string | Optional worksheet name, ≤ 128 chars. |
 | `target` | string | Optional column to focus evidence on. Must exist in the file. |
+| `headerRow` | integer | Optional, 1-indexed. Overrides the detected header row. |
+| `includeRows` | JSON array | Optional, 1-indexed source rows to put back after they were excluded as aggregates. |
 | `save` | `"true"` \| `"false"` | Optional. **Persistence happens only when explicitly true.** |
 
 Response:
@@ -64,7 +66,25 @@ Response:
     "requestId": "92a...",      // also returned in the X-Request-ID header
     "generatedAt": "2026-08-01T18:30:00.000Z",
     "processingMs": 42,
-    "schemaVersion": "2.5", "evidenceEngine": "1.1.0"
+    // How the file was read, before anything was computed. Absent on analyses
+    // saved before schema 2.7 — which means the question was never asked, not
+    // that nothing was excluded.
+    "structure": {
+      "headerRow": 3,             // 1-indexed, as the user sees it in Excel
+      "headerSource": "detected", // or "specified", when headerRow was sent
+      "confidence": "confident",  // "none" | "confident" | "uncertain"
+      "observations": 4,          // rows the statistics were computed over
+      "excluded": [               // never empty-by-omission; every set-aside row is here
+        { "row": 1, "reason": "preamble", "confidence": "confident",
+          "detail": "above the header row", "cells": ["Q3 Regional Revenue Report"] },
+        { "row": 9, "reason": "aggregate", "confidence": "certain", "label": "TOTAL",
+          "detail": "units and revenue equal the sum of rows 4–7", "cells": ["TOTAL", "443", "183750"] }
+      ],
+      "restored": [],             // rows put back via includeRows, still shown
+      "alternatives": [],         // other candidate header rows, when uncertain
+      "version": "1.0.0"
+    },
+    "schemaVersion": "2.7", "evidenceEngine": "1.2.0"
   },
   "stats": { "revenue": { "type": "numeric", "validCount": 90, "missing": 1, "invalid": 0,
                           "coverage": 98.9, "min": 100, "max": 4980, "mean": 0, "median": 0,

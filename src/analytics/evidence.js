@@ -11,10 +11,23 @@ import { coveragePct, isMissing, round, toFiniteNumber } from "./values.js";
 import { attachEvidenceProvenance } from "./provenance.js";
 import { categoricalAssociation, detectLevelShift, welchMeanDifference } from "./inference.js";
 
-/** Bumped when evidence computation changes meaning, not just wording. */
-export const EVIDENCE_ENGINE_VERSION = "1.1.0";
-/** Version of the saved/exported analysis payload shape. */
-export const ANALYSIS_SCHEMA_VERSION = "2.6";
+/**
+ * Bumped when evidence computation changes meaning, not just wording.
+ *
+ * 1.2.0 — structural inference changed what an observation *is*. A preamble or
+ * aggregate row that used to enter every statistic is now excluded from all of
+ * them, so evidence computed by 1.1.0 over the same file can legitimately
+ * differ from evidence computed by this version.
+ */
+export const EVIDENCE_ENGINE_VERSION = "1.2.0";
+/**
+ * Version of the saved/exported analysis payload shape.
+ *
+ * 2.7 — `meta.structure` carries the header row, the observation count and
+ * every excluded or restored row. Absent on payloads written before 2.7, where
+ * it means the question was never asked, not that nothing was excluded.
+ */
+export const ANALYSIS_SCHEMA_VERSION = "2.7";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;

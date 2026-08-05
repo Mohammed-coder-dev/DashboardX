@@ -6,8 +6,35 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- **Spreadsheets are read for their shape before anything is computed.** Parsing
+  took row 1 as the header and every other row as an observation. On an ordinary
+  corporate export — a title in A1, the real header on row 3, a `TOTAL` row at
+  the bottom — that produced column names like `__EMPTY`, counted the header as
+  data, and folded the total row into the statistics: a mean 60% above the truth,
+  reported at 100% coverage, with the total row not even flagged as an outlier.
+  Structural inference now locates the header by how far the row reaches across
+  the data block, and excludes rows that restate the rows above them, detected by
+  label and by column-wise arithmetic. Arithmetic is what catches an *unlabelled*
+  total, which no keyword list would.
+
 ### Added
 
+- A structure report on every analysis: the header row, the observation count,
+  and every row set aside with the reason it was. It travels in `meta.structure`
+  through the API response, the saved payload, the JSON export and the printable
+  report, and is stated above the findings in the workspace, because it qualifies
+  every number below it. When inference cannot settle a reading it says so
+  prominently rather than committing quietly — and still excludes what it is
+  unsure of, since wrongly keeping an aggregate corrupts every statistic while
+  reporting full coverage, whereas wrongly dropping an observation costs one row
+  and announces itself.
+- Structural corrections: `headerRow` says where the header really is and
+  `includeRows` puts an excluded row back. Both re-submit the file rather than
+  editing a stored result, and a restored row moves to `structure.restored`
+  rather than vanishing — overriding the engine must not make a result less
+  auditable than trusting it.
 - Column selection: exclude ID, free-text or otherwise irrelevant fields before
   anything is computed, so they stop polluting correlations and evidence. Rows
   are never filtered — excluding a column removes a measurement, not an

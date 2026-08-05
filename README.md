@@ -66,6 +66,12 @@ box, which fetches server-side.
 Everything below is computed on the server. No model is involved and nothing is
 sent to Anthropic.
 
+- **Structural reading** — where the header actually starts, and which rows
+  restate other rows instead of being observations. A title block above the
+  header and a `TOTAL` row at the bottom are excluded before anything is
+  computed, and every excluded row is reported with the reason. When the file
+  does not settle the question, Ridge says so rather than guessing, and you can
+  correct the header row or put a row back.
 - **Column statistics** — valid/missing/invalid counts, coverage, min, max,
   mean with a 95% t interval, median, standard deviation, quantiles, and IQR
   outlier fences.
