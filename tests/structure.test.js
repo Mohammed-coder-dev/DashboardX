@@ -1,0 +1,252 @@
+// Structural inference at ingest.
+//
+// Every real spreadsheet corpus contains two shapes that the engine currently
+// reads as observations: a trailing aggregate row, and a title block sitting
+// above the real header. Both produce statistics that are confidently wrong —
+// wrong by 60% in the cases below, reported at 100% coverage, with the total
+// row not even flagged as an outlier.
+//
+// These tests pin the two failures directly, and pin the reporting contract
+// that goes with the fix: nothing may be excluded from the statistics without
+// travelling with the result as an explicit exclusion. A silently dropped row
+// is the same class of defect as a silently included one — the user cannot
+// audit either.
+import { describe, it, expect } from "vitest";
+import * as XLSX from "xlsx";
+import { inferStructure } from "../src/parsers/structure.js";
+import { parseSpreadsheet } from "../src/parsers/spreadsheet.js";
+import { computeStats } from "../src/analytics/stats.js";
+
+const REGION_ROWS = [
+  ["North", 120, 48000],
+  ["South", 95, 39250],
+  ["East", 140, 61000],
+  ["West", 88, 35500],
+];
+const TOTAL_ROW = ["TOTAL", 443, 183750];
+
+// The four regions are the observations. The TOTAL row is a restatement of
+// them, so including it inflates every statistic it touches.
+const TRUE_UNITS_MEAN = 110.75; // (120 + 95 + 140 + 88) / 4
+const TRUE_REVENUE_MEAN = 45937.5; // (48000 + 39250 + 61000 + 35500) / 4
+
+function xlsxBuffer(aoa, sheetName = "Sheet1") {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(aoa), sheetName);
+  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+}
+
+describe("a trailing aggregate row", () => {
+  // Region,Units,Revenue on line 1; four regions; TOTAL on line 6.
+  const csv = [["Region", "Units", "Revenue"], ...REGION_ROWS, TOTAL_ROW]
+    .map((row) => row.join(","))
+    .join("\n");
+
+  it("is kept out of the computed statistics", () => {
+    const parsed = parseSpreadsheet(Buffer.from(csv), "sales.csv");
+    const stats = computeStats(parsed.rows, parsed.columns);
+
+    expect(stats.Units.mean).toBe(TRUE_UNITS_MEAN);
+    expect(stats.Revenue.mean).toBe(TRUE_REVENUE_MEAN);
+  });
+
+  it("does not become the reported maximum", () => {
+    const parsed = parseSpreadsheet(Buffer.from(csv), "sales.csv");
+    const stats = computeStats(parsed.rows, parsed.columns);
+
+    expect(stats.Units.max).toBe(140);
+    expect(stats.Revenue.max).toBe(61000);
+  });
+
+  it("is reported as an exclusion rather than silently dropped", () => {
+    const parsed = parseSpreadsheet(Buffer.from(csv), "sales.csv");
+
+    expect(parsed.structure.excluded).toEqual([
+      expect.objectContaining({ row: 6, reason: "aggregate" }),
+    ]);
+  });
+
+  it("leaves four observations behind", () => {
+    const parsed = parseSpreadsheet(Buffer.from(csv), "sales.csv");
+
+    expect(parsed.totalRows).toBe(4);
+    expect(parsed.rows.map((r) => r.Region)).toEqual(["North", "South", "East", "West"]);
+  });
+});
+
+describe("a title block above the header", () => {
+  // Row 1 title, row 2 blank, row 3 header, rows 4-7 data, row 8 blank,
+  // row 9 TOTAL — the shape of essentially every corporate export.
+  const aoa = [
+    ["Q3 Regional Revenue Report — CONFIDENTIAL"],
+    [],
+    ["Region", "Units", "Revenue"],
+    ...REGION_ROWS,
+    [],
+    TOTAL_ROW,
+  ];
+
+  it("does not become the column names", () => {
+    const parsed = parseSpreadsheet(xlsxBuffer(aoa), "q3.xlsx");
+
+    expect(parsed.columns).toEqual(["Region", "Units", "Revenue"]);
+  });
+
+  it("reports where the header was actually found", () => {
+    const parsed = parseSpreadsheet(xlsxBuffer(aoa), "q3.xlsx");
+
+    expect(parsed.structure.headerRow).toBe(3);
+  });
+
+  it("is reported as an exclusion, alongside the aggregate row", () => {
+    const parsed = parseSpreadsheet(xlsxBuffer(aoa), "q3.xlsx");
+
+    expect(parsed.structure.excluded).toEqual([
+      expect.objectContaining({ row: 1, reason: "preamble" }),
+      expect.objectContaining({ row: 9, reason: "aggregate" }),
+    ]);
+  });
+
+  it("computes the statistics over the four regions only", () => {
+    const parsed = parseSpreadsheet(xlsxBuffer(aoa), "q3.xlsx");
+    const stats = computeStats(parsed.rows, parsed.columns);
+
+    expect(parsed.totalRows).toBe(4);
+    expect(stats.Units.mean).toBe(TRUE_UNITS_MEAN);
+    expect(stats.Revenue.mean).toBe(TRUE_REVENUE_MEAN);
+  });
+});
+
+describe("a file with nothing unusual in it", () => {
+  // Structural inference must be invisible on ordinary files. The pre-change
+  // ingest call is reproduced here verbatim and used as the contract: no
+  // preamble and no aggregate row has to mean no change at all, down to the
+  // column names SheetJS invents for duplicate and empty headers.
+  function legacyParse(buffer, sheetName = "Sheet1") {
+    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+    return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null });
+  }
+
+  it("parses to exactly what object-mode parsing produced before", () => {
+    const buffer = xlsxBuffer([["Region", "Units", "Revenue"], ...REGION_ROWS]);
+
+    const parsed = parseSpreadsheet(buffer, "clean.xlsx");
+
+    expect(parsed.rows).toEqual(legacyParse(buffer));
+    expect(parsed.columns).toEqual(["Region", "Units", "Revenue"]);
+    expect(parsed.totalRows).toBe(4);
+  });
+
+  it("reports that it changed nothing", () => {
+    const parsed = parseSpreadsheet(xlsxBuffer([["Region", "Units"], ...REGION_ROWS.map((r) => r.slice(0, 2))]), "clean.xlsx");
+
+    expect(parsed.structure.confidence).toBe("none");
+    expect(parsed.structure.excluded).toEqual([]);
+    expect(parsed.structure.headerRow).toBe(1);
+  });
+
+  it("keeps SheetJS's naming for duplicate and empty header cells", () => {
+    const buffer = xlsxBuffer([["a", null, "a"], ["1", "2", "3"], ["4", "5", "6"]]);
+
+    const parsed = parseSpreadsheet(buffer, "dup.xlsx");
+
+    expect(parsed.rows).toEqual(legacyParse(buffer));
+    expect(parsed.columns).toEqual(["a", "__EMPTY", "a_1"]);
+  });
+
+  it("leaves a genuine zero and a blank cell alone", () => {
+    // The engine's oldest invariant: a blank is not a zero. Re-pinned here
+    // because the ingest path that produces these cells has been rewritten.
+    const buffer = xlsxBuffer([["item", "qty"], ["a", 0], ["b", null], ["c", 5]]);
+
+    const parsed = parseSpreadsheet(buffer, "zeros.xlsx");
+
+    expect(parsed.rows).toEqual(legacyParse(buffer));
+    expect(parsed.rows[0].qty).toBe(0);
+    expect(parsed.rows[1].qty).toBeNull();
+  });
+});
+
+describe("inferStructure", () => {
+  it("reports nothing unusual for a grid whose first row is the header", () => {
+    const report = inferStructure([
+      ["Region", "Units"],
+      ["North", 120],
+      ["South", 95],
+    ]);
+
+    expect(report.headerRow).toBe(1);
+    expect(report.confidence).toBe("none");
+    expect(report.excluded).toEqual([]);
+    expect(report.observations).toBe(2);
+  });
+
+  it("steps over a title too narrow to be a header for the block below", () => {
+    const report = inferStructure([
+      ["Q3 Regional Revenue Report"],
+      [],
+      ["Region", "Units", "Revenue"],
+      ["North", 120, 48000],
+      ["South", 95, 39250],
+    ]);
+
+    expect(report.headerRow).toBe(3);
+    expect(report.confidence).toBe("confident");
+    expect(report.observations).toBe(2);
+  });
+
+  it("reports the preamble it stepped over, but not the blank rows", () => {
+    const report = inferStructure([
+      ["Q3 Regional Revenue Report"],
+      [],
+      ["Region", "Units", "Revenue"],
+      ["North", 120, 48000],
+      ["South", 95, 39250],
+    ]);
+
+    expect(report.excluded).toEqual([
+      expect.objectContaining({ row: 1, reason: "preamble" }),
+    ]);
+  });
+
+  it("treats a labelled row whose numbers restate the rows above as certain", () => {
+    const report = inferStructure([
+      ["Item", "Qty"],
+      ["A", 10],
+      ["B", 20],
+      ["Total", 30],
+    ]);
+
+    expect(report.excluded).toEqual([
+      expect.objectContaining({ row: 4, reason: "aggregate", confidence: "certain" }),
+    ]);
+    expect(report.observations).toBe(2);
+  });
+
+  it("catches an unlabelled trailing row that restates the rows above", () => {
+    // No keyword list would ever find this one — the arithmetic is the evidence.
+    const report = inferStructure([
+      ["Item", "Qty"],
+      ["A", 10],
+      ["B", 20],
+      ["Combined", 30],
+    ]);
+
+    expect(report.excluded).toEqual([
+      expect.objectContaining({ row: 4, reason: "aggregate", confidence: "confident" }),
+    ]);
+  });
+
+  it("will not call a lone row above a candidate an arithmetic match", () => {
+    // With one contributing row, "equals the sum above" is just "equals the row
+    // above" — a coincidence, not evidence of an aggregate.
+    const report = inferStructure([
+      ["Item", "Qty"],
+      ["A", 10],
+      ["B", 10],
+    ]);
+
+    expect(report.excluded).toEqual([]);
+    expect(report.observations).toBe(2);
+  });
+});

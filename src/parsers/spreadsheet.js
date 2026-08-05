@@ -1,5 +1,6 @@
 import path from "path";
 import * as XLSX from "xlsx";
+import { inferStructure, isBlankRow } from "./structure.js";
 import { AppError } from "../errors.js";
 
 // Excel serial dates arrive as Date objects (cellDates) and are normalized
@@ -29,7 +30,33 @@ export function parseSpreadsheet(buffer, filename, sheet) {
     sheetName = sheet;
   }
 
-  const rows    = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null }).map(normalizeDates);
+  const worksheet = workbook.Sheets[sheetName];
+
+  // Read the raw grid first. Going straight to object mode is what used to make
+  // this wrong: it takes the first row as the header before anything has had a
+  // chance to ask whether it is one.
+  const grid = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null, blankrows: true });
+  const structure = inferStructure(grid);
+  const headerIndex = structure.headerRow === null ? 0 : structure.headerRow - 1;
+
+  // Object mode is still what builds the rows, now pointed at the header we
+  // found. `range` keeps SheetJS's own column naming — duplicate headers, the
+  // `__EMPTY` fallback, date coercion — rather than reimplementing it here, and
+  // `range: 0` is byte-for-byte what this function did before.
+  //
+  // `blankrows` makes the mapping linear: entry j is grid row headerIndex+1+j,
+  // which is what lets excluded rows be dropped by source row number.
+  const objectRows = XLSX.utils.sheet_to_json(worksheet, { defval: null, range: headerIndex, blankrows: true });
+  const excludedRows = new Set(structure.excluded.map((entry) => entry.row));
+
+  const rows = [];
+  for (let offset = 0; offset < objectRows.length; offset++) {
+    const rowNumber = headerIndex + 2 + offset;
+    if (excludedRows.has(rowNumber)) continue;
+    if (isBlankRow(grid[rowNumber - 1])) continue;
+    rows.push(normalizeDates(objectRows[offset]));
+  }
+
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-  return { rows, columns, sheetName, sheets, totalRows: rows.length, fileType: "spreadsheet", isTabular: true };
+  return { rows, columns, sheetName, sheets, totalRows: rows.length, fileType: "spreadsheet", isTabular: true, structure };
 }
