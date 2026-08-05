@@ -244,10 +244,16 @@ function detectAggregates(grid, dataIndexes, columnNames) {
     const arithmetic = arithmeticMatch(row, kept.map((i) => grid[i]), columnNames);
     const trailing = position === dataIndexes.length - 1;
 
+    // Arithmetic is the evidence; the label is a naming convention. So the two
+    // signals do not carry equal weight: arithmetic in the trailing position
+    // settles the question on its own, whereas a trailing "Total" whose numbers
+    // refuse to add up is exactly the case where a legitimate final category
+    // gets mistaken for a summary. That row is still excluded — the asymmetry
+    // has not changed — but it is excluded as an open question, not a finding.
     let confidence = null;
     if (label && arithmetic) confidence = "certain";
-    else if (trailing && (label || arithmetic)) confidence = "confident";
-    else if (label || arithmetic) confidence = "uncertain";
+    else if (arithmetic) confidence = trailing ? "confident" : "uncertain";
+    else if (label) confidence = "uncertain";
 
     if (!confidence) {
       kept.push(index);

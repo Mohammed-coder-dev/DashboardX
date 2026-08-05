@@ -296,6 +296,38 @@ describe("inferStructure", () => {
     expect(report.observations).toBe(3);
   });
 
+  it("does not let a trailing label stand in for arithmetic it does not have", () => {
+    // "Total" in the last row is suggestive, but the numbers refuse to add up.
+    // Arithmetic is the evidence; a label alone is a naming convention, and
+    // "Total" is a legitimate final category in plenty of real files.
+    const report = inferStructure([
+      ["Category", "Score"],
+      ["Alpha", 5],
+      ["Beta", 9],
+      ["Total", 3],
+    ]);
+
+    expect(report.excluded).toEqual([
+      expect.objectContaining({ row: 4, reason: "aggregate", confidence: "uncertain" }),
+    ]);
+    expect(report.confidence).toBe("uncertain");
+  });
+
+  it("still trusts trailing arithmetic that carries no label", () => {
+    // The reverse case, unchanged: the numbers are the evidence, so their
+    // presence settles it even when nothing is labelled.
+    const report = inferStructure([
+      ["Item", "Qty"],
+      ["A", 10],
+      ["B", 20],
+      ["Combined", 30],
+    ]);
+
+    expect(report.excluded).toEqual([
+      expect.objectContaining({ row: 4, confidence: "confident" }),
+    ]);
+  });
+
   it("will not call a lone row above a candidate an arithmetic match", () => {
     // With one contributing row, "equals the sum above" is just "equals the row
     // above" — a coincidence, not evidence of an aggregate.

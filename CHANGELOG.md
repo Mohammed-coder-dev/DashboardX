@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+
+- A trailing row labelled `Total` whose numbers do not add up is now reported as
+  an **uncertain** exclusion rather than a confident one. Arithmetic is the
+  evidence; the label is a naming convention, and "Total" is a legitimate final
+  category in real files. The row is still excluded — the asymmetry that governs
+  exclusions has not changed — but it is excluded as an open question. Trailing
+  arithmetic that carries no label is unaffected and still settles the question
+  on its own.
+
 ### Fixed
 
 - **Spreadsheets are read for their shape before anything is computed.** Parsing
