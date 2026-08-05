@@ -47,15 +47,20 @@ scope by construction.
   | Shape | What happens today | Reported as |
   |---|---|---|
   | Multi-row merged header | Group row excluded as preamble, real header found; the `Q1`/`Q2` grouping is lost to `Units`/`Units_1` | `uncertain` — degrades safely |
-  | Two tables in one sheet | Both merged into one; the second table's header becomes a data row and its values join the first table's statistics | **`none` — silently wrong** |
+  | Two tables in one sheet | The second header is detected and excluded; the rows under it are still counted with the first table's | `uncertain`, naming the row where the second table starts |
   | Transposed sheet | Field names become a column, records become columns; means average unrelated measures | **`none` — silently wrong** |
   | Grouped/hierarchical subtotals | Each subtotal row is judged on its own; nesting is not modelled | varies |
   | Non-English total labels | Not matched by label; caught only when the arithmetic gives them away | varies |
 
-  The two marked **silently wrong** are the priority: claiming `none` — that
-  nothing unusual was found — is the failure this engine exists to prevent, and
-  is worse than declaring the reading uncertain. Full support for either shape is
-  a larger piece of work; making them stop claiming certainty is not.
+  The one still marked **silently wrong** is the priority: claiming `none` —
+  that nothing unusual was found — is the failure this engine exists to prevent,
+  and is worse than declaring the reading uncertain. Full support for a
+  transposed sheet is a larger piece of work; making it stop claiming certainty
+  is not, and that is the next thing to do here.
+
+  Splitting two tables into two analyses is deliberately not attempted: deciding
+  which table the user meant would be a guess. Detecting that a second one is
+  present, and saying so, is not.
 
 ## Next — the product surface
 

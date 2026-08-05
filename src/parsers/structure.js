@@ -254,6 +254,32 @@ function joinNames(names) {
 }
 
 /**
+ * Does a second table start at this row?
+ *
+ * The signature is a header's: it follows a gap, every value in it is text, and
+ * the row beneath has numbers where this row has words. Two tables in one sheet
+ * used to merge in silence — the second table's header became an observation
+ * and its values joined the first table's statistics under a reading that
+ * claimed nothing unusual.
+ *
+ * Splitting the tables is a larger piece of work and is not attempted; deciding
+ * which table the user meant would be a guess. What is not a guess: this row is
+ * a header, so it is not an observation, and a sheet containing two tables has
+ * not been read cleanly. Both are said out loud.
+ */
+function looksLikeSecondHeader(grid, index, nextIndex) {
+  if (index === 0 || nextIndex === undefined) return false;
+  if (!isBlank(grid[index - 1])) return false;
+  const cells = presentCells(grid[index]);
+  // One stray word after a gap is a footnote, not a header.
+  if (cells.length < 2) return false;
+  if (cells.some((cell) => toFiniteNumber(cell) !== null)) return false;
+  const below = cellsOf(grid[nextIndex]);
+  return cellsOf(grid[index]).some((cell, column) =>
+    !isMissing(cell) && toFiniteNumber(cell) === null && toFiniteNumber(below[column]) !== null);
+}
+
+/**
  * Classify each data row, in order, as an observation or an aggregate.
  *
  * Label and arithmetic are independent signals. Together they are conclusive.
@@ -269,6 +295,18 @@ function detectAggregates(grid, dataIndexes, columnNames) {
   for (let position = 0; position < dataIndexes.length; position++) {
     const index = dataIndexes[position];
     const row = grid[index];
+
+    if (looksLikeSecondHeader(grid, index, dataIndexes[position + 1])) {
+      excluded.push({
+        row: index + 1,
+        reason: "second header",
+        confidence: "uncertain",
+        detail: "another table appears to start here; the rows under it are still counted with the first table's",
+        cells: preview(row),
+      });
+      continue;
+    }
+
     const label = aggregateLabel(row);
     const arithmetic = arithmeticMatch(row, kept.map((i) => grid[i]), columnNames);
     const trailing = position === dataIndexes.length - 1;
@@ -363,7 +401,9 @@ export function inferStructure(grid, overrides = {}) {
   // where the header really is.
   const restored = [];
   for (const entry of detectAggregates(rows, dataIndexes, columnNames).excluded) {
-    if (includeRows.has(entry.row)) restored.push({ ...entry, restoredBy: "caller" });
+    // A second table's header is not an observation under any reading, so it is
+    // not something a caller can put back either.
+    if (entry.reason === "aggregate" && includeRows.has(entry.row)) restored.push({ ...entry, restoredBy: "caller" });
     else excluded.push(entry);
   }
 
@@ -385,7 +425,7 @@ export function inferStructure(grid, overrides = {}) {
     headerRow: headerIndex + 1,
     headerSource: specified === null ? "detected" : "specified",
     confidence: uncertain ? "uncertain" : untouched ? "none" : "confident",
-    observations: dataIndexes.length - excluded.filter((entry) => entry.reason === "aggregate").length,
+    observations: dataIndexes.length - excluded.filter((entry) => entry.reason !== "preamble").length,
     excluded,
     restored,
     unapplied,

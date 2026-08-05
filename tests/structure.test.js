@@ -403,6 +403,50 @@ describe("inferStructure", () => {
     });
   });
 
+  describe("a second table sharing the sheet", () => {
+    // Two tables separated by blank rows read as one: the second table's header
+    // became an observation and its values joined the first table's statistics,
+    // under a reading that claimed nothing unusual was found. Splitting the
+    // tables is larger work; refusing to claim certainty is not.
+    const grid = [
+      ["Region", "Units"],
+      ["North", 120],
+      ["South", 95],
+      [],
+      [],
+      ["Product", "Price"],
+      ["Widget", 9.99],
+      ["Gadget", 14.5],
+    ];
+
+    it("stops reporting the sheet as read without incident", () => {
+      expect(inferStructure(grid).confidence).toBe("uncertain");
+    });
+
+    it("names the row where a second table appears to begin", () => {
+      expect(inferStructure(grid).excluded).toContainEqual(
+        expect.objectContaining({ row: 6, reason: "second header", confidence: "uncertain" }),
+      );
+    });
+
+    it("does not let the second header count as an observation", () => {
+      const parsed = parseSpreadsheet(xlsxBuffer(grid), "two-tables.xlsx");
+      expect(parsed.rows.map((row) => row.Region)).not.toContain("Product");
+      expect(parsed.totalRows).toBe(4);
+    });
+
+    it("leaves an ordinary blank row inside one table alone", () => {
+      const report = inferStructure([
+        ["Region", "Units"],
+        ["North", 120],
+        [],
+        ["South", 95],
+      ]);
+      expect(report.excluded).toEqual([]);
+      expect(report.confidence).toBe("none");
+    });
+  });
+
   it("will not call a lone row above a candidate an arithmetic match", () => {
     // With one contributing row, "equals the sum above" is just "equals the row
     // above" — a coincidence, not evidence of an aggregate.

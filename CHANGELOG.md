@@ -26,6 +26,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A second table sharing a sheet no longer merges into the first in silence. Two
+  tables separated by blank rows were read as one: the second table's header
+  became an observation and its values joined the first table's statistics,
+  under a reading that reported nothing unusual. The second header is now
+  detected — it follows a gap, is entirely text, and has numbers beneath it —
+  excluded as the header it is, and the reading is reported `uncertain` naming
+  the row where the second table starts. Splitting the two into separate
+  analyses is deliberately not attempted: deciding which table was meant would
+  be a guess, and the rows below are still counted with the first table's.
 - **Numbers written in a spreadsheet's own notation are numbers again.**
   `$48,000`, `12.5%`, `1,200` and the accounting `(1,200)` all read as
   non-numeric, so a currency or percentage column was typed categorical and
