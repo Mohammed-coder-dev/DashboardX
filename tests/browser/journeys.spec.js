@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SAMPLE_CSV = path.resolve(here, "../../public/samples/team-sales.csv");
+// A title line, the real header on line 3, and a trailing TOTAL: the shape a
+// finance export actually arrives in.
+const MESSY_CSV = path.resolve(here, "../fixtures/messy-export.csv");
 
 // The server runs without an Anthropic key, so these journeys exercise the
 // deterministic product exactly as a first-time visitor experiences it.
@@ -209,6 +212,58 @@ test.describe("deterministic analysis without an API key", () => {
     await page.locator("#analyzeBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#evidenceSection")).toBeVisible();
+  });
+
+  test("says how a messy file was read, above the numbers it produced", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(MESSY_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    const note = page.locator("#structureNote");
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("Header on row 3");
+    await expect(note).toContainText("4 observations");
+    await expect(note).toContainText("2 rows excluded");
+
+    // The rows it set aside are shown verbatim, with why.
+    await note.locator("summary").click();
+    await expect(page.locator("#structureDetail")).toContainText("Row 1");
+    await expect(page.locator("#structureDetail")).toContainText("preamble");
+    await expect(page.locator("#structureDetail")).toContainText("Row 9");
+    await expect(page.locator("#structureDetail")).toContainText("aggregate");
+  });
+
+  test("keeps the total row out of the statistics it reports", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(MESSY_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    await page.locator('[data-tier-jump="statsSection"]').click();
+    await page.locator('[data-column="units"]').click();
+    // 110.75 is the mean of the four regions. 177.2 is what including the
+    // TOTAL row produced, and it is the number this whole feature exists to
+    // stop being reported.
+    await expect(page.locator("#columnInspector")).toContainText("110.75");
+    await expect(page.locator("#columnInspector")).not.toContainText("177.2");
+  });
+
+  test("puts a row back when asked, and still says it did", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(MESSY_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    await page.locator("#structureNote summary").click();
+    await page.locator('[data-structure-include="9"]').click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    const note = page.locator("#structureNote");
+    await expect(note).toContainText("5 observations");
+    await expect(note).toContainText("1 put back");
+    await page.locator("#structureNote summary").click();
+    await expect(page.locator("#structureDetail")).toContainText("Put back at your request");
   });
 
   test("opens a full deterministic profile for any column", async ({ page }) => {

@@ -500,6 +500,38 @@ html { scroll-behavior: smooth; }
 .exclusion-list { padding: 0 14px 12px; color: var(--text-2); font-size: 12px; }
 .exclusion-list ul { margin: 6px 0 0; padding-left: 18px; }
 
+.structure-note {
+  margin-bottom: 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2);
+}
+.structure-note[hidden] { display: none; }
+.structure-note summary {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  color: var(--text-2); font: 500 12px 'DM Sans', sans-serif; cursor: pointer; list-style: none;
+}
+.structure-note summary::-webkit-details-marker { display: none; }
+.structure-note summary::before { content: "＋"; color: var(--accent); }
+.structure-note[open] summary::before { content: "−"; }
+/* An unsettled reading is not a footnote: it qualifies every number below it,
+   so it carries the same weight as the stale-results banner. */
+.structure-note--uncertain { border-color: var(--amber); background: var(--amber-bg); }
+.structure-note--uncertain summary { color: var(--text); font-weight: 600; }
+.structure-note--uncertain summary::before { content: "！"; color: var(--amber); }
+.structure-detail { padding: 0 14px 12px; color: var(--text-2); font-size: 12px; }
+.structure-detail ul { margin: 6px 0 0; padding-left: 18px; }
+.structure-detail li { margin-bottom: 6px; }
+.structure-detail code {
+  display: inline-block; margin-top: 2px; padding: 1px 5px;
+  border-radius: 4px; background: var(--surface); font-size: 11.5px; color: var(--text);
+}
+.structure-warning { margin: 0 0 8px; color: var(--text); font-weight: 500; }
+.structure-fix {
+  margin-left: 6px; padding: 1px 8px; border: 1px solid var(--border-2);
+  border-radius: 999px; background: var(--surface); color: var(--accent);
+  font: 500 11px 'DM Sans', sans-serif; cursor: pointer;
+}
+.structure-fix:hover { border-color: var(--accent); }
+
 @media (max-width: 900px) {
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .workspace-rail { position: static; }

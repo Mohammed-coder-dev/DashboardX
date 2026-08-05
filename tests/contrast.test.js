@@ -41,10 +41,12 @@ const NEUTRAL_SURFACES = ["--surface", "--bg", "--surface-2"];
 
 // Every token used as a text colour, with the surfaces it can appear on.
 const TEXT_TOKENS = {
-  "--text":    NEUTRAL_SURFACES,
-  "--text-2":  NEUTRAL_SURFACES,
+  // An uncertain structure note puts body text and its correction buttons on
+  // the amber surface, so those pairings are gated too.
+  "--text":    [...NEUTRAL_SURFACES, "--amber-bg"],
+  "--text-2":  [...NEUTRAL_SURFACES, "--amber-bg"],
   "--text-3":  NEUTRAL_SURFACES,
-  "--accent":  [...NEUTRAL_SURFACES, "--accent-bg"],
+  "--accent":  [...NEUTRAL_SURFACES, "--accent-bg", "--amber-bg"],
   "--green":   [...NEUTRAL_SURFACES, "--green-bg"],
   "--red":     [...NEUTRAL_SURFACES, "--red-bg"],
   "--amber":   [...NEUTRAL_SURFACES, "--amber-bg"],

@@ -286,6 +286,14 @@
             <div class="tier-body">
               <div id="staleBanner" class="stale-banner" role="status" aria-live="polite" hidden></div>
 
+              <!-- What the file's shape was taken to be. Every number below is
+                   computed over the rows this kept, so it is stated before them
+                   and stays correctable. -->
+              <details id="structureNote" class="structure-note" hidden>
+                <summary><span id="structureSummary"></span></summary>
+                <div id="structureDetail" class="structure-detail"></div>
+              </details>
+
               <!-- An exclusion changes what every number below was computed over,
                    so it is disclosed here rather than left to the record. -->
               <details id="exclusionNote" class="exclusion-note" hidden>

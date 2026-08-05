@@ -103,6 +103,9 @@ const railColumnsReset   = document.getElementById("railColumnsReset");
 const rerunBtn           = document.getElementById("rerunBtn");
 const rerunHint          = document.getElementById("rerunHint");
 const staleBanner        = document.getElementById("staleBanner");
+const structureNote      = document.getElementById("structureNote");
+const structureSummary   = document.getElementById("structureSummary");
+const structureDetail    = document.getElementById("structureDetail");
 const exclusionNote      = document.getElementById("exclusionNote");
 const exclusionSummary   = document.getElementById("exclusionSummary");
 const exclusionList      = document.getElementById("exclusionList");
@@ -351,6 +354,10 @@ let lastSheet      = null;
 let currentTarget  = null;
 // null means "every column"; an array is an explicit narrowing staged in the rail.
 let currentColumns = null;
+// Corrections to the inferred structure. Held here and re-sent with the file,
+// never applied to a stored result: the file only ever lives in this tab.
+let currentHeaderRow   = null;
+let currentIncludeRows = [];
 
 document.querySelectorAll("[data-analysis-mode]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -499,7 +506,11 @@ tabsBar.addEventListener("click", (e) => {
 });
 
 // ─── Analyze ──────────────────────────────────────────────────
-analyzeBtn.addEventListener("click", () => { currentTarget = null; currentColumns = null; runAnalysis(); });
+analyzeBtn.addEventListener("click", () => {
+  currentTarget = null; currentColumns = null;
+  currentHeaderRow = null; currentIncludeRows = [];
+  runAnalysis();
+});
 resetBtn.addEventListener("click", resetDashboard);
 
 const sheetBar = document.getElementById("sheetBar");
@@ -566,6 +577,10 @@ async function runAnalysis(sheet) {
   if (currentTarget && !isComparison) formData.append("target", currentTarget);
   // Column narrowing is a single-file setting; the rail only offers it there.
   if (currentColumns && !isComparison && !isMulti) formData.append("columns", JSON.stringify(currentColumns));
+  // Structural corrections are single-file too: one header row cannot mean the
+  // same thing across a batch.
+  if (currentHeaderRow && !isComparison && !isMulti) formData.append("headerRow", String(currentHeaderRow));
+  if (currentIncludeRows.length > 0 && !isComparison && !isMulti) formData.append("includeRows", JSON.stringify(currentIncludeRows));
 
   if (isMulti || isComparison) {
     selectedFiles.forEach(f => formData.append("files", f));
@@ -963,6 +978,7 @@ function renderSingleFile(data, isTabbed) {
   renderOverview(data);
   syncSetupToResult(data);
   renderTargetBar(data);
+  renderStructureNote(data);
   renderExclusionNote(data);
   renderRail(data);
   renderQuality(data.profile);
@@ -1494,6 +1510,9 @@ function syncSetupToResult(data) {
   currentTarget = data?.meta?.target || null;
   const excluded = data?.meta?.excludedColumns || [];
   currentColumns = excluded.length > 0 ? (data.meta.activeColumns || null) : null;
+  const structure = data?.meta?.structure || null;
+  currentHeaderRow = structure?.headerSource === "specified" ? structure.headerRow : null;
+  currentIncludeRows = (structure?.restored || []).map((entry) => entry.row);
 }
 
 /** How many individual setup edits separate the rail from these results. */
@@ -1565,6 +1584,79 @@ function syncSetupState() {
   }
 }
 
+function structureRowLine(entry) {
+  const cells  = (entry.cells || []).join(" | ");
+  const action = entry.reason !== "aggregate" ? ""
+    : entry.restoredBy
+      ? `<button type="button" class="structure-fix" data-structure-exclude="${esc(entry.row)}">Exclude again</button>`
+      : `<button type="button" class="structure-fix" data-structure-include="${esc(entry.row)}">Put back</button>`;
+  return `<li><strong>Row ${esc(entry.row)}</strong> — ${esc(entry.reason)}${
+    entry.confidence ? ` · ${esc(entry.confidence)}` : ""}${
+    entry.detail ? `: ${esc(entry.detail)}` : ""}${action}${
+    cells ? `<br><code>${esc(cells)}</code>` : ""}</li>`;
+}
+
+/**
+ * What the file's shape was taken to be, stated above every number that depends
+ * on it, and left correctable.
+ *
+ * A missing `structure` is an analysis saved before inference existed. That is
+ * unknown, not "nothing was set aside" — so the note stays hidden rather than
+ * claiming a clean read the engine of the day never performed.
+ */
+function renderStructureNote(data) {
+  const structure    = data?.meta?.structure;
+  const excluded     = structure?.excluded || [];
+  const restored     = structure?.restored || [];
+  const alternatives = structure?.alternatives || [];
+  const uncertain    = structure?.confidence === "uncertain";
+  const specified    = structure?.headerSource === "specified";
+
+  const worthShowing = Boolean(structure)
+    && (uncertain || specified || excluded.length > 0 || restored.length > 0);
+  structureNote.hidden = !worthShowing;
+  structureNote.classList.toggle("structure-note--uncertain", worthShowing && uncertain);
+  if (!worthShowing) return;
+
+  const counts = [];
+  if (structure.headerRow) counts.push(`Header on row ${structure.headerRow}`);
+  counts.push(`${structure.observations} observation${structure.observations === 1 ? "" : "s"}`);
+  if (excluded.length > 0) counts.push(`${excluded.length} row${excluded.length === 1 ? "" : "s"} excluded`);
+  if (restored.length > 0) counts.push(`${restored.length} put back`);
+  structureSummary.textContent = `${uncertain ? "Check how this file was read — " : ""}${counts.join(" · ")}`;
+
+  structureDetail.innerHTML = `
+    ${uncertain ? `<p class="structure-warning">Ridge could not settle this from the file alone. Confirm it before relying on the numbers below.</p>` : ""}
+    ${excluded.length > 0 ? `<p>Left out of every statistic below:</p><ul>${excluded.map(structureRowLine).join("")}</ul>` : ""}
+    ${restored.length > 0 ? `<p>Put back at your request:</p><ul>${restored.map(structureRowLine).join("")}</ul>` : ""}
+    ${alternatives.length > 0 ? `<p>The header might instead be:</p><ul>${alternatives.map((alt) =>
+      `<li>Row ${esc(alt.headerRow)} — <code>${esc((alt.cells || []).join(" | "))}</code>
+        <button type="button" class="structure-fix" data-structure-header="${esc(alt.headerRow)}">Use this row</button></li>`).join("")}</ul>` : ""}
+    ${specified ? `<p>You chose this header row.<button type="button" class="structure-fix" data-structure-header="auto">Detect it again</button></p>` : ""}`;
+}
+
+// A correction re-submits the file rather than editing the result: the file
+// never left this tab, and re-reading it is the only way the numbers can change
+// honestly.
+structureDetail?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-structure-include],[data-structure-exclude],[data-structure-header]");
+  if (!button) return;
+  const { structureInclude, structureExclude, structureHeader } = button.dataset;
+  if (structureInclude) {
+    const row = Number.parseInt(structureInclude, 10);
+    if (!currentIncludeRows.includes(row)) currentIncludeRows.push(row);
+  } else if (structureExclude) {
+    const row = Number.parseInt(structureExclude, 10);
+    currentIncludeRows = currentIncludeRows.filter((value) => value !== row);
+  } else if (structureHeader) {
+    currentHeaderRow = structureHeader === "auto" ? null : Number.parseInt(structureHeader, 10);
+    // A different header row means different data rows; row numbers chosen
+    // against the old reading no longer point at the same things.
+    currentIncludeRows = [];
+  }
+  rerunAnalysis();
+});
+
 /** An exclusion changes what every number was computed over, so it is stated
  *  with the findings rather than left for the record to reveal. */
 function renderExclusionNote(data) {
@@ -1605,11 +1697,13 @@ railToggle?.addEventListener("click", () => {
   railToggle.textContent = open ? "Hide" : "Show";
 });
 
-rerunBtn?.addEventListener("click", () => {
+function rerunAnalysis() {
   if (!lastSource) return;
   if (lastSource.kind === "url") runUrlAnalysis(lastSheet);
   else runAnalysis(lastSheet);
-});
+}
+
+rerunBtn?.addEventListener("click", rerunAnalysis);
 
 // ─── Exports ──────────────────────────────────────────────────
 function activeResult() {
@@ -1662,6 +1756,15 @@ function buildReportHtml(data) {
   const corrRows = correlations.map(c =>
     `<tr><td>${esc(c.columnA ?? c.colA)} ↔ ${esc(c.columnB ?? c.colB)}</td><td>${esc(c.coefficient ?? c.r)}</td><td>${esc(c.method || "pearson")}</td><td>${esc(c.n ?? "—")}</td><td>${esc(c.coverage ?? "—")}%</td></tr>`).join("");
   const issues = (profile?.issues || []).map(i => `<li>[${esc(i.severity)}] ${esc(i.message)}</li>`).join("");
+  // How the file was read qualifies every number in this report, so it is
+  // printed before them. Absent on analyses saved before inference existed —
+  // in which case the report says nothing rather than implying a clean read.
+  const structure = meta.structure;
+  const structureRows = structure
+    ? [...(structure.excluded || []), ...(structure.restored || [])].map(entry =>
+        `<li>Row ${esc(entry.row)} — ${esc(entry.reason)}${entry.restoredBy ? " (put back on request)" : ""}${
+          entry.confidence ? ` · ${esc(entry.confidence)}` : ""}${entry.detail ? `: ${esc(entry.detail)}` : ""}</li>`).join("")
+    : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Analysis report — ${esc(meta.filename || "dataset")}</title>
   <style>
     body { font-family: Georgia, serif; max-width: 800px; margin: 32px auto; padding: 0 24px; color: #1a1916; line-height: 1.55; }
@@ -1676,6 +1779,9 @@ function buildReportHtml(data) {
   <h1>Analysis report — ${esc(meta.filename || "dataset")}</h1>
   <div class="meta">${esc(meta.totalRows ?? "—")} rows · ${esc(meta.columns ?? "—")} columns${meta.target ? ` · target: ${esc(meta.target)}` : ""} · analysis schema v${esc(meta.schemaVersion || "—")} · evidence engine v${esc(meta.evidenceEngine || "—")}</div>
   <div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div>
+  ${structure ? `<h2>How this file was read <span class="badge">Computed</span></h2>
+  <p>Header on row ${esc(structure.headerRow ?? "—")}${structure.headerSource === "specified" ? " (you specified this)" : ""} · ${esc(structure.observations ?? "—")} observations analyzed${structure.confidence === "uncertain" ? " · <strong>this reading was not certain</strong>" : ""}</p>
+  ${structureRows ? `<ul class="muted">${structureRows}</ul>` : `<p class="muted">No rows were set aside.</p>`}` : ""}
   <h2>Evidence <span class="badge">Derived</span></h2>${evidenceRows}
   ${profile ? `<h2>Data quality <span class="badge">Derived</span></h2>
   <p>Health ${esc(profile.healthGrade)} (${esc(profile.healthScore)}/100) · completeness ${esc(profile.completeness)}% · ${esc(profile.duplicateRows)} duplicate rows</p>
@@ -1726,6 +1832,8 @@ sampleBtn?.addEventListener("click", async () => {
     renderFileList();
     currentTarget = null;
     currentColumns = null;
+    currentHeaderRow = null;
+    currentIncludeRows = [];
     runAnalysis();
   } catch (err) {
     showError(err.message);
