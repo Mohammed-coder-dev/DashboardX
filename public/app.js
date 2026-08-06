@@ -340,6 +340,9 @@ const FILE_ICONS = {
   pptx:"PPTX",ppt:"PPT",docx:"DOCX",doc:"DOC",txt:"TXT",md:"MD",
 };
 const MAX_FILES = 10;
+// Chart cards rendered before the grid stops and says so. Wide files produce a
+// chart per column; past this many the marginal card is noise, not signal.
+const MAX_CHART_CARDS = 12;
 
 let selectedFiles  = [];
 let chartInstances = [];
@@ -1067,10 +1070,11 @@ function renderSingleFile(data, isTabbed) {
   if (charts.length > 0 && meta.isTabular) {
     chartsSection.style.display = "";
     chartsGrid.innerHTML = "";
-    charts.forEach((spec, idx) => {
+    const shown = charts.slice(0, MAX_CHART_CARDS);
+    shown.forEach((spec, idx) => {
       const card = document.createElement("div");
       card.className = "chart-card animate";
-      card.style.animationDelay = `${idx * 0.08}s`;
+      card.style.animationDelay = `${Math.min(idx, 6) * 0.08}s`;
       const canvasId = `chart-${idx}`;
       card.innerHTML = `<div class="chart-title">${esc(spec.title)}</div><div class="chart-reason">${esc(spec.reason)}</div><canvas id="${canvasId}" class="chart-canvas" height="220"></canvas>`;
       chartsGrid.appendChild(card);
@@ -1079,6 +1083,14 @@ function renderSingleFile(data, isTabbed) {
         else renderChart(canvasId, spec, chartData, stats);
       }, 50);
     });
+    // A silent cap would read as "these are all the charts". Say what was
+    // held back and where the rest of the computed aggregates live.
+    if (charts.length > shown.length) {
+      const note = document.createElement("p");
+      note.className = "charts-more-note";
+      note.textContent = `Showing the first ${shown.length} of ${charts.length} chartable columns. Every column's full aggregate is still computed — open a column under Statistical Summary, or export the JSON.`;
+      chartsGrid.appendChild(note);
+    }
   } else chartsSection.style.display = "none";
 
   conclusionText.textContent = hasAI ? analysis.conclusion : "";
@@ -1316,6 +1328,16 @@ columnInspector.addEventListener("click", (event) => {
   if (event.target === columnInspector) columnInspector.close();
 });
 
+/**
+ * One chart per column the engine computed a full-file aggregate for — a
+ * histogram for numeric fields, frequency bars for true categories, a bucketed
+ * trend for dates. The target column leads. Columns without a chartable
+ * aggregate (identifiers, free text, empty fields) produce nothing: a filler
+ * chart would be decoration, not evidence.
+ *
+ * This used to stop at one chart per kind and three in total, which read as
+ * "these three columns matter" when it meant "the renderer stopped".
+ */
 function buildDeterministicCharts(stats, target) {
   const entries = Object.entries(stats || {});
   if (target && stats?.[target]) {
@@ -1323,27 +1345,20 @@ function buildDeterministicCharts(stats, target) {
   }
 
   const charts = [];
-  const usedKinds = new Set();
   for (const [column, field] of entries) {
-    let chart = null;
-    if (field.type === "numeric" && field.histogram?.bins?.length && !usedKinds.has("numeric")) {
-      chart = {
+    if (field.type === "numeric" && field.histogram?.bins?.length) {
+      charts.push({
         deterministic: true,
         kind: "histogram",
         title: `${column} distribution`,
         reason: `${field.validCount.toLocaleString()} valid values · ${field.coverage}% coverage · ${field.histogram.method === "iqr-tail-aware" ? "outliers separated from central bins" : "equal-width bins"}`,
-        labels: field.histogram.bins.map(bin => {
-          if (bin.kind === "low-tail") return `< ${bin.end}`;
-          if (bin.kind === "high-tail") return `> ${bin.start}`;
-          return bin.start === bin.end ? String(bin.start) : `${bin.start}–${bin.end}`;
-        }),
+        labels: field.histogram.bins.map(histogramLabel),
         values: field.histogram.bins.map(bin => bin.count),
         xLabel: column,
         yLabel: "rows",
-      };
-      usedKinds.add("numeric");
-    } else if (field.type === "date" && field.periods?.length > 1 && !usedKinds.has("date")) {
-      chart = {
+      });
+    } else if (field.type === "date" && field.periods?.length > 1) {
+      charts.push({
         deterministic: true,
         kind: "trend",
         title: `${column} over time`,
@@ -1352,10 +1367,9 @@ function buildDeterministicCharts(stats, target) {
         values: field.periods.map(period => period.count),
         xLabel: column,
         yLabel: "rows",
-      };
-      usedKinds.add("date");
-    } else if (field.type === "categorical" && field.role === "category" && field.top?.length > 1 && !usedKinds.has("category")) {
-      chart = {
+      });
+    } else if (field.type === "categorical" && field.role === "category" && field.top?.length > 1) {
+      charts.push({
         deterministic: true,
         kind: "category",
         title: `${column} breakdown`,
@@ -1364,11 +1378,8 @@ function buildDeterministicCharts(stats, target) {
         values: field.top.map(item => item.count),
         xLabel: column,
         yLabel: "rows",
-      };
-      usedKinds.add("category");
+      });
     }
-    if (chart) charts.push(chart);
-    if (charts.length === 3) break;
   }
   return charts;
 }

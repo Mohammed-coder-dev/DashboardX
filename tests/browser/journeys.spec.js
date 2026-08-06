@@ -179,7 +179,10 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#statsSection")).toContainText("95% CI");
     await expect(page.locator("#chartsSection")).toBeVisible();
     await expect(page.locator("#chartsSection .card-note")).toContainText(/full dataset/i);
-    expect(await page.locator(".chart-card").count()).toBeGreaterThan(0);
+    // Every chartable column gets a chart. The sample has three numeric
+    // columns, two categories and a date column; the old renderer stopped at
+    // one chart per kind and three in total.
+    expect(await page.locator(".chart-card").count()).toBeGreaterThan(3);
   });
 
   test("evidence carries method, sample size and coverage", async ({ page }) => {
