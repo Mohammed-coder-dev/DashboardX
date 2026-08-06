@@ -145,6 +145,10 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#explainBar")).toBeVisible();
     await expect(page.locator("#summaryCard")).toBeHidden();
 
+    // The two facts a reader triages first ride in the top bar, computed.
+    await expect(page.locator("#dashMeta")).toContainText(/HEALTH [A-F] · \d+\/100/);
+    await expect(page.locator("#dashMeta")).toContainText(/\d+ EVIDENCE/);
+
     // Deterministic sections are populated.
     await expect(page.locator("#evidenceSection")).toBeVisible();
     const evidenceCount = await page.locator(".evidence-item").count();
