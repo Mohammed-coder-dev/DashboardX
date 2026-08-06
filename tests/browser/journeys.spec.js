@@ -91,6 +91,10 @@ test.describe("the application at /app", () => {
     await expect(page.locator("#analyzeBtn")).toHaveText(/Analyze data/);
     await expect(page.locator("#uploadReadiness")).toContainText(/does not need an API key/i);
     await expect(page.locator('[data-analysis-mode="analyze"]')).toHaveAttribute("aria-pressed", "true");
+    // The fastest route to a real result is offered before the form asks for
+    // anything, and the optional inputs sit in one labelled group.
+    await expect(page.locator("#sampleStrip")).toBeVisible();
+    await expect(page.locator(".refine-group .refine-label")).toContainText(/all optional/i);
   });
 
   test("the wordmark returns to the landing page", async ({ page }) => {
@@ -364,6 +368,10 @@ test.describe("deterministic file comparison", () => {
     await page.locator('[data-analysis-mode="compare"]').click();
     await expect(page.locator("#analysisModeHint")).toContainText(/baseline/i);
     await expect(page.locator("#urlInputWrap")).toBeHidden();
+    // The whole sample strip steps aside in compare mode, not just its button.
+    await expect(page.locator("#sampleStrip")).toBeHidden();
+    // The whole sample strip leaves with the mode that cannot run one.
+    await expect(page.locator("#sampleStrip")).toBeHidden();
 
     await page.locator("#fileInput").setInputFiles([
       { name: "baseline.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue\nNorth,100\nSouth,120\nNorth,110\nSouth,130\n") },

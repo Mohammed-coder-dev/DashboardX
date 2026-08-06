@@ -61,6 +61,7 @@ const evidenceList      = document.getElementById("evidenceList");
 const targetBar         = document.getElementById("targetBar");
 const targetSelect      = document.getElementById("targetSelect");
 const sampleBtn         = document.getElementById("sampleBtn");
+const sampleStrip       = document.getElementById("sampleStrip");
 const exportJsonBtn     = document.getElementById("exportJsonBtn");
 const exportReportBtn   = document.getElementById("exportReportBtn");
 const analysisRecord    = document.getElementById("analysisRecord");
@@ -379,7 +380,8 @@ document.querySelectorAll("[data-analysis-mode]").forEach((button) => {
       : "Upload one file for a focused analysis, or several to explore them side by side.";
     urlInputWrap.style.display = comparing ? "none" : "";
     questionInputWrap.style.display = comparing ? "none" : "";
-    sampleBtn.style.display = comparing ? "none" : "";
+    // The strip, not just its button: half-hiding the invitation reads broken.
+    sampleStrip.style.display = comparing ? "none" : "";
     hideError();
     renderFileList();
   });
