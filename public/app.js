@@ -942,11 +942,16 @@ function renderSingleFile(data, isTabbed) {
 
   if (!isTabbed) {
     const fileTypeLabel = { spreadsheet:"SPREADSHEET",json:"JSON",text:"TEXT FILE",pdf:"PDF",presentation:"POWERPOINT",document:"WORD DOC" }[meta.fileType]||meta.fileType.toUpperCase();
+    // The two facts a reader triages first ride in the top bar, computed.
+    const profile = data.profile;
+    const healthTone = profile ? (["A", "B"].includes(profile.healthGrade) ? "good" : profile.healthGrade === "C" ? "fair" : "poor") : null;
     dashTitle.textContent = meta.filename || "Analysis Complete";
     dashMeta.innerHTML = `
       <span class="meta-chip">${meta.totalRows.toLocaleString()} ${meta.isTabular?"ROWS":"LINES"}</span>
       ${meta.isTabular ? `<span class="meta-chip">${meta.columns} COLUMNS</span>` : ""}
       ${meta.pages    ? `<span class="meta-chip">${meta.pages} PAGES</span>` : ""}
+      ${profile ? `<span class="meta-chip meta-chip--${esc(healthTone)}">HEALTH ${esc(profile.healthGrade)} · ${esc(profile.healthScore)}/100</span>` : ""}
+      ${meta.isTabular ? `<span class="meta-chip">${(data.evidence || []).length} EVIDENCE</span>` : ""}
       <span class="meta-chip file-type-chip">${fileTypeLabel}</span>
       <span class="meta-chip">${(modelLabels[meta.model] || modelChip()).toUpperCase()}</span>
     `;

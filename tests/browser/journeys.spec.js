@@ -370,8 +370,6 @@ test.describe("deterministic file comparison", () => {
     await expect(page.locator("#urlInputWrap")).toBeHidden();
     // The whole sample strip steps aside in compare mode, not just its button.
     await expect(page.locator("#sampleStrip")).toBeHidden();
-    // The whole sample strip leaves with the mode that cannot run one.
-    await expect(page.locator("#sampleStrip")).toBeHidden();
 
     await page.locator("#fileInput").setInputFiles([
       { name: "baseline.csv", mimeType: "text/csv", buffer: Buffer.from("region,revenue\nNorth,100\nSouth,120\nNorth,110\nSouth,130\n") },
