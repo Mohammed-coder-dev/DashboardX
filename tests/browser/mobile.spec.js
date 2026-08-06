@@ -39,6 +39,25 @@ test("the dashboard renders and stays within the viewport", async ({ page }) => 
   await expect(page.locator("#columnInspector")).toBeHidden();
 });
 
+test("the matrix, spread strips and charts stay within a phone viewport", async ({ page }) => {
+  await page.goto("/app");
+  await page.locator("#sampleBtn").tap();
+  await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 25_000 });
+
+  // The correlation matrix renders in tier ② immediately; it must scroll
+  // inside its own wrapper, never widen the page.
+  await expect(page.locator("#corrMatrix .corr-matrix-table")).toBeVisible();
+
+  // Tier ③ arrives collapsed, so its spread strips and chart grid joined no
+  // layout yet — expand it before measuring.
+  await page.locator('[data-tier-jump="statsSection"]').tap();
+  await expect(page.locator(".spread-row").first()).toBeVisible();
+
+  const overflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test("the setup rail collapses into a drawer and still fits", async ({ page }) => {
   await page.goto("/app");
   await page.locator("#sampleBtn").tap();
