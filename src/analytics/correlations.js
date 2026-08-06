@@ -19,6 +19,53 @@ export const MIN_REPORTED = 0.3;
  */
 export const METHOD_DISAGREEMENT = 0.2;
 const MAX_RESULTS = 10;
+/** Pairings at or below this many points travel verbatim; larger ones bin. */
+export const MAX_SCATTER_POINTS = 500;
+/** Cells per axis of the density grid used for larger pairings. */
+export const SCATTER_GRID_BINS = 20;
+
+/**
+ * The paired observations behind a reported coefficient, shaped for honest
+ * plotting. A small pairing travels verbatim; a large one travels as a 2D
+ * density grid in which every pair lands in exactly one cell — so the chart is
+ * always an aggregate of the full pairing, never a preview-row sample dressed
+ * up as one. Deterministic either way: same input, same cells, same order.
+ */
+export function scatterData(xs, ys) {
+  const n = xs.length;
+  if (n === 0) return null;
+  if (n <= MAX_SCATTER_POINTS) {
+    return { kind: "points", n, points: xs.map((x, i) => [round(x), round(ys[i])]) };
+  }
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < n; i++) {
+    if (xs[i] < minX) minX = xs[i];
+    if (xs[i] > maxX) maxX = xs[i];
+    if (ys[i] < minY) minY = ys[i];
+    if (ys[i] > maxY) maxY = ys[i];
+  }
+  // A constant axis cannot be reported (no variance, no coefficient), but the
+  // guard keeps this total function total if a caller ever bins one anyway.
+  const spanX = maxX - minX || 1;
+  const spanY = maxY - minY || 1;
+  const counts = new Map();
+  for (let i = 0; i < n; i++) {
+    const xi = Math.min(SCATTER_GRID_BINS - 1, Math.floor((xs[i] - minX) / spanX * SCATTER_GRID_BINS));
+    const yi = Math.min(SCATTER_GRID_BINS - 1, Math.floor((ys[i] - minY) / spanY * SCATTER_GRID_BINS));
+    const key = xi * SCATTER_GRID_BINS + yi;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const cells = [...counts.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([key, count]) => [Math.floor(key / SCATTER_GRID_BINS), key % SCATTER_GRID_BINS, count]);
+  return {
+    kind: "grid", n, bins: SCATTER_GRID_BINS,
+    x: { min: round(minX), max: round(maxX) },
+    y: { min: round(minY), max: round(maxY) },
+    cells,
+  };
+}
 
 function pearson(xs, ys) {
   const n = xs.length;
@@ -131,6 +178,10 @@ export function computeCorrelations(rows, columns, stats = {}, options = {}) {
         strength: classifyStrength(coefficient),
         smallSample,
         caveat: caveats.length ? caveats.join("; ") : null,
+        // The pairs the coefficient was computed over, chartable as-is. Built
+        // from the same pairwise filtering, so the plot and the number can
+        // never describe different observations.
+        scatter: scatterData(xs, ys),
       });
     }
   }

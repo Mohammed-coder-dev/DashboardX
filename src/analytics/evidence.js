@@ -36,8 +36,13 @@ export const EVIDENCE_ENGINE_VERSION = "1.3.0";
  * 2.8 — `meta.structure.unapplied` records corrections that matched nothing,
  * and a numeric column carries `formats` naming the notation it was read
  * through. Both are present only when they have something to say.
+ *
+ * 2.9 — every reported correlation carries `scatter`: the paired observations
+ * behind the coefficient, verbatim for small pairings and as a density grid
+ * for large ones. Absent on older payloads, where the pairs were computed but
+ * not kept.
  */
-export const ANALYSIS_SCHEMA_VERSION = "2.8";
+export const ANALYSIS_SCHEMA_VERSION = "2.9";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;

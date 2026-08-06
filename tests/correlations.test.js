@@ -170,6 +170,52 @@ describe("computeCorrelations", () => {
     });
   });
 
+  describe("scatter pairs travel with every reported coefficient", () => {
+    it("sends a small pairing verbatim, in row order", () => {
+      const rows = [{ a: 1, b: 2 }, { a: 2, b: 4 }, { a: 3, b: 6 }];
+      const [result] = correlate(rows, ["a", "b"]);
+      expect(result.scatter).toEqual({ kind: "points", n: 3, points: [[1, 2], [2, 4], [3, 6]] });
+    });
+
+    it("keeps blanks out of the scatter exactly as they stay out of the coefficient", () => {
+      const rows = [
+        { a: 10, b: 100 }, { a: null, b: 200 }, { a: 20, b: 210 },
+        { a: "", b: 400 }, { a: 30, b: 300 }, { a: 40, b: "" },
+      ];
+      const [result] = correlate(rows, ["a", "b"]);
+      // Rows missing either side are absent, not plotted at zero.
+      expect(result.scatter.points).toEqual([[10, 100], [20, 210], [30, 300]]);
+      expect(result.scatter.n).toBe(result.n);
+    });
+
+    it("bins a large pairing into a density grid that accounts for every pair", () => {
+      const rows = Array.from({ length: 600 }, (_, i) => ({ a: i, b: i * 2 + (i % 5) }));
+      const [result] = correlate(rows, ["a", "b"]);
+      expect(result.scatter.kind).toBe("grid");
+      expect(result.scatter.n).toBe(600);
+      expect(result.scatter.x).toEqual({ min: 0, max: 599 });
+      // Every pair lands in exactly one cell — the grid is a partition of the
+      // pairing, not a sample of it.
+      const total = result.scatter.cells.reduce((sum, [, , count]) => sum + count, 0);
+      expect(total).toBe(600);
+      for (const [xi, yi, count] of result.scatter.cells) {
+        expect(xi).toBeGreaterThanOrEqual(0);
+        expect(xi).toBeLessThan(result.scatter.bins);
+        expect(yi).toBeGreaterThanOrEqual(0);
+        expect(yi).toBeLessThan(result.scatter.bins);
+        expect(count).toBeGreaterThan(0);
+      }
+    });
+
+    it("is deterministic across repeated runs", () => {
+      const rows = Array.from({ length: 700 }, (_, i) => ({ a: i, b: i * 3 + (i % 11) }));
+      const first = correlate(rows, ["a", "b"]);
+      // Non-vacuous: the pairing is reported and binned before being compared.
+      expect(first[0].scatter.kind).toBe("grid");
+      expect(correlate(rows, ["a", "b"])).toEqual(first);
+    });
+  });
+
   it("classifies strength by magnitude", () => {
     expect(classifyStrength(0.95)).toBe("very strong");
     expect(classifyStrength(-0.75)).toBe("strong");

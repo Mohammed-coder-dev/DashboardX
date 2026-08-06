@@ -38,11 +38,14 @@ describe("an analysis saved before structural inference", () => {
   });
 
   it("is distinguishable by the versions it was stamped with", () => {
-    // Bumped whenever what an observation *is* changes: first when rows began
-    // being excluded from every statistic, then when values written in a
-    // spreadsheet's own notation began counting as numbers at all.
+    // The engine version is bumped whenever what an observation *is* changes:
+    // first when rows began being excluded from every statistic, then when
+    // values written in a spreadsheet's own notation began counting as numbers
+    // at all. The payload version moved to 2.9 when correlations began
+    // carrying their paired observations for plotting — an additive change; a
+    // correlation without `scatter` is an older payload, not an empty pairing.
     expect(EVIDENCE_ENGINE_VERSION).toBe("1.3.0");
-    expect(ANALYSIS_SCHEMA_VERSION).toBe("2.8");
+    expect(ANALYSIS_SCHEMA_VERSION).toBe("2.9");
   });
 });
 
