@@ -35,6 +35,7 @@ const varList           = document.getElementById("varList");
 const varListTitle      = document.getElementById("varListTitle");
 const statGrid          = document.getElementById("statGrid");
 const statsSection      = document.getElementById("statsSection");
+const spreadStrips      = document.getElementById("spreadStrips");
 const chartsGrid        = document.getElementById("chartsGrid");
 const chartsSection     = document.getElementById("chartsSection");
 const corrSection       = document.getElementById("corrSection");
@@ -1007,6 +1008,7 @@ function renderSingleFile(data, isTabbed) {
   if (meta.isTabular && Object.keys(stats).length > 0) {
     statsSection.style.display = "";
     rawTextSection.style.display = "none";
+    spreadStrips.innerHTML = buildSpreadStripsHtml(stats);
     statGrid.innerHTML = Object.entries(stats).map(([col, s]) => {
       if (s.type === "numeric") {
         const coverage = s.coverage !== undefined
@@ -1035,6 +1037,7 @@ function renderSingleFile(data, isTabbed) {
     }).join("");
   } else {
     statsSection.style.display = "none";
+    spreadStrips.innerHTML = "";
     if (rawText) { rawTextSection.style.display = ""; rawTextPreview.textContent = rawText; }
     else rawTextSection.style.display = "none";
   }
@@ -2134,6 +2137,54 @@ function renderAggregateChart(canvasId, spec) {
     options: chartOptions(spec.xLabel, spec.yLabel),
   };
   chartInstances.push(new Chart(canvas.getContext("2d"), cfg));
+}
+
+/** Strips drawn before the panel stops and says so. */
+const MAX_SPREAD_STRIPS = 12;
+
+/**
+ * Every numeric column's five-number summary as a strip: a thin line from the
+ * 5th to the 95th percentile, a box across the middle 50%, a tick at the
+ * median and a dot at the mean. Each strip is scaled to its own min–max —
+ * the panel compares shapes, not magnitudes, and says so. Every value drawn
+ * is already in the payload; nothing here is computed in the browser.
+ */
+function buildSpreadStripsHtml(stats) {
+  const numeric = Object.entries(stats || {}).filter(([, field]) =>
+    field.type === "numeric" && field.quantiles && Number.isFinite(field.min) && Number.isFinite(field.max));
+  if (numeric.length < 2) return "";
+
+  const shown = numeric.slice(0, MAX_SPREAD_STRIPS);
+  const rows = shown.map(([column, field]) => {
+    const { min, max, mean, median, quantiles: q, outliers } = field;
+    if (max === min) {
+      return `<div class="spread-row"><span class="spread-name">${esc(column)}</span>
+        <span class="spread-constant">constant at ${esc(min)}</span></div>`;
+    }
+    const pos = (value) => Math.max(0, Math.min(100, (value - min) / (max - min) * 100));
+    const outlierNote = outliers?.applied && outliers.count > 0
+      ? `<span class="spread-outliers">${esc(outliers.count)} outside fences</span>` : "";
+    const detail = `${column}: min ${min} · p05 ${q.p05} · q1 ${q.q1} · median ${median} · q3 ${q.q3} · p95 ${q.p95} · max ${max} · mean ${mean}`;
+    return `<div class="spread-row" title="${esc(detail)}">
+      <span class="spread-name">${esc(column)}</span>
+      <span class="spread-end">${esc(min)}</span>
+      <span class="spread-track" role="img" aria-label="${esc(detail)}">
+        <i class="spread-range" style="left:${pos(q.p05)}%;width:${Math.max(0.5, pos(q.p95) - pos(q.p05))}%"></i>
+        <i class="spread-box" style="left:${pos(q.q1)}%;width:${Math.max(0.75, pos(q.q3) - pos(q.q1))}%"></i>
+        <i class="spread-median" style="left:${pos(median)}%"></i>
+        <i class="spread-mean" style="left:${pos(mean)}%"></i>
+      </span>
+      <span class="spread-end">${esc(max)}</span>
+      ${outlierNote}
+    </div>`;
+  }).join("");
+
+  const capNote = numeric.length > shown.length
+    ? `<p class="spread-note">Showing the first ${shown.length} of ${numeric.length} numeric columns — the rest keep their full profiles below.</p>` : "";
+  return `<div class="spread-head">
+      <h3>Numeric spread</h3>
+      <p>box = middle 50% · line = 5th–95th percentile · <i class="spread-key-median"></i> median · <i class="spread-key-mean"></i> mean · each strip on its own scale</p>
+    </div>${rows}${capNote}`;
 }
 
 /** Cells per side before the matrix stops and says so. */

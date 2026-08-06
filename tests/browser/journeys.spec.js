@@ -181,6 +181,11 @@ test.describe("deterministic analysis without an API key", () => {
     await page.locator('[data-tier-jump="statsSection"]').click();
     await expect(page.locator("#statsSection")).toBeVisible();
     await expect(page.locator("#statsSection")).toContainText("95% CI");
+    // Three numeric columns produce spread strips: box, whisker line, median
+    // tick and mean dot per column, each on its own stated scale.
+    expect(await page.locator(".spread-row").count()).toBe(3);
+    await expect(page.locator(".spread-head")).toContainText(/middle 50%/);
+    await expect(page.locator(".spread-outliers").first()).toBeVisible();
     await expect(page.locator("#chartsSection")).toBeVisible();
     await expect(page.locator("#chartsSection .card-note")).toContainText(/full dataset/i);
     // Every chartable column gets a chart. The sample has three numeric
