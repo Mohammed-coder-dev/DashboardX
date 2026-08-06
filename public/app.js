@@ -2050,9 +2050,30 @@ function renderQuality(profile) {
 }
 
 // ─── Chart rendering ──────────────────────────────────────────
+// Charts take their colours from the same tokens as everything else, read at
+// render time so a palette edit in :root cannot leave the charts behind — the
+// drift that left them wearing the pre-Ridge palette.
+function chartTheme() {
+  const styles = getComputedStyle(document.documentElement);
+  const token = (name, fallback) => (styles.getPropertyValue(name) || "").trim() || fallback;
+  return {
+    accent:  token("--accent", "#315ee7"),
+    grid:    token("--border", "#e0e3e8"),
+    label:   token("--text-3", "#636b78"),
+    surface: token("--surface", "#ffffff"),
+    // Fixed categorical order for the legacy AI-spec fallback charts.
+    series: [
+      token("--accent", "#315ee7"), token("--green", "#177245"),
+      token("--amber", "#a1500b"), token("--red", "#b91c1c"),
+      token("--purple", "#7c3aed"), token("--teal", "#0e7490"),
+    ],
+  };
+}
+
 function renderAggregateChart(canvasId, spec) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
+  const theme = chartTheme();
   const isTrend = spec.kind === "trend";
   const cfg = {
     type: isTrend ? "line" : "bar",
@@ -2060,8 +2081,8 @@ function renderAggregateChart(canvasId, spec) {
       labels: spec.labels,
       datasets: [{
         data: spec.values,
-        borderColor: "#2563eb",
-        backgroundColor: isTrend ? "#2563eb11" : "#2563eb22",
+        borderColor: theme.accent,
+        backgroundColor: isTrend ? `${theme.accent}11` : `${theme.accent}22`,
         borderWidth: isTrend ? 2 : 1.5,
         borderRadius: isTrend ? 0 : 4,
         pointRadius: isTrend ? 3 : 0,
@@ -2079,7 +2100,9 @@ function renderChart(canvasId, spec, data, stats) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const { x: xCol, y: yCol, type } = spec;
-  const colors = ["#2563eb","#16a34a","#d97706","#dc2626","#7c3aed","#0891b2"];
+  const theme = chartTheme();
+  const colors = theme.series;
+  const accent = theme.accent;
 
   try {
     let cfg;
@@ -2087,7 +2110,7 @@ function renderChart(canvasId, spec, data, stats) {
       const counts = {};
       data.forEach(r => { const v = String(r[xCol]??"null"); counts[v]=(counts[v]||0)+1; });
       const labels = Object.keys(counts).slice(0,8);
-      cfg = { type:"doughnut", data:{ labels, datasets:[{ data:labels.map(l=>counts[l]), backgroundColor:colors, borderWidth:2, borderColor:"#fff" }] }, options:{ plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:12}}}, responsive:true } };
+      cfg = { type:"doughnut", data:{ labels, datasets:[{ data:labels.map(l=>counts[l]), backgroundColor:colors, borderWidth:2, borderColor:theme.surface }] }, options:{ plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:12}}}, responsive:true } };
     } else if (type === "bar") {
       const isNumX = stats[xCol]?.type === "numeric";
       if (isNumX && yCol) {
@@ -2095,16 +2118,16 @@ function renderChart(canvasId, spec, data, stats) {
         const xv = vals.map(([x])=>x), mn=Math.min(...xv), mx=Math.max(...xv), bins=10, step=(mx-mn)/bins;
         const bkts = Array.from({length:bins},(_,i)=>({label:`${(mn+i*step).toFixed(1)}`,sum:0,cnt:0}));
         vals.forEach(([x,y])=>{ const i=Math.min(Math.floor((x-mn)/step),bins-1); bkts[i].sum+=y; bkts[i].cnt++; });
-        cfg = { type:"bar", data:{ labels:bkts.map(b=>b.label), datasets:[{label:yCol,data:bkts.map(b=>b.cnt>0?+(b.sum/b.cnt).toFixed(2):0),backgroundColor:"#2563eb22",borderColor:"#2563eb",borderWidth:1.5,borderRadius:4}] }, options:chartOptions(xCol,yCol) };
+        cfg = { type:"bar", data:{ labels:bkts.map(b=>b.label), datasets:[{label:yCol,data:bkts.map(b=>b.cnt>0?+(b.sum/b.cnt).toFixed(2):0),backgroundColor:`${accent}22`,borderColor:accent,borderWidth:1.5,borderRadius:4}] }, options:chartOptions(xCol,yCol) };
       } else {
         const counts={};
         data.forEach(r=>{ const v=String(r[xCol]??"null"); counts[v]=(counts[v]||0)+(yCol?Number(r[yCol])||1:1); });
         const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
-        cfg = { type:"bar", data:{ labels:sorted.map(([k])=>k), datasets:[{label:yCol||"count",data:sorted.map(([,v])=>v),backgroundColor:"#2563eb22",borderColor:"#2563eb",borderWidth:1.5,borderRadius:4}] }, options:chartOptions(xCol,yCol||"count") };
+        cfg = { type:"bar", data:{ labels:sorted.map(([k])=>k), datasets:[{label:yCol||"count",data:sorted.map(([,v])=>v),backgroundColor:`${accent}22`,borderColor:accent,borderWidth:1.5,borderRadius:4}] }, options:chartOptions(xCol,yCol||"count") };
       }
     } else if (type === "scatter" && yCol) {
       const pts=data.map(r=>({x:Number(r[xCol]),y:Number(r[yCol])})).filter(p=>!isNaN(p.x)&&!isNaN(p.y)).slice(0,200);
-      cfg = { type:"scatter", data:{ datasets:[{label:`${xCol} vs ${yCol}`,data:pts,backgroundColor:"#2563eb44",borderColor:"#2563eb",borderWidth:1,pointRadius:4}] }, options:chartOptions(xCol,yCol) };
+      cfg = { type:"scatter", data:{ datasets:[{label:`${xCol} vs ${yCol}`,data:pts,backgroundColor:`${accent}44`,borderColor:accent,borderWidth:1,pointRadius:4}] }, options:chartOptions(xCol,yCol) };
     } else if (type === "line" && yCol) {
       const dateX = xCol && data.some(r => /^\d{4}-\d{2}-\d{2}/.test(String(r[xCol] ?? "")));
       let labels, values, xLabel;
@@ -2117,7 +2140,7 @@ function renderChart(canvasId, spec, data, stats) {
         const pts = data.map((r, i) => ({ x: i, y: Number(r[yCol]) })).filter(p => !isNaN(p.y)).slice(0, 100);
         labels = pts.map(p => p.x); values = pts.map(p => p.y); xLabel = "index";
       }
-      cfg = { type:"line", data:{ labels, datasets:[{label:yCol,data:values,borderColor:"#2563eb",backgroundColor:"#2563eb11",borderWidth:2,pointRadius:2,fill:true,tension:0.3}] }, options:chartOptions(xLabel,yCol) };
+      cfg = { type:"line", data:{ labels, datasets:[{label:yCol,data:values,borderColor:accent,backgroundColor:`${accent}11`,borderWidth:2,pointRadius:2,fill:true,tension:0.3}] }, options:chartOptions(xLabel,yCol) };
     }
     if (cfg) chartInstances.push(new Chart(ctx, cfg));
   } catch (e) {
@@ -2127,9 +2150,10 @@ function renderChart(canvasId, spec, data, stats) {
 }
 
 function chartOptions(xLabel, yLabel) {
+  const theme = chartTheme();
   return { responsive:true, plugins:{legend:{display:false}}, scales:{
-    x:{ ticks:{font:{size:10},maxTicksLimit:8}, grid:{color:"#f0ede6"}, title:{display:true,text:xLabel,font:{size:11},color:"#9e9b93"} },
-    y:{ ticks:{font:{size:10}}, grid:{color:"#f0ede6"}, title:{display:!!yLabel,text:yLabel||"",font:{size:11},color:"#9e9b93"} },
+    x:{ ticks:{font:{size:10},maxTicksLimit:8}, grid:{color:theme.grid}, title:{display:true,text:xLabel,font:{size:11},color:theme.label} },
+    y:{ ticks:{font:{size:10}}, grid:{color:theme.grid}, title:{display:!!yLabel,text:yLabel||"",font:{size:11},color:theme.label} },
   }};
 }
 

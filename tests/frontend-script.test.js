@@ -22,6 +22,17 @@ describe("public/app.js", () => {
     expect(SOURCE).not.toMatch(/\bimport\.meta\b/);
   });
 
+  it("reads chart colours from the design tokens, not literals", () => {
+    // The charts wore the pre-Ridge palette for a full rebrand cycle because
+    // their colours were string literals no token edit could reach. Every
+    // chart colour now goes through chartTheme(), which reads :root at render
+    // time — so a palette change and the charts can no longer disagree.
+    expect(SOURCE).toContain("function chartTheme()");
+    expect(SOURCE).toMatch(/getPropertyValue/);
+    // The exact literals that drifted must not return.
+    expect(SOURCE).not.toMatch(/#2563eb|#f0ede6|#9e9b93|#16a34a|#d97706|#dc2626|#0891b2/i);
+  });
+
   it("registers the storage migration before anything reads a key", () => {
     const migrationAt = SOURCE.indexOf("function migrateLegacyStorage");
     const firstRead = SOURCE.indexOf("sessionStorage.getItem(KEY_STORAGE)");
