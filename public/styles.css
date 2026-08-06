@@ -44,6 +44,16 @@
 /* ─── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Visible only while focused: the first Tab stop jumps past the chrome. */
+.skip-link {
+  position: absolute; left: 12px; top: -48px; z-index: 200;
+  padding: 9px 14px; border-radius: 8px;
+  background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-link:focus-visible { top: 10px; }
+
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
 
@@ -1692,7 +1702,12 @@ html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate, .animate-delay-1, .animate-delay-2, .animate-delay-3, .animate-delay-4,
-  .loading-orbit, .corr-bar, .dropzone-icon, .loading-progress > span { animation: none; transition: none; }
+  .loading-orbit, .corr-bar, .dropzone-icon, .loading-progress > span,
+  .health-ring-value { animation: none; transition: none; }
+  /* The delay classes hold opacity: 0 until their animation runs. With the
+     animation disabled, nothing else ever shows them — so show them here.
+     Without this, every result tier was invisible under reduced motion. */
+  .animate, .animate-delay-1, .animate-delay-2, .animate-delay-3, .animate-delay-4 { opacity: 1; }
 }
 
 /* ─── Ridge mark ────────────────────────────────────────────────── */

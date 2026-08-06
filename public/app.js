@@ -1104,7 +1104,7 @@ function renderSingleFile(data, isTabbed) {
       const canvasId = `chart-${idx}`;
       card.innerHTML = `<div class="chart-card-head"><div class="chart-title">${esc(spec.title)}</div>
         <button class="chart-download" type="button" data-canvas="${canvasId}" data-title="${esc(spec.title)}" aria-label="Download ${esc(spec.title)} as an image">PNG ↓</button></div>
-        <div class="chart-reason">${esc(spec.reason)}</div><canvas id="${canvasId}" class="chart-canvas" height="220"></canvas>`;
+        <div class="chart-reason">${esc(spec.reason)}</div><canvas id="${canvasId}" class="chart-canvas" height="220" role="img" aria-label="${esc(`${spec.title} — ${spec.reason}`)}"></canvas>`;
       chartsGrid.appendChild(card);
       scheduleChartRender(canvasId, () => {
         if (spec.deterministic) renderAggregateChart(canvasId, spec);

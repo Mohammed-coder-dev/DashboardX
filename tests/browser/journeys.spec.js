@@ -649,4 +649,26 @@ test.describe("keyboard navigation", () => {
     await page.keyboard.press("Enter");
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
   });
+
+  test("the first Tab stop skips past the chrome to the content", async ({ page }) => {
+    await page.goto("/app");
+    await page.keyboard.press("Tab");
+    await expect(page.locator(".skip-link")).toBeFocused();
+    await page.keyboard.press("Enter");
+    expect(new URL(page.url()).hash).toBe("#main");
+  });
+
+  test("reduced motion never hides the results", async ({ page }) => {
+    // The tier entry animations start from opacity: 0. With animations
+    // disabled, nothing else ever showed the tiers — reduced-motion users got
+    // a blank dashboard. Pinned against the media query, not the bug.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#evidenceSection")).toBeVisible();
+    const opacity = await page.locator("#tierFindings")
+      .evaluate((element) => getComputedStyle(element).opacity);
+    expect(opacity).toBe("1");
+  });
 });
