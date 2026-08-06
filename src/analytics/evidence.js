@@ -40,7 +40,9 @@ export const EVIDENCE_ENGINE_VERSION = "1.3.0";
  * 2.9 — every reported correlation carries `scatter`: the paired observations
  * behind the coefficient, verbatim for small pairings and as a density grid
  * for large ones. Absent on older payloads, where the pairs were computed but
- * not kept.
+ * not kept. `meta.structure.warnings` records shapes the reading could not
+ * settle — currently a possible transposed layout — without changing what was
+ * computed.
  */
 export const ANALYSIS_SCHEMA_VERSION = "2.9";
 

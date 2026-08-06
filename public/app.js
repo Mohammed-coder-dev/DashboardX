@@ -1694,6 +1694,7 @@ function renderStructureNote(data) {
   const restored     = structure.restored || [];
   const unapplied    = structure.unapplied || [];
   const alternatives = structure.alternatives || [];
+  const warnings     = structure.warnings || [];
   const uncertain    = structure.confidence === "uncertain";
   const specified    = structure.headerSource === "specified";
   const clean        = structure.confidence === "none";
@@ -1718,10 +1719,12 @@ function renderStructureNote(data) {
   if (excluded.length > 0) counts.push(`${excluded.length} row${excluded.length === 1 ? "" : "s"} excluded`);
   if (restored.length > 0) counts.push(`${restored.length} put back`);
   if (unapplied.length > 0) counts.push(`${unapplied.length} correction${unapplied.length === 1 ? "" : "s"} not applied`);
+  if (warnings.some((warning) => warning.kind === "possible-transpose")) counts.push("possibly transposed");
   structureSummary.textContent = `${uncertain ? "Check how this file was read — " : ""}${counts.join(" · ")}`;
 
   structureDetail.innerHTML = `
     ${uncertain ? `<p class="structure-warning">Ridge could not settle this from the file alone. Confirm it before relying on the numbers below.</p>` : ""}
+    ${warnings.map((warning) => `<p class="structure-warning">${esc(warning.detail)}</p>`).join("")}
     ${excluded.length > 0 ? `<p>Left out of every statistic below:</p><ul>${excluded.map(structureRowLine).join("")}</ul>` : ""}
     ${restored.length > 0 ? `<p>Put back at your request:</p><ul>${restored.map(structureRowLine).join("")}</ul>` : ""}
     ${unapplied.length > 0 ? `<p>Asked for, but could not be applied:</p><ul>${unapplied.map((entry) =>
@@ -1864,6 +1867,8 @@ function buildReportHtml(data) {
             entry.confidence ? ` · ${esc(entry.confidence)}` : ""}${entry.detail ? `: ${esc(entry.detail)}` : ""}</li>`),
         ...(structure.unapplied || []).map(entry =>
           `<li>Row ${esc(entry.row)} — requested, not applied: ${esc(entry.reason)}</li>`),
+        ...(structure.warnings || []).map(warning =>
+          `<li>Shape warning — ${esc(warning.detail)}</li>`),
       ].join("")
     : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Analysis report — ${esc(meta.filename || "dataset")}</title>

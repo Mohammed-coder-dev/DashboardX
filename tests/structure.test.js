@@ -447,6 +447,76 @@ describe("inferStructure", () => {
     });
   });
 
+  describe("a transposed sheet", () => {
+    // The roadmap's stated priority. Field names down the first column and
+    // records across the columns used to read with confidence "none" — the
+    // one claim worse than being wrong — while every column mean averaged
+    // revenue with ratings.
+    const grid = [
+      ["Metric", "Jan", "Feb", "Mar", "Apr"],
+      ["Revenue", 48200, 51900, 67400, 59300],
+      ["Spend", 12100, 13800, 15200, 14100],
+      ["Units sold", 320, 305, 388, 349],
+      ["Average rating", 4.6, 4.2, 4.8, 4.4],
+    ];
+
+    it("declares the reading uncertain instead of claiming a clean read", () => {
+      const report = inferStructure(grid);
+      expect(report.confidence).toBe("uncertain");
+      expect(report.warnings).toContainEqual(
+        expect.objectContaining({ kind: "possible-transpose" }),
+      );
+    });
+
+    it("says what would go wrong and that nothing was rewritten", () => {
+      const [warning] = inferStructure(grid).warnings;
+      expect(warning.detail).toMatch(/first column/);
+      expect(warning.detail).toMatch(/as-is/);
+    });
+
+    it("keeps the rows exactly as they stand — a warning is not a transform", () => {
+      const report = inferStructure(grid);
+      expect(report.observations).toBe(4);
+      expect(report.excluded).toEqual([]);
+    });
+
+    it("travels through the parser like every other structural finding", () => {
+      const parsed = parseSpreadsheet(xlsxBuffer(grid), "transposed.xlsx");
+      expect(parsed.structure.confidence).toBe("uncertain");
+      expect(parsed.structure.warnings).toHaveLength(1);
+      expect(parsed.columns).toEqual(["Metric", "Jan", "Feb", "Mar", "Apr"]);
+    });
+
+    it("never flags an ordinary long-format table with mixed column scales", () => {
+      // Textual first column, numeric columns of very different magnitudes —
+      // the everyday shape this check must not touch. The tell is direction:
+      // here magnitudes agree within each COLUMN and differ across a ROW,
+      // which is the normal orientation.
+      const report = inferStructure([
+        ["Region", "Units", "Revenue", "Spend"],
+        ["North", 120, 48000, 9100],
+        ["South", 95, 39250, 8600],
+        ["East", 140, 61000, 9800],
+        ["West", 88, 35500, 8200],
+      ]);
+      expect(report.warnings).toEqual([]);
+      expect(report.confidence).toBe("none");
+    });
+
+    it("lets a same-scale transposition pass, as the deliberate limit it is", () => {
+      // When every measure shares a scale, a transposed sheet is statistically
+      // indistinguishable from a normal one — and its column means are not
+      // nonsense, so there is nothing worth alarming anyone about.
+      const report = inferStructure([
+        ["Metric", "Q1", "Q2", "Q3"],
+        ["North revenue", 100, 110, 120],
+        ["South revenue", 95, 92, 99],
+        ["East revenue", 130, 140, 135],
+      ]);
+      expect(report.warnings).toEqual([]);
+    });
+  });
+
   it("will not call a lone row above a candidate an arithmetic match", () => {
     // With one contributing row, "equals the sum above" is just "equals the row
     // above" — a coincidence, not evidence of an aggregate.

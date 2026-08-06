@@ -16,7 +16,7 @@
 // Everything here is pure: a grid of cells in, a report out.
 import { isMissing, toFiniteNumber } from "../analytics/values.js";
 
-export const STRUCTURE_VERSION = "1.0.0";
+export const STRUCTURE_VERSION = "1.1.0";
 
 /**
  * A header reaches roughly as far across as the data block beneath it. A title
@@ -184,6 +184,105 @@ function findHeader(grid, dataWidth) {
   // row fills the width outright, it is the header and there is nothing to weigh.
   const certain = (!steppedOver || chosen.contrast > 0) && !better;
   return { chosen, certain, others: viable.filter((candidate) => candidate !== chosen) };
+}
+
+/** Data rows needed before a transposed layout is worth suspecting. */
+const TRANSPOSE_MIN_ROWS = 3;
+/** Numeric columns (beyond the label column) needed for the same. */
+const TRANSPOSE_MIN_NUMERIC_COLUMNS = 3;
+/** Share of first-column cells that must be present, textual and distinct. */
+const TRANSPOSE_LABEL_SHARE = 0.8;
+/** Share of block cells that must parse as numbers. */
+const TRANSPOSE_NUMERIC_SHARE = 0.7;
+/** How much wider column magnitudes must run than row magnitudes. */
+const TRANSPOSE_SPREAD_RATIO = 2;
+/** Columns must span at least this much (in log10 units) to signify. */
+const TRANSPOSE_MIN_COLUMN_SPREAD = 0.6;
+
+/** Standard deviation of log10 magnitudes; null when under two usable values. */
+function magnitudeSpread(values) {
+  const magnitudes = values.filter((value) => value !== 0).map((value) => Math.log10(Math.abs(value)));
+  if (magnitudes.length < 2) return null;
+  const mean = magnitudes.reduce((a, b) => a + b, 0) / magnitudes.length;
+  return Math.sqrt(magnitudes.reduce((a, b) => a + (b - mean) ** 2, 0) / magnitudes.length);
+}
+
+function median(values) {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * Does this block read like a transposed sheet — field names running down the
+ * first column, records running across the columns?
+ *
+ * The tell is not the text-labels-then-numbers shape, which every ordinary
+ * long-format table shares. It is scale coherence: in a transposed sheet each
+ * ROW is one measure, so its magnitudes agree, while each COLUMN mixes revenue
+ * with ratings and spans orders of magnitude. That is also exactly when the
+ * damage happens — a column mean averages unrelated measures — so the check
+ * targets the harmful case and lets a same-scale transposition pass as the
+ * ordinary table it is statistically indistinguishable from.
+ *
+ * Detection only ever declares the reading uncertain. Transposing the grid on
+ * the user's behalf would be a guess about what the sheet means; saying the
+ * shape was not settled is not.
+ */
+function detectTranspose(grid, dataIndexes, dataWidth) {
+  if (dataIndexes.length < TRANSPOSE_MIN_ROWS || dataWidth < TRANSPOSE_MIN_NUMERIC_COLUMNS + 1) return null;
+  const rows = dataIndexes.map((index) => cellsOf(grid[index]));
+
+  // The would-be field-name column: present, textual, and essentially unique.
+  const labels = rows.map((row) => row[0]).filter((cell) => !isMissing(cell));
+  if (labels.length < rows.length * TRANSPOSE_LABEL_SHARE) return null;
+  const textual = labels.filter((cell) => toFiniteNumber(cell) === null);
+  if (textual.length < labels.length * TRANSPOSE_LABEL_SHARE) return null;
+  const distinct = new Set(textual.map((cell) => String(cell).trim().toLowerCase())).size;
+  if (distinct < textual.length * TRANSPOSE_LABEL_SHARE) return null;
+
+  // The numeric block beyond it.
+  const numericRows = rows.map((row) => {
+    const numbers = [];
+    for (let column = 1; column < dataWidth; column++) {
+      const value = toFiniteNumber(row[column]);
+      if (value !== null) numbers.push(value);
+    }
+    return numbers;
+  });
+  const numericColumns = [];
+  for (let column = 1; column < dataWidth; column++) {
+    const numbers = [];
+    for (const row of rows) {
+      const value = toFiniteNumber(row[column]);
+      if (value !== null) numbers.push(value);
+    }
+    if (numbers.length > 0) numericColumns.push(numbers);
+  }
+  if (numericColumns.length < TRANSPOSE_MIN_NUMERIC_COLUMNS) return null;
+  const numericCells = numericRows.reduce((sum, row) => sum + row.length, 0);
+  let presentCells = 0;
+  for (const row of rows) {
+    for (let column = 1; column < dataWidth; column++) {
+      if (!isMissing(row[column])) presentCells++;
+    }
+  }
+  if (presentCells === 0 || numericCells < presentCells * TRANSPOSE_NUMERIC_SHARE) return null;
+
+  const rowSpread = median(numericRows.map(magnitudeSpread).filter((spread) => spread !== null));
+  const columnSpread = median(numericColumns.map(magnitudeSpread).filter((spread) => spread !== null));
+  if (rowSpread === null || columnSpread === null) return null;
+  if (columnSpread < TRANSPOSE_MIN_COLUMN_SPREAD) return null;
+  if (columnSpread < rowSpread * TRANSPOSE_SPREAD_RATIO) return null;
+
+  return {
+    kind: "possible-transpose",
+    detail: "field names may run down the first column and records across the columns — "
+      + "each row's values agree in magnitude while each column's span orders of magnitude, "
+      + "so a column mean would average unrelated measures. The columns were computed as-is; "
+      + "transpose the sheet if this reading is wrong.",
+  };
 }
 
 function aggregateLabel(row) {
@@ -359,7 +458,7 @@ export function inferStructure(grid, overrides = {}) {
   const rows = Array.isArray(grid) ? grid : [];
   const empty = {
     headerRow: null, headerSource: "detected", confidence: "none", observations: 0,
-    excluded: [], restored: [], unapplied: [], alternatives: [], version: STRUCTURE_VERSION,
+    excluded: [], restored: [], unapplied: [], alternatives: [], warnings: [], version: STRUCTURE_VERSION,
   };
   if (rows.length === 0) return empty;
 
@@ -413,10 +512,18 @@ export function inferStructure(grid, overrides = {}) {
     .sort((a, b) => a - b)
     .map((row) => ({ row, reason: unapplicableReason(row, rows.length, headerIndex) }));
 
+  // A shape the engine cannot settle is declared, never resolved quietly. The
+  // rows are still computed as they stand — a warning changes what the reading
+  // claims, not what it contains.
+  const warnings = [];
+  const transpose = detectTranspose(rows, dataIndexes, dataWidth);
+  if (transpose) warnings.push(transpose);
+
   // A correction that did not take makes the reading unsettled by definition:
   // the caller is working from a picture of the file that this one contradicts.
   const uncertain = !header.certain
     || unapplied.length > 0
+    || warnings.length > 0
     || excluded.some((entry) => entry.confidence === "uncertain");
   const untouched = headerIndex === 0 && excluded.length === 0 && restored.length === 0
     && unapplied.length === 0 && specified === null;
@@ -430,6 +537,7 @@ export function inferStructure(grid, overrides = {}) {
     restored,
     unapplied,
     alternatives: header.certain ? [] : header.others.map((c) => ({ headerRow: c.index + 1, cells: preview(rows[c.index]) })),
+    warnings,
     version: STRUCTURE_VERSION,
   };
 }
