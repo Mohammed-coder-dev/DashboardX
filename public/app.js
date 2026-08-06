@@ -38,6 +38,7 @@ const statsSection      = document.getElementById("statsSection");
 const chartsGrid        = document.getElementById("chartsGrid");
 const chartsSection     = document.getElementById("chartsSection");
 const corrSection       = document.getElementById("corrSection");
+const corrMatrix        = document.getElementById("corrMatrix");
 const corrList          = document.getElementById("corrList");
 const conclusionText    = document.getElementById("conclusionText");
 const topicsSection     = document.getElementById("topicsSection");
@@ -1040,6 +1041,7 @@ function renderSingleFile(data, isTabbed) {
 
   if (correlations && correlations.length > 0) {
     corrSection.style.display = "";
+    corrMatrix.innerHTML = buildCorrMatrixHtml(stats, correlations);
     corrList.innerHTML = correlations.map((c, idx) => {
       // Support both the current shape (columnA/coefficient/n/coverage) and the
       // legacy colA/r shape still present in previously shared analyses.
@@ -1066,7 +1068,10 @@ function renderSingleFile(data, isTabbed) {
     correlations.forEach((c, idx) => {
       if (c.scatter) renderCorrScatter(`corr-scatter-${idx}`, c);
     });
-  } else corrSection.style.display = "none";
+  } else {
+    corrSection.style.display = "none";
+    corrMatrix.innerHTML = "";
+  }
 
   // Charts are derived from full-file aggregates computed by the deterministic
   // engine. Older saved analyses without those aggregates retain their legacy
@@ -2112,6 +2117,59 @@ function renderAggregateChart(canvasId, spec) {
     options: chartOptions(spec.xLabel, spec.yLabel),
   };
   chartInstances.push(new Chart(canvas.getContext("2d"), cfg));
+}
+
+/** Cells per side before the matrix stops and says so. */
+const MAX_MATRIX_COLUMNS = 8;
+
+/**
+ * Every numeric column against every other, as one glanceable grid. Reported
+ * coefficients tint their cell — blue rising together, red moving apart,
+ * deeper meaning stronger — with the number printed in every tinted cell so
+ * colour never carries the value alone. A pair the engine did not report is a
+ * dot, not a zero: "below the reporting bar" and "measured as none" are
+ * different statements.
+ */
+function buildCorrMatrixHtml(stats, correlations) {
+  const numeric = Object.entries(stats || {})
+    .filter(([, field]) => field.type === "numeric")
+    .map(([column]) => column);
+  if (numeric.length < 3) return "";
+
+  const shown = numeric.slice(0, MAX_MATRIX_COLUMNS);
+  const byPair = new Map();
+  for (const c of correlations) {
+    const a = c.columnA ?? c.colA;
+    const b = c.columnB ?? c.colB;
+    byPair.set(`${a} ${b}`, c);
+    byPair.set(`${b} ${a}`, c);
+  }
+
+  const theme = chartTheme();
+  const alphaHex = (r) => Math.round(Math.abs(r) * 0.45 * 255).toString(16).padStart(2, "0");
+  const body = shown.map((rowCol) => {
+    const cells = shown.map((colCol) => {
+      if (rowCol === colCol) return `<td class="corr-matrix-diag" aria-hidden="true"></td>`;
+      const pair = byPair.get(`${rowCol} ${colCol}`);
+      if (!pair) {
+        return `<td class="corr-matrix-none" title="${esc(`${rowCol} ↔ ${colCol}: not reported — below the |0.3| bar or too few complete pairs`)}">·</td>`;
+      }
+      const r = pair.coefficient ?? pair.r;
+      const tint = r >= 0 ? theme.accent : theme.series[3];
+      const title = `${rowCol} ↔ ${colCol}: ${r > 0 ? "+" : ""}${r} (${pair.method || "pearson"}, n=${pair.n ?? "—"})`;
+      return `<td class="corr-matrix-cell" style="background:${tint}${alphaHex(r)}" title="${esc(title)}">${r > 0 ? "+" : ""}${esc(r)}</td>`;
+    }).join("");
+    return `<tr><th scope="row">${esc(rowCol)}</th>${cells}</tr>`;
+  }).join("");
+
+  const capNote = numeric.length > shown.length
+    ? `<p class="corr-matrix-note">Showing the first ${shown.length} of ${numeric.length} numeric columns. Every reported pair is still listed below.</p>`
+    : "";
+  return `<div class="corr-matrix-head"><h3>Correlation matrix</h3><p>Blue rise together · red move apart · a dot is a pair below the reporting bar, not a zero</p></div>
+    <div class="corr-matrix-wrap"><table class="corr-matrix-table">
+      <thead><tr><td></td>${shown.map((column) => `<th scope="col"><span>${esc(column)}</span></th>`).join("")}</tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>${capNote}`;
 }
 
 /**

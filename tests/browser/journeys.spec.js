@@ -210,6 +210,10 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#corrSection .strength").first()).toBeVisible();
     // The pairing itself is drawn under the number it produced.
     await expect(page.locator(".corr-scatter canvas").first()).toBeVisible();
+    // Three numeric columns produce the at-a-glance matrix, whose legend
+    // distinguishes "below the reporting bar" from a measured zero.
+    await expect(page.locator("#corrMatrix .corr-matrix-table")).toBeVisible();
+    await expect(page.locator("#corrMatrix")).toContainText(/not a zero/);
   });
 
   test("uploading a file fixture works the same way", async ({ page }) => {

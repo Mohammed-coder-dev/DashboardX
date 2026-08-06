@@ -796,6 +796,28 @@ html { scroll-behavior: smooth; }
 /* ─── Correlations ───────────────────────────────────────────── */
 .corr-list { display: flex; flex-direction: column; gap: 8px; }
 
+/* ─── Correlation matrix ─────────────────────────────────────── */
+.corr-matrix:not(:empty) { margin-bottom: 22px; }
+.corr-matrix-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.corr-matrix-head h3 { font-size: 12px; font-weight: 600; color: var(--text); }
+.corr-matrix-head p { font-size: 10.5px; color: var(--text-3); }
+.corr-matrix-wrap { overflow-x: auto; }
+.corr-matrix-table { border-collapse: separate; border-spacing: 2px; font-family: 'DM Mono', monospace; font-size: 10.5px; }
+.corr-matrix-table th {
+  color: var(--text-2); font-weight: 500; text-align: right;
+  padding: 4px 8px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.corr-matrix-table thead th { text-align: center; vertical-align: bottom; max-width: 64px; }
+.corr-matrix-table thead th span { display: inline-block; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+.corr-matrix-table td {
+  min-width: 52px; height: 34px; padding: 0 6px;
+  border-radius: 6px; text-align: center; color: var(--text);
+}
+.corr-matrix-cell { border: 1px solid var(--border); }
+.corr-matrix-diag { background: var(--surface-2); }
+.corr-matrix-none { border: 1px dashed var(--border); color: var(--text-3); }
+.corr-matrix-note { margin-top: 8px; font-size: 10.5px; color: var(--text-3); }
+
 .corr-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 0; }
 
 .corr-cols {
@@ -832,6 +854,7 @@ html { scroll-behavior: smooth; }
 
 /* The pairing behind a coefficient, drawn beneath its number. */
 .corr-scatter {
+  flex-basis: 100%;
   margin-top: 12px; padding: 10px 12px 6px;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--surface);
