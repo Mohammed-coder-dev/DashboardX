@@ -773,6 +773,7 @@ function renderComparisonDashboard(data) {
   activeTabIdx = 0;
   chartInstances.forEach((chart) => chart.destroy());
   chartInstances = [];
+  resetPendingCharts();
   resetAsk(null, false);
 
   fileDashboard.style.display = "none";
@@ -903,6 +904,7 @@ function switchTab(idx) {
   document.querySelectorAll(".tab-btn").forEach((b, i) => b.classList.toggle("active", i === idx));
   chartInstances.forEach(c => c.destroy());
   chartInstances = [];
+  resetPendingCharts();
   renderSingleFile(allFileResults[idx], true);
 }
 
@@ -913,6 +915,7 @@ function renderSingleFile(data, isTabbed) {
   fileDashboard.style.display = "";
   chartInstances.forEach(c => c.destroy());
   chartInstances = [];
+  resetPendingCharts();
 
   if (data.error) {
     if (!isTabbed) resetAsk(null, false);
@@ -1069,7 +1072,7 @@ function renderSingleFile(data, isTabbed) {
       </div>`;
     }).join("");
     correlations.forEach((c, idx) => {
-      if (c.scatter) renderCorrScatter(`corr-scatter-${idx}`, c);
+      if (c.scatter) scheduleChartRender(`corr-scatter-${idx}`, () => renderCorrScatter(`corr-scatter-${idx}`, c));
     });
   } else {
     corrSection.style.display = "none";
@@ -1096,10 +1099,10 @@ function renderSingleFile(data, isTabbed) {
         <button class="chart-download" type="button" data-canvas="${canvasId}" data-title="${esc(spec.title)}" aria-label="Download ${esc(spec.title)} as an image">PNG ↓</button></div>
         <div class="chart-reason">${esc(spec.reason)}</div><canvas id="${canvasId}" class="chart-canvas" height="220"></canvas>`;
       chartsGrid.appendChild(card);
-      setTimeout(() => {
+      scheduleChartRender(canvasId, () => {
         if (spec.deterministic) renderAggregateChart(canvasId, spec);
         else renderChart(canvasId, spec, chartData, stats);
-      }, 50);
+      });
     });
     // A silent cap would read as "these are all the charts". Say what was
     // held back and where the rest of the computed aggregates live.
@@ -2123,6 +2126,37 @@ function renderQuality(data) {
 }
 
 // ─── Chart rendering ──────────────────────────────────────────
+// A chart is built the first time its canvas approaches the viewport, not when
+// the dashboard renders. Tier ③ arrives collapsed, so a wide file's dozen
+// histograms cost nothing until someone actually opens them.
+let chartObserver = null;
+const pendingCharts = new Map();
+
+function resetPendingCharts() {
+  chartObserver?.disconnect();
+  chartObserver = null;
+  pendingCharts.clear();
+}
+
+function scheduleChartRender(canvasId, render) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  if (!("IntersectionObserver" in window)) { render(); return; }
+  if (!chartObserver) {
+    chartObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const draw = pendingCharts.get(entry.target.id);
+        pendingCharts.delete(entry.target.id);
+        chartObserver.unobserve(entry.target);
+        if (draw) draw();
+      }
+    }, { rootMargin: "160px 0px" });
+  }
+  pendingCharts.set(canvasId, render);
+  chartObserver.observe(canvas);
+}
+
 // Charts take their colours from the same tokens as everything else, read at
 // render time so a palette edit in :root cannot leave the charts behind — the
 // drift that left them wearing the pre-Ridge palette.
@@ -2437,6 +2471,7 @@ function resetDashboard() {
   questionInput.value=""; urlInput.value="";
   renderFileList();
   chartInstances.forEach(c=>c.destroy()); chartInstances=[];
+  resetPendingCharts();
   currentAnalysisId=null; updateShareBtn();
   lastSource=null; sheetBar.style.display="none";
   currentTarget=null; currentColumns=null; workspaceRail.hidden=true;
