@@ -71,7 +71,9 @@ sent to Anthropic.
   header and a `TOTAL` row at the bottom are excluded before anything is
   computed, and every excluded row is reported with the reason. When the file
   does not settle the question, Ridge says so rather than guessing, and you can
-  correct the header row or put a row back.
+  correct the header row or put a row back. A sheet whose shape reads as
+  transposed — field names down the first column, records across the columns —
+  is declared uncertain instead of being averaged in silence.
 - **Column statistics** — valid/missing/invalid counts, coverage, min, max,
   mean with a 95% t interval, median, standard deviation, quantiles, and IQR
   outlier fences.
@@ -81,14 +83,21 @@ sent to Anthropic.
 - **Date profiles** — valid/invalid counts, range, bucketed trend,
   period-over-period change, gaps, and irregular intervals.
 - **Correlations** — Pearson and Spearman over pairwise-complete observations,
-  each reported with method, `n`, coverage, strength and caveats.
+  each reported with method, `n`, coverage, strength and caveats — and each
+  drawn: the paired observations travel with the coefficient as a scatter (or
+  a density grid for large pairings), with an at-a-glance matrix over every
+  numeric column pair.
+- **Charts for every column** — a histogram, frequency or trend chart for each
+  column with a computed full-file aggregate, numeric spread strips
+  (five-number summaries with IQR fences), per-column completeness tracks, and
+  one-click PNG export of any chart.
 - **Inference and change detection** — Welch mean intervals, chi-square with
   Cramér's V, two-sample KS distribution shifts, and exploratory robust level
   shifts over dated targets.
 - **Data quality** — a weighted health grade with per-column issues,
   missingness, type consistency and duplicate detection.
 - **Evidence Mode** — see below.
-- **Exports** — JSON and a printable HTML report.
+- **Exports** — JSON, a printable HTML report, and any chart as a PNG.
 - **Comparison mode** — baseline/current schema drift, quality movement,
   descriptive deltas, mean intervals, and distribution shifts for two files.
 

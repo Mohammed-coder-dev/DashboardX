@@ -35,6 +35,17 @@ scope by construction.
   too. Uncertain readings are declared rather than resolved quietly, everything
   excluded is reported, and both the header row and individual rows are
   correctable.
+- The visualization layer over the computed aggregates: a chart for every
+  column with a full-file aggregate (histogram, frequency or trend), the
+  paired observations behind each correlation drawn as a scatter or density
+  grid, an at-a-glance correlation matrix, numeric spread strips, per-column
+  completeness tracks, a health-score ring — and PNG export of any chart.
+  Charts build lazily as they approach the viewport and take their colours
+  from the design tokens.
+- Transposed-sheet declaration. When magnitudes agree within each row and span
+  orders of magnitude within each column — the condition under which a column
+  mean averages unrelated measures — the reading is reported `uncertain` with
+  a warning naming what would go wrong, instead of `none`.
 
 ## Next — strengthening the evidence
 
@@ -48,15 +59,14 @@ scope by construction.
   |---|---|---|
   | Multi-row merged header | Group row excluded as preamble, real header found; the `Q1`/`Q2` grouping is lost to `Units`/`Units_1` | `uncertain` — degrades safely |
   | Two tables in one sheet | The second header is detected and excluded; the rows under it are still counted with the first table's | `uncertain`, naming the row where the second table starts |
-  | Transposed sheet | Field names become a column, records become columns; means average unrelated measures | **`none` — silently wrong** |
+  | Transposed sheet | Declared when the scale signature betrays it (magnitudes agree within rows, span orders of magnitude within columns); a same-scale transposition still reads as the ordinary table it is statistically indistinguishable from | `uncertain`, saying what a column mean would average |
   | Grouped/hierarchical subtotals | Each subtotal row is judged on its own; nesting is not modelled | varies |
   | Non-English total labels | Not matched by label; caught only when the arithmetic gives them away | varies |
 
-  The one still marked **silently wrong** is the priority: claiming `none` —
-  that nothing unusual was found — is the failure this engine exists to prevent,
-  and is worse than declaring the reading uncertain. Full support for a
-  transposed sheet is a larger piece of work; making it stop claiming certainty
-  is not, and that is the next thing to do here.
+  No shape reads silently wrong anymore: everything either degrades safely or
+  declares itself. Full support for a transposed sheet (re-reading it the
+  right way up) remains larger work and remains not attempted — rewriting the
+  grid would be a guess about what the sheet means.
 
   Splitting two tables into two analyses is deliberately not attempted: deciding
   which table the user meant would be a guess. Detecting that a second one is
