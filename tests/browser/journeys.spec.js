@@ -22,6 +22,10 @@ test.describe("landing page at the root", () => {
     await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
     // The workspace must not be the first thing a visitor meets.
     await expect(page.locator("#dropzone")).toHaveCount(0);
+    // The hero demo speaks the product's own evidence vocabulary — a
+    // coefficient with its sample size and coverage, not marketing numbers.
+    await expect(page.locator(".demo-evidence")).toContainText(/n=\d+/);
+    await expect(page.locator(".demo-evidence")).toContainText(/coverage/);
   });
 
   test("reaches the working engine in one click", async ({ page }) => {
