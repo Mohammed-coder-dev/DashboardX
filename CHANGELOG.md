@@ -4,9 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## [2.2.0] — 2026-08-07
 
 ### Added
+
+- A skip link past the top bar for keyboard users, and an accessible name on
+  every chart canvas carrying the chart's title and its evidence line, so a
+  screen reader hears what the chart claims and on what support.
 
 - **A chart for every column the engine computed an aggregate for.** The chart
   grid used to stop at one chart per kind and three in total, which read as
@@ -51,6 +55,10 @@ All notable changes to this project are documented here. The format follows
   the finished sample analysis sits above the dropzone; the link, focus and
   save controls share one "Refine the run · all optional" group; the health
   grade and evidence count ride in the dashboard top bar, computed.
+- **The landing hero speaks the product's own vocabulary.** The computed-output
+  demo now carries a miniature spread strip and an evidence line quoting the
+  sample dataset's real correlation with its sample size and coverage — the
+  workspace's visual language in preview, not marketing numbers.
 
 ### Changed
 
@@ -97,6 +105,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Under `prefers-reduced-motion`, the result tiers kept the opacity-0 starting
+  state their entry animation was meant to animate away from — reduced-motion
+  users met blank space where the results were. The tiles now render visible
+  with motion off.
 - A second table sharing a sheet no longer merges into the first in silence. Two
   tables separated by blank rows were read as one: the second table's header
   became an observation and its values joined the first table's statistics,
