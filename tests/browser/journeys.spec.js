@@ -547,6 +547,25 @@ test.describe("exports", () => {
     expect(download.suggestedFilename()).toMatch(/-analysis\.json$/);
   });
 
+  test("downloads any chart as an image", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await page.locator('[data-tier-jump="chartsSection"]').click();
+    await expect(page.locator(".chart-card canvas").first()).toBeVisible();
+    // The canvas exists before its Chart instance does; wait for the instance
+    // the download reads from.
+    await page.waitForFunction(() =>
+      window.Chart && Chart.getChart(document.querySelector(".chart-card canvas")));
+
+    const download = await Promise.all([
+      page.waitForEvent("download"),
+      page.locator(".chart-download").first().click(),
+    ]).then(([d]) => d);
+    expect(download.suggestedFilename()).toMatch(/\.png$/);
+    expect(download.suggestedFilename()).toContain("team-sales");
+  });
+
   test("opens a printable report stamped with the provenance vocabulary", async ({ page, context }) => {
     await page.goto("/app");
     await page.locator("#sampleBtn").click();

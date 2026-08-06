@@ -1092,7 +1092,9 @@ function renderSingleFile(data, isTabbed) {
       card.className = "chart-card animate";
       card.style.animationDelay = `${Math.min(idx, 6) * 0.08}s`;
       const canvasId = `chart-${idx}`;
-      card.innerHTML = `<div class="chart-title">${esc(spec.title)}</div><div class="chart-reason">${esc(spec.reason)}</div><canvas id="${canvasId}" class="chart-canvas" height="220"></canvas>`;
+      card.innerHTML = `<div class="chart-card-head"><div class="chart-title">${esc(spec.title)}</div>
+        <button class="chart-download" type="button" data-canvas="${canvasId}" data-title="${esc(spec.title)}" aria-label="Download ${esc(spec.title)} as an image">PNG ↓</button></div>
+        <div class="chart-reason">${esc(spec.reason)}</div><canvas id="${canvasId}" class="chart-canvas" height="220"></canvas>`;
       chartsGrid.appendChild(card);
       setTimeout(() => {
         if (spec.deterministic) renderAggregateChart(canvasId, spec);
@@ -2378,6 +2380,28 @@ function renderChart(canvasId, spec, data, stats) {
     canvas.parentElement.innerHTML += `<p style="font-size:12px;color:var(--text-3);text-align:center;">Could not render chart.</p>`;
   }
 }
+
+// Any chart leaves as a PNG: the live canvas composited onto an opaque
+// surface, so the image survives dark viewers and slide decks. The filename
+// carries the file and the chart it came from.
+chartsGrid.addEventListener("click", (event) => {
+  const button = event.target.closest(".chart-download");
+  if (!button) return;
+  const canvas = document.getElementById(button.dataset.canvas);
+  const chart = canvas && typeof Chart !== "undefined" ? Chart.getChart(canvas) : null;
+  if (!chart) return;
+  const copy = document.createElement("canvas");
+  copy.width = chart.canvas.width;
+  copy.height = chart.canvas.height;
+  const context = copy.getContext("2d");
+  context.fillStyle = chartTheme().surface;
+  context.fillRect(0, 0, copy.width, copy.height);
+  context.drawImage(chart.canvas, 0, 0);
+  const link = document.createElement("a");
+  link.href = copy.toDataURL("image/png");
+  link.download = `${exportBaseName()}-${(button.dataset.title || "chart").replace(/[^\w-]+/g, "_").slice(0, 60)}.png`;
+  link.click();
+});
 
 function chartOptions(xLabel, yLabel) {
   const theme = chartTheme();
