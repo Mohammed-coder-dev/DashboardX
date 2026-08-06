@@ -70,10 +70,17 @@ test("chart downloads and spread strips are built for touch", async ({ page }) =
   expect(download.height).toBeGreaterThanOrEqual(44);
 
   // Spread strips reflow to two lines on a phone: the strip row sits below
-  // the name rather than squeezing beside it.
-  const name = await page.locator(".spread-row .spread-name").first().boundingBox();
-  const track = await page.locator(".spread-row .spread-track").first().boundingBox();
-  expect(track.y).toBeGreaterThan(name.y);
+  // the name rather than squeezing beside it. Sampled in one frame — the
+  // tier jump scrolls smoothly, and two boundingBox calls milliseconds apart
+  // measure the same elements at different scroll positions.
+  const layout = await page.evaluate(() => {
+    const row = document.querySelector(".spread-row");
+    return {
+      nameY: row.querySelector(".spread-name").getBoundingClientRect().y,
+      trackY: row.querySelector(".spread-track").getBoundingClientRect().y,
+    };
+  });
+  expect(layout.trackY).toBeGreaterThan(layout.nameY);
 });
 
 test("the setup rail collapses into a drawer and still fits", async ({ page }) => {
