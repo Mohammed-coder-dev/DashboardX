@@ -62,8 +62,11 @@ jobs:
           # /app is the workspace and must carry a working dropzone.
           # Captured first so a failed fetch fails the grep rather than
           # feeding an empty stream to a negated match and passing.
+          # Assert the routing contract, not hero copy — the same correction
+          # ci.yml received when a wording change broke its grep. This file
+          # kept the brittle marker and would have failed the next tag.
           ROOT=$(curl -sf http://127.0.0.1:3399/)
-          echo "$ROOT" | grep -q 'Evidence-backed'
+          echo "$ROOT" | grep -q 'href="/app"'
           if echo "$ROOT" | grep -q 'dropzone'; then
             echo '::error::the landing page inlines the workspace'; exit 1
           fi
