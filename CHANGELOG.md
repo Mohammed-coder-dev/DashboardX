@@ -6,7 +6,61 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- **A chart for every column the engine computed an aggregate for.** The chart
+  grid used to stop at one chart per kind and three in total, which read as
+  "these three columns matter" when it meant "the renderer stopped". Every
+  column with a full-file aggregate now gets its chart — histograms for
+  numeric fields, frequency bars for true categories, bucketed trends for
+  dates — with the target column first. Wide files stop at twelve cards behind
+  a note naming exactly what was held back and where the rest lives; columns
+  without a chartable aggregate still produce nothing, because a filler chart
+  is decoration, not evidence.
+- **The pairing behind every reported correlation, drawn.** Each correlation
+  carries `scatter` (payload schema 2.9): the pairwise-complete observations
+  verbatim up to 500 pairs, a 20×20 density grid above that, in which every
+  pair lands in exactly one cell. The workspace plots it under the
+  coefficient. Built from the same pairwise filtering as the number, so the
+  plot and the coefficient can never describe different observations; older
+  saved analyses carry no pairs and their numbers stand alone.
+- **A correlation matrix** over every numeric column pair when a file has
+  three or more — blue for pairs rising together, red for pairs moving apart,
+  the coefficient printed in every tinted cell so colour never carries the
+  value alone. An unreported pair is a dot with the reason on hover: below
+  the reporting bar is a different statement from a measured zero.
+- **Numeric spread strips.** The Statistical Summary opens with a strip per
+  numeric column — 5th–95th percentile line, middle-50% box, median tick,
+  mean dot, IQR-fence outlier count — each on its own stated scale.
+- **Per-column completeness tracks** in the quality card: valid, missing and
+  unparseable drawn as a stacked bar in the status colours, with the counts
+  in text and on hover, replacing the compressed `12%∅` chips.
+- **A health ring and completeness meter** in the decision snapshot, beside
+  their numbers, never instead of them.
+- **Any chart downloads as a PNG**, composited onto an opaque surface so it
+  survives dark viewers, named after the dataset and the chart.
+- **A possibly transposed sheet is declared, not read in silence.** When
+  magnitudes agree within each row and span orders of magnitude within each
+  column — the condition under which a column mean averages unrelated
+  measures — the reading is reported `uncertain` with a warning saying what
+  would go wrong and that the columns were computed as-is (structure report
+  1.1.0, additive `warnings`). A same-scale transposition still passes, as
+  the deliberate limit it is: it is statistically indistinguishable from an
+  ordinary table and its means are not nonsense.
+- **The workspace leads with the sample path.** A first-visit strip offering
+  the finished sample analysis sits above the dropzone; the link, focus and
+  save controls share one "Refine the run · all optional" group; the health
+  grade and evidence count ride in the dashboard top bar, computed.
+
 ### Changed
+
+- Charts are built the first time their canvas nears the viewport instead of
+  all at once at render — tier ③ arrives collapsed, and a wide file now
+  produces a chart per column.
+- Chart colours come from the design tokens at render time. Every Chart.js
+  config carried string literals from the pre-Ridge palette, so the rebrand
+  that moved every token never reached the charts; a source-level test keeps
+  the drifted literals from returning.
 
 - An empty evidence panel is explained rather than removed. When no finding
   cleared the reporting thresholds — which an ordinary small file routinely does
