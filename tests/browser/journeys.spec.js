@@ -208,6 +208,8 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator(".corr-meta").first()).toContainText(/n=\d+/);
     // The same scale the evidence uses, not a second visual language for it.
     await expect(page.locator("#corrSection .strength").first()).toBeVisible();
+    // The pairing itself is drawn under the number it produced.
+    await expect(page.locator(".corr-scatter canvas").first()).toBeVisible();
   });
 
   test("uploading a file fixture works the same way", async ({ page }) => {

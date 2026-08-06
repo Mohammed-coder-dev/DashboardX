@@ -1040,7 +1040,7 @@ function renderSingleFile(data, isTabbed) {
 
   if (correlations && correlations.length > 0) {
     corrSection.style.display = "";
-    corrList.innerHTML = correlations.map(c => {
+    corrList.innerHTML = correlations.map((c, idx) => {
       // Support both the current shape (columnA/coefficient/n/coverage) and the
       // legacy colA/r shape still present in previously shared analyses.
       const r = c.coefficient ?? c.r;
@@ -1051,13 +1051,21 @@ function renderSingleFile(data, isTabbed) {
         ? `<div class="corr-meta">${c.strength ? strengthScale(c.strength) : ""}<span>${esc(c.method || "pearson")} · n=${c.n} · ${c.coverage}% coverage${c.smallSample ? " · small sample" : ""}</span></div>`
         : "";
       const caveat = c.caveat ? `<div class="corr-caveat">Caveat — ${esc(c.caveat)}</div>` : "";
+      // Older saved analyses carry no pairs; the number stands alone there
+      // rather than gaining a plot it cannot honestly have.
+      const scatter = c.scatter
+        ? `<div class="corr-scatter"><canvas id="corr-scatter-${idx}" height="150" role="img" aria-label="${esc(`${colA} against ${colB}, ${c.scatter.n} pairs`)}"></canvas></div>`
+        : "";
       return `<div class="corr-item">
         <div class="corr-cols">${esc(colA)} ↔ ${esc(colB)}</div>
         <div class="corr-bar-wrap"><div class="corr-bar ${isPos?"positive":"negative"}" style="width:${pct}%"></div></div>
         <div class="corr-val ${isPos?"positive":"negative"}">${r>0?"+":""}${r}</div>
-        ${evidence}${caveat}
+        ${evidence}${scatter}${caveat}
       </div>`;
     }).join("");
+    correlations.forEach((c, idx) => {
+      if (c.scatter) renderCorrScatter(`corr-scatter-${idx}`, c);
+    });
   } else corrSection.style.display = "none";
 
   // Charts are derived from full-file aggregates computed by the deterministic
@@ -2103,6 +2111,64 @@ function renderAggregateChart(canvasId, spec) {
     },
     options: chartOptions(spec.xLabel, spec.yLabel),
   };
+  chartInstances.push(new Chart(canvas.getContext("2d"), cfg));
+}
+
+/**
+ * The pairing behind a reported correlation, drawn as the server shipped it:
+ * every pair verbatim when small, a density grid when large. Both aggregate
+ * the full pairing — this is never a preview-row sample.
+ */
+function renderCorrScatter(canvasId, corr) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const theme = chartTheme();
+  const scatter = corr.scatter;
+  const xLabel = corr.columnA ?? corr.colA;
+  const yLabel = corr.columnB ?? corr.colB;
+  const options = chartOptions(xLabel, yLabel);
+
+  let cfg;
+  if (scatter.kind === "points") {
+    cfg = {
+      type: "scatter",
+      data: { datasets: [{
+        data: scatter.points.map(([x, y]) => ({ x, y })),
+        backgroundColor: `${theme.accent}55`,
+        borderColor: theme.accent,
+        borderWidth: 1,
+        pointRadius: 2.5,
+        pointHoverRadius: 6,
+      }] },
+      options,
+    };
+  } else {
+    // Grid cells become bubbles at their cell centres, area ∝ pair count.
+    const stepX = (scatter.x.max - scatter.x.min) / scatter.bins;
+    const stepY = (scatter.y.max - scatter.y.min) / scatter.bins;
+    const maxCount = Math.max(1, ...scatter.cells.map(([, , count]) => count));
+    cfg = {
+      type: "bubble",
+      data: { datasets: [{
+        data: scatter.cells.map(([xi, yi, count]) => ({
+          x: scatter.x.min + (xi + 0.5) * stepX,
+          y: scatter.y.min + (yi + 0.5) * stepY,
+          r: 2 + 8 * Math.sqrt(count / maxCount),
+          count,
+        })),
+        backgroundColor: `${theme.accent}44`,
+        borderColor: theme.accent,
+        borderWidth: 1,
+      }] },
+      options: {
+        ...options,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (item) => `${item.raw.count} pair${item.raw.count === 1 ? "" : "s"}` } },
+        },
+      },
+    };
+  }
   chartInstances.push(new Chart(canvas.getContext("2d"), cfg));
 }
 

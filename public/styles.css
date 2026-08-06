@@ -830,6 +830,14 @@ html { scroll-behavior: smooth; }
 .chart-reason { font-size: 12px; color: var(--text-3); margin-bottom: 14px; line-height: 1.4; }
 .chart-canvas { width: 100%; }
 
+/* The pairing behind a coefficient, drawn beneath its number. */
+.corr-scatter {
+  margin-top: 12px; padding: 10px 12px 6px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.corr-scatter canvas { width: 100%; }
+
 /* The grid stops before a wide file becomes wallpaper; this row says so. */
 .charts-more-note {
   grid-column: 1 / -1;
