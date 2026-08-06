@@ -1689,11 +1689,26 @@ html { scroll-behavior: smooth; }
   .column-inspector-rank { grid-template-columns: minmax(72px, 1fr) 1.5fr 42px; }
   .loading-wrap { margin-top: 8px; padding: 30px 16px; }
   .loading-steps { grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Spread strips reflow to two lines: the name and its outlier note first,
+     then the strip between its own min and max. One line squeezed all five. */
+  .spread-row {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "name name outliers" "min track max";
+    row-gap: 3px; padding: 8px 0;
+  }
+  .spread-name { grid-area: name; }
+  .spread-row > :nth-child(2) { grid-area: min; }
+  .spread-track { grid-area: track; min-width: 0; }
+  .spread-row > :nth-child(4) { grid-area: max; justify-self: end; }
+  .spread-outliers { grid-area: outliers; justify-self: end; }
+  .spread-constant { grid-area: 2 / 1 / 3 / -1; }
 }
 
 @media (pointer: coarse) {
   .analysis-mode-btn, .reset-btn, .settings-btn, .sample-btn, .analyze-btn,
   .loading-cancel, .column-inspector-close, .file-chip-remove, .swap-files-btn,
+  .chart-download, .structure-fix,
   .result-nav a { min-height: 44px; }
   .file-chip-remove { min-width: 36px; }
   .result-nav a { display: inline-flex; align-items: center; }

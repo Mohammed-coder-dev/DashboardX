@@ -58,6 +58,24 @@ test("the matrix, spread strips and charts stay within a phone viewport", async 
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
+test("chart downloads and spread strips are built for touch", async ({ page }) => {
+  await page.goto("/app");
+  await page.locator("#sampleBtn").tap();
+  await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 25_000 });
+
+  await page.locator('[data-tier-jump="chartsSection"]').tap();
+  await expect(page.locator(".chart-card canvas").first()).toBeVisible();
+  // The download control meets the same 44px floor as every other button.
+  const download = await page.locator(".chart-download").first().boundingBox();
+  expect(download.height).toBeGreaterThanOrEqual(44);
+
+  // Spread strips reflow to two lines on a phone: the strip row sits below
+  // the name rather than squeezing beside it.
+  const name = await page.locator(".spread-row .spread-name").first().boundingBox();
+  const track = await page.locator(".spread-row .spread-track").first().boundingBox();
+  expect(track.y).toBeGreaterThan(name.y);
+});
+
 test("the setup rail collapses into a drawer and still fits", async ({ page }) => {
   await page.goto("/app");
   await page.locator("#sampleBtn").tap();
