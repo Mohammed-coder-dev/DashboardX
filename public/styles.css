@@ -621,6 +621,9 @@ html { scroll-behavior: smooth; }
   border-radius: 999px; color: var(--text-2);
   letter-spacing: 0.04em;
 }
+.meta-chip--good { color: var(--green); background: var(--green-bg); }
+.meta-chip--fair { color: var(--amber); background: var(--amber-bg); }
+.meta-chip--poor { color: var(--red); background: var(--red-bg); }
 
 .reset-btn {
   min-height: 38px; padding: 8px 13px;
