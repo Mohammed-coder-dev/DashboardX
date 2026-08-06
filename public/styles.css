@@ -569,6 +569,24 @@ html { scroll-behavior: smooth; }
   margin-top: 20px; gap: 8px;
 }
 .result-overview-metric { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+.result-overview-metric.has-visual { display: flex; align-items: center; gap: 12px; }
+.result-overview-metric-text { min-width: 0; }
+
+/* Health as a ring; the grade and score stay in text beside it. */
+.health-ring { flex: 0 0 auto; width: 46px; height: 46px; transform: rotate(-90deg); }
+.health-ring circle { fill: none; stroke-width: 3.6; }
+.health-ring-track { stroke: var(--border); }
+.health-ring-value { stroke-linecap: round; transition: stroke-dasharray .7s cubic-bezier(0.16, 1, 0.3, 1); }
+.health-ring--good .health-ring-value { stroke: var(--green); }
+.health-ring--fair .health-ring-value { stroke: var(--amber); }
+.health-ring--poor .health-ring-value { stroke: var(--red); }
+
+/* Completeness under its number, as a quiet meter. */
+.overview-meter {
+  flex: 0 0 auto; display: block; width: 46px; height: 8px;
+  border-radius: 4px; background: var(--border); overflow: hidden;
+}
+.overview-meter i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
 .result-overview-metric span, .result-overview-metric small { display: block; color: var(--text-3); }
 .result-overview-metric span { font: 9px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
 .result-overview-metric strong { display: block; margin: 4px 0 2px; overflow-wrap: anywhere; color: var(--text); font: 600 19px 'DM Mono', monospace; }

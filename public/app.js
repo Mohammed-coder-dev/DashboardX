@@ -1229,16 +1229,23 @@ function renderOverview(data) {
     return;
   }
 
-  const metrics = [
-    ["Rows analyzed", (meta.totalRows ?? profile.rows ?? 0).toLocaleString(), "Full dataset"],
-    ["Data health", `${profile.healthGrade || "—"} · ${profile.healthScore ?? "—"}/100`, `${profile.issues?.length || 0} flagged issue${profile.issues?.length === 1 ? "" : "s"}`],
-    ["Completeness", `${profile.completeness ?? "—"}%`, `${profile.duplicateRows || 0} duplicate row${profile.duplicateRows === 1 ? "" : "s"}`],
-    ["Evidence", String(evidence.length), `${correlations.length} reported relationship${correlations.length === 1 ? "" : "s"}`],
-  ];
-  overviewGrid.innerHTML = metrics.map(([label, value, context]) => `
-    <div class="result-overview-metric">
+  const issueCount = profile.issues?.length || 0;
+  const completeness = Math.max(0, Math.min(100, Number(profile.completeness) || 0));
+  const tone = ["A", "B"].includes(profile.healthGrade) ? "good" : profile.healthGrade === "C" ? "fair" : "poor";
+  const tile = (label, value, context, visual = "") => `
+    <div class="result-overview-metric${visual ? " has-visual" : ""}">
+      ${visual}<div class="result-overview-metric-text">
       <span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(context)}</small>
-    </div>`).join("");
+      </div>
+    </div>`;
+  overviewGrid.innerHTML =
+    tile("Rows analyzed", (meta.totalRows ?? profile.rows ?? 0).toLocaleString(), "Full dataset")
+    + tile("Data health", `${profile.healthGrade || "—"} · ${profile.healthScore ?? "—"}/100`,
+        `${issueCount} flagged issue${issueCount === 1 ? "" : "s"}`, healthRingHtml(profile.healthScore, tone))
+    + tile("Completeness", `${profile.completeness ?? "—"}%`,
+        `${profile.duplicateRows || 0} duplicate row${profile.duplicateRows === 1 ? "" : "s"}`,
+        `<span class="overview-meter" aria-hidden="true"><i style="width:${completeness}%"></i></span>`)
+    + tile("Evidence", String(evidence.length), `${correlations.length} reported relationship${correlations.length === 1 ? "" : "s"}`);
 
   const priorityIssue = (profile.issues || []).find((issue) => issue.severity === "high")
     || (profile.issues || []).find((issue) => issue.severity === "medium")
@@ -1250,6 +1257,21 @@ function renderOverview(data) {
       ? priorityEvidence.claim
       : "No material quality or evidence flags were found. Review the column profiles for context.";
   overviewSection.style.display = "";
+}
+
+/**
+ * The health score as a ring, sized to sit inside its overview tile. The score
+ * and grade stay in text beside it — the ring adds glanceability, it never
+ * replaces the number.
+ */
+function healthRingHtml(score, tone) {
+  const circumference = 97.4; // 2π × r15.5, fixed so the dasharray maths stays in one place
+  const clamped = Math.max(0, Math.min(100, Number(score) || 0));
+  return `<svg class="health-ring health-ring--${esc(tone)}" viewBox="0 0 36 36" aria-hidden="true">
+    <circle class="health-ring-track" cx="18" cy="18" r="15.5"></circle>
+    <circle class="health-ring-value" cx="18" cy="18" r="15.5"
+      stroke-dasharray="${(clamped / 100 * circumference).toFixed(1)} ${circumference}"></circle>
+  </svg>`;
 }
 
 function inspectorMetric(label, value, context = "") {

@@ -156,6 +156,9 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#evidenceSection .prov--derived")).toHaveText("Derived");
     await expect(page.locator("#overviewGrid")).toContainText(/data health/i);
     await expect(page.locator("#overviewGrid")).toContainText(/completeness/i);
+    // The score is drawn as a ring beside its number, never instead of it.
+    await expect(page.locator(".health-ring")).toBeVisible();
+    await expect(page.locator(".overview-meter")).toBeVisible();
 
     await expect(page.locator("#aiDetailGrid")).toBeHidden();
     await expect(page.locator("#resultNav")).toBeVisible();
