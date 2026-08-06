@@ -1,0 +1,5 @@
+# Normalize every text file to LF in the repository. public/app.js was once
+# committed with CRLF from a Windows checkout, and the eventual normalization
+# landed as a 4,500-line diff inside an unrelated commit — the kind of noise
+# this file exists to prevent. Working-tree endings stay per-platform.
+* text=auto
