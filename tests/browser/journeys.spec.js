@@ -146,6 +146,10 @@ test.describe("deterministic analysis without an API key", () => {
     const evidenceCount = await page.locator(".evidence-item").count();
     expect(evidenceCount).toBeGreaterThan(0);
     await expect(page.locator("#qualitySection")).toBeVisible();
+    // Column completeness is drawn, not abbreviated — a stacked track per
+    // column, with the counts readable from its label.
+    await expect(page.locator(".quality-col-track").first()).toBeVisible();
+    await expect(page.locator('.quality-col[title*="valid"]').first()).toBeVisible();
     await expect(page.locator("#overviewSection")).toBeVisible();
     // Provenance is stated once on the tier, not repeated on every card inside it.
     await expect(page.locator("#tierFindings .prov--computed")).toHaveText("Computed");

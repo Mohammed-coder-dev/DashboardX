@@ -985,7 +985,7 @@ function renderSingleFile(data, isTabbed) {
   renderStructureNote(data);
   renderExclusionNote(data);
   renderRail(data);
-  renderQuality(data.profile);
+  renderQuality(data);
   renderAnalysisRecord(meta);
   if (!isTabbed) resetAsk(data, true);
 
@@ -2050,7 +2050,8 @@ explainBtn?.addEventListener("click", async () => {
 askInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitAsk(); });
 
 // ─── Data quality card ────────────────────────────────────────
-function renderQuality(profile) {
+function renderQuality(data) {
+  const profile = data?.profile;
   if (!profile) { qualitySection.style.display = "none"; return; }
   qualitySection.style.display = "";
 
@@ -2066,11 +2067,27 @@ function renderQuality(profile) {
         <span class="dot"></span><span>${esc(i.message)}</span>
       </div>`).join("");
 
-  qualityColumns.innerHTML = Object.entries(profile.columns).map(([name, c]) => `
-    <div class="quality-col" title="${esc(name)}">
+  // Each column's completeness, drawn instead of abbreviated. Valid, missing
+  // and unparseable are states, so they wear the status colours — and the
+  // counts ride along in text and on hover, so colour never stands alone.
+  qualityColumns.innerHTML = Object.entries(profile.columns).map(([name, c]) => {
+    const field = data?.stats?.[name];
+    const rows = profile.rows ?? data?.meta?.totalRows ?? 0;
+    const valid = field?.validCount ?? Math.max(0, Math.round((100 - c.missingPct) / 100 * rows));
+    const invalid = field?.invalid ?? 0;
+    const missing = field?.missing ?? Math.max(0, rows - valid - invalid);
+    const total = Math.max(1, valid + missing + invalid);
+    const pct = (n) => +(n / total * 100).toFixed(2);
+    const detail = `${name}: ${valid.toLocaleString()} valid · ${missing.toLocaleString()} missing${invalid ? ` · ${invalid.toLocaleString()} unparseable` : ""} of ${total.toLocaleString()} rows`;
+    return `<div class="quality-col" title="${esc(detail)}">
       <span class="quality-col-name">${esc(name)}</span>
-      <span class="quality-col-info">${esc(c.type)}${c.missingPct > 0 ? ` · ${c.missingPct}%∅` : ""}</span>
-    </div>`).join("");
+      <span class="quality-col-info">${esc(c.type)}</span>
+      <span class="quality-col-track" role="img" aria-label="${esc(detail)}">
+        <i class="q-valid" style="width:${pct(valid)}%"></i><i class="q-missing" style="width:${pct(missing)}%"></i><i class="q-invalid" style="width:${pct(invalid)}%"></i>
+      </span>
+      <span class="quality-col-pct">${esc(Math.round(pct(valid)))}%</span>
+    </div>`;
+  }).join("");
 }
 
 // ─── Chart rendering ──────────────────────────────────────────

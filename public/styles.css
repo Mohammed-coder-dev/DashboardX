@@ -1306,10 +1306,11 @@ html { scroll-behavior: smooth; }
 .quality-issue.medium .dot { background: #d97706; }
 .quality-issue.low .dot    { background: var(--text-3); }
 .quality-clean { font-size: 13px; color: var(--green); }
-.quality-columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.quality-columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px 16px; }
 .quality-col {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(72px, auto) auto 1fr 34px;
+  align-items: center;
   gap: 8px;
   padding: 7px 10px;
   background: var(--surface-2);
@@ -1318,6 +1319,18 @@ html { scroll-behavior: smooth; }
 }
 .quality-col-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quality-col-info { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-3); white-space: nowrap; }
+
+/* Stacked per-column completeness: valid, then missing, then unparseable.
+   The surface shows through 1px joins so adjacent states never fuse. */
+.quality-col-track {
+  display: flex; gap: 1px; height: 8px; min-width: 60px;
+  border-radius: 4px; overflow: hidden; background: var(--surface);
+}
+.quality-col-track i { display: block; height: 100%; }
+.quality-col-track .q-valid   { background: var(--green); }
+.quality-col-track .q-missing { background: var(--amber); }
+.quality-col-track .q-invalid { background: var(--red); }
+.quality-col-pct { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-2); text-align: right; }
 
 /* ─── Sheet picker ──────────────────────────────────────────── */
 .sheet-bar {
