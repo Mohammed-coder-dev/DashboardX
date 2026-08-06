@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "vitest run tests --exclude tests/browser",
+    "test": "vitest run tests --exclude tests/browser --exclude \"**/.claude/**\"",
     "test:browser": "playwright test",
     "test:all": "npm run test && npm run test:browser",
     "video": "node video/verify.js && node video/capture.js && node video/narrate.js && node video/build.js",
