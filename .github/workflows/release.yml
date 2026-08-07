@@ -93,8 +93,11 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           # Everything between this version's heading and the next one.
+          # index(), not a regex: "[2.2.0]" inside a pattern is a character
+          # class, so the literal heading never matched and every publish
+          # failed after verification passed.
           awk -v v="## [$VERSION]" '
-            $0 ~ "^" v {found=1; next}
+            index($0, v) == 1 {found=1; next}
             found && /^## \[/ {exit}
             found {print}
           ' CHANGELOG.md > release-notes.md
