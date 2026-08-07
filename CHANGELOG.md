@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [2.2.0] — 2026-08-07
 
+### Security
+
+- `pdfjs-dist` is overridden to 6.2.108, past GHSA-hq66-cqwq-w95j (arbitrary
+  JavaScript execution on opening a malicious PDF). The vulnerable copy was a
+  transitive dependency of `officeparser`, whose PDF path Ridge never calls —
+  PDFs go through `pdf2json` — so the override carries no behaviour change for
+  any file Ridge parses; the office-document tests pin that.
+
 ### Added
 
 - A skip link past the top bar for keyboard users, and an accessible name on
