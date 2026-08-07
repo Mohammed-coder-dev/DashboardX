@@ -131,7 +131,7 @@ Every material finding is a structured object rather than a sentence:
   "strength": "very strong",
   "caveat": "Pearson and Spearman disagree, suggesting a non-linear or outlier-driven pattern",
   "statistics": null,
-  "engineVersion": "1.1.0",
+  "engineVersion": "1.3.0",
   "provenance": {
     "formula": "ρ = Pearson correlation of the paired value ranks",
     "includedRows": 90,
@@ -200,7 +200,7 @@ Copy `.env.example` to `.env` to set them locally.
 ## Architecture
 
 ```
-public/            static app (/, /about, /privacy, /docs) + sample data
+public/            static app (/, /app, /privacy, /docs) + sample data
 src/routes/        analyze · ask · explain · history · health
 src/services/      anthropic · remoteFile · history          (all I/O)
 src/analytics/     values · stats · dates · correlations ·
