@@ -39,13 +39,16 @@
     "url": "https://github.com/MohammedAlkindi/Ridge/issues"
   },
   "homepage": "https://github.com/MohammedAlkindi/Ridge#readme",
+  "overrides": {
+    "pdfjs-dist": "^6.2.108"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
     "@supabase/supabase-js": "^2.110.9",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "multer": "^2.1.1",
-    "officeparser": "^6.0.4",
+    "officeparser": "~6.0.4",
     "pdf2json": "^4.0.2",
     "rate-limiter-flexible": "^10.0.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
