@@ -640,6 +640,34 @@ test.describe("error states", () => {
     await expect(page.locator("#settingsPanel")).toBeHidden();
   });
 
+  test("does not blame the file size for a server fault it cannot explain", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(SAMPLE_CSV);
+    await page.route("**/api/analyze*", (route) =>
+      route.fulfill({ status: 500, contentType: "text/html", body: "<html>Internal Server Error</html>" }));
+    await page.locator("#analyzeBtn").click();
+
+    const error = page.locator("#errorBox");
+    await expect(error).toBeVisible({ timeout: 20_000 });
+    await expect(error).toContainText("500");
+    // The upload is a few kilobytes and the readiness line said so a moment
+    // earlier. Guessing at size here sends the reader after the wrong cause.
+    await expect(error).not.toContainText(/too large/i);
+  });
+
+  test("names the size limit when the server is the one reporting it", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(SAMPLE_CSV);
+    await page.route("**/api/analyze*", (route) =>
+      route.fulfill({ status: 413, contentType: "text/html", body: "<html>Payload Too Large</html>" }));
+    await page.locator("#analyzeBtn").click();
+
+    const error = page.locator("#errorBox");
+    await expect(error).toBeVisible({ timeout: 20_000 });
+    await expect(error).toContainText(/too large/i);
+    await expect(error).toContainText(/https link/i);
+  });
+
   test("explains a dropped connection in its own words, not the browser's", async ({ page }) => {
     await page.goto("/app");
     await page.locator("#fileInput").setInputFiles(SAMPLE_CSV);

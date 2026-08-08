@@ -602,8 +602,14 @@ async function runAnalysis(sheet) {
     const headers  = { "x-ridge-session": getSessionId() };
     if (!isComparison && getApiKey()) headers["x-anthropic-key"] = getApiKey();
     const response = await fetch(endpoint, { method:"POST", headers, body:formData, signal:requestController.signal });
+    // The size hint belongs only on the status that actually means it. It used
+    // to be appended to every unreadable response, so a 17 KB file meeting a
+    // 500 was told to shrink — sending the reader after a cause the UI had
+    // already measured and ruled out one line earlier.
     const data     = await response.json()
-      .catch(() => ({ error: `The server returned an unexpected response (HTTP ${response.status}) — the upload may be too large.` }));
+      .catch(() => ({ error: response.status === 413
+        ? "The server rejected the upload as too large (HTTP 413). Use the HTTPS link option for larger data."
+        : `The server returned an unexpected response (HTTP ${response.status}).` }));
     if (!response.ok) throw new Error(apiErrorMessage(data, "Analysis failed."));
     await delay(500);
     if (requestController.signal.aborted) return;
