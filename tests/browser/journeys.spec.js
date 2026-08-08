@@ -281,6 +281,9 @@ test.describe("deterministic analysis without an API key", () => {
 
     await note.locator("summary").click();
     await expect(page.locator("#structureDetail")).toContainText(/no total or subtotal rows/i);
+
+    // Nothing was set aside, so the headline tile may say so.
+    await expect(page.locator("#overviewGrid")).toContainText("Full dataset");
   });
 
   test("says how a messy file was read, above the numbers it produced", async ({ page }) => {
@@ -301,6 +304,22 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#structureDetail")).toContainText("preamble");
     await expect(page.locator("#structureDetail")).toContainText("Row 9");
     await expect(page.locator("#structureDetail")).toContainText("aggregate");
+  });
+
+  test("the rows tile counts the exclusions instead of claiming the full dataset", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(MESSY_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // The tile a reader sees first and the provenance note underneath it
+    // describe the same read, in the same words. Claiming the full dataset on a
+    // file whose title block and TOTAL row were deliberately dropped is the one
+    // thing this summary must never do.
+    const overview = page.locator("#overviewGrid");
+    await expect(overview).toContainText("2 rows excluded");
+    await expect(overview).not.toContainText("Full dataset");
+    await expect(page.locator("#structureNote")).toContainText("2 rows excluded");
   });
 
   test("keeps the total row out of the statistics it reports", async ({ page }) => {

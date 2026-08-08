@@ -1244,6 +1244,16 @@ function renderOverview(data) {
   const issueCount = profile.issues?.length || 0;
   const completeness = Math.max(0, Math.min(100, Number(profile.completeness) || 0));
   const tone = ["A", "B"].includes(profile.healthGrade) ? "good" : profile.healthGrade === "C" ? "fair" : "poor";
+
+  // "Full dataset" used to be hardcoded, so a file whose title block and TOTAL
+  // row had been deliberately left out still announced that every row counted —
+  // the one claim the provenance note directly contradicts. The tile now reports
+  // the exclusions in the same words the note uses, so the headline summary and
+  // the audit trail underneath it cannot disagree.
+  const excludedRows = meta.structure?.excluded?.length || 0;
+  const rowsContext = excludedRows > 0
+    ? `${excludedRows} row${excludedRows === 1 ? "" : "s"} excluded`
+    : "Full dataset";
   const tile = (label, value, context, visual = "") => `
     <div class="result-overview-metric${visual ? " has-visual" : ""}">
       ${visual}<div class="result-overview-metric-text">
@@ -1251,7 +1261,7 @@ function renderOverview(data) {
       </div>
     </div>`;
   overviewGrid.innerHTML =
-    tile("Rows analyzed", (meta.totalRows ?? profile.rows ?? 0).toLocaleString(), "Full dataset")
+    tile("Rows analyzed", (meta.totalRows ?? profile.rows ?? 0).toLocaleString(), rowsContext)
     + tile("Data health", `${profile.healthGrade || "—"} · ${profile.healthScore ?? "—"}/100`,
         `${issueCount} flagged issue${issueCount === 1 ? "" : "s"}`, healthRingHtml(profile.healthScore, tone))
     + tile("Completeness", `${profile.completeness ?? "—"}%`,
