@@ -197,11 +197,21 @@ async function initSettings() {
   updateSettingsBtn();
 }
 
+// The panel opens from two places: this button, and the keyless "Add API key
+// to explain" call to action at the foot of a finished analysis. Both have to
+// leave the same state behind — otherwise the second one announces a collapsed
+// panel to a screen reader and leaves focus at the bottom of the results,
+// nowhere near the field it just opened.
+function openSettings() {
+  settingsPanel.style.display = "";
+  settingsBtn.setAttribute("aria-expanded", "true");
+  apiKeyInput.focus();
+}
+
 settingsBtn.addEventListener("click", () => {
-  const opening = settingsPanel.style.display === "none";
-  settingsPanel.style.display = opening ? "" : "none";
-  settingsBtn.setAttribute("aria-expanded", String(opening));
-  if (opening) apiKeyInput.focus();
+  if (settingsPanel.style.display === "none") { openSettings(); return; }
+  settingsPanel.style.display = "none";
+  settingsBtn.setAttribute("aria-expanded", "false");
 });
 
 settingsPanel.addEventListener("keydown", (event) => {
@@ -2064,7 +2074,7 @@ askBtn.addEventListener("click", submitAsk);
 
 // ─── Explain with Claude (adds AI to a keyless analysis) ─────────
 explainBtn?.addEventListener("click", async () => {
-  if (keyMissing()) { settingsPanel.style.display = ""; return; }
+  if (keyMissing()) { openSettings(); return; }
   const current = allFileResults[activeTabIdx] || allFileResults[0];
   if (!current || current.error) return;
   explainBtn.disabled = true;

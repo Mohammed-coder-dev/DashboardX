@@ -509,6 +509,13 @@ test.describe("AI interpretation is optional", () => {
     await page.locator("#explainBtn").click();
     await expect(page.locator("#settingsPanel")).toBeVisible();
     await expect(page.locator("#apiKeyInput")).toBeVisible();
+
+    // Opening from here has to leave the same state the toolbar button does:
+    // announced as expanded, with focus in the field it just revealed. This
+    // route used to report a collapsed panel and strand focus at the foot of
+    // the results.
+    await expect(page.locator("#settingsBtn")).toHaveAttribute("aria-expanded", "true");
+    await expect(page.locator("#apiKeyInput")).toBeFocused();
   });
 
   test("the key field offers session-only storage by default", async ({ page }) => {
