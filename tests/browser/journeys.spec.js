@@ -639,6 +639,23 @@ test.describe("error states", () => {
     // Anthropic key must not divert the user into AI settings first.
     await expect(page.locator("#settingsPanel")).toBeHidden();
   });
+
+  test("explains a dropped connection in its own words, not the browser's", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(SAMPLE_CSV);
+    // The request never reaches the server at all — what an offline visitor or
+    // a dropped mobile connection actually produces.
+    await page.route("**/api/analyze*", (route) => route.abort("internetdisconnected"));
+    await page.locator("#analyzeBtn").click();
+
+    const error = page.locator("#errorBox");
+    await expect(error).toBeVisible({ timeout: 20_000 });
+    await expect(error).toContainText(/could not reach the server/i);
+    await expect(error).toContainText(/try again/i);
+    // "Failed to fetch" is Chrome's internal phrasing for a rejected fetch. It
+    // names no cause and suggests no action, so it must never be the message.
+    await expect(error).not.toContainText(/failed to fetch/i);
+  });
 });
 
 test.describe("keyboard navigation", () => {

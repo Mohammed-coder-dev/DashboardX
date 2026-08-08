@@ -313,7 +313,7 @@ async function openSaved(id) {
     showScreen("dashboard");
   } catch (err) {
     showScreen("upload");
-    showError(err.message);
+    showError(requestErrorMessage(err));
   } finally {
     clearLoadingTimers();
   }
@@ -625,7 +625,7 @@ async function runAnalysis(sheet) {
   } catch (err) {
     if (err.name === "AbortError") return;
     showScreen("upload");
-    showError(err.message);
+    showError(requestErrorMessage(err));
   } finally {
     if (activeRequestController === requestController) activeRequestController = null;
     cancelAnalysisBtn.style.display = "none";
@@ -676,7 +676,7 @@ async function runUrlAnalysis(sheet) {
   } catch (err) {
     if (err.name === "AbortError") return;
     showScreen("upload");
-    showError(err.message);
+    showError(requestErrorMessage(err));
   } finally {
     if (activeRequestController === requestController) activeRequestController = null;
     cancelAnalysisBtn.style.display = "none";
@@ -1964,7 +1964,7 @@ sampleBtn?.addEventListener("click", async () => {
     currentIncludeRows = [];
     runAnalysis();
   } catch (err) {
-    showError(err.message);
+    showError(requestErrorMessage(err));
   } finally {
     sampleBtn.disabled = false;
   }
@@ -2048,7 +2048,7 @@ async function submitAsk() {
     askQA.push({ q: question, a: data.answer });
     renderAskThread();
   } catch (err) {
-    renderAskThread(question, err.message);
+    renderAskThread(question, requestErrorMessage(err));
   } finally {
     askBtn.disabled = false;
   }
@@ -2093,7 +2093,7 @@ explainBtn?.addEventListener("click", async () => {
     if (current.meta) current.meta.aiIncluded = true;
     renderSingleFile(current, allFileResults.length > 1);
   } catch (err) {
-    explainSub.textContent = err.message;
+    explainSub.textContent = requestErrorMessage(err);
   } finally {
     explainBtn.disabled = false;
     explainBtn.textContent = "Explain with Claude →";
@@ -2473,6 +2473,20 @@ function showScreen(name) {
 
 function showError(msg) { errorBox.textContent=msg; errorBox.style.display=""; }
 function hideError()    { errorBox.style.display="none"; errorBox.textContent=""; }
+// `fetch` rejects with a bare TypeError when the request never reached the
+// server at all — offline, DNS failure, a connection dropped mid-upload. The
+// browser words that "Failed to fetch" in Chrome and "Load failed" in Safari,
+// and neither tells a reader what happened or what to do about it. Anything
+// the server itself produced already carries a written message, so it passes
+// through untouched.
+function requestErrorMessage(err) {
+  if (err instanceof TypeError) {
+    return "Could not reach the server — you may be offline, or the connection dropped. "
+      + "The request did not complete. Check your connection and try again.";
+  }
+  return err.message;
+}
+
 function apiErrorMessage(data, fallback) {
   const message = data?.error || fallback;
   return data?.requestId ? `${message} Reference: ${data.requestId}.` : message;
