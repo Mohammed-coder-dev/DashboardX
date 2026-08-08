@@ -721,13 +721,18 @@ test.describe("keyboard navigation", () => {
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
   });
 
-  test("the first Tab stop skips past the chrome to the content", async ({ page }) => {
-    await page.goto("/app");
-    await page.keyboard.press("Tab");
-    await expect(page.locator(".skip-link")).toBeFocused();
-    await page.keyboard.press("Enter");
-    expect(new URL(page.url()).hash).toBe("#main");
-  });
+  // Every route the navigation links to, not just the workspace. The landing
+  // page made a keyboard visitor walk the whole nav before reaching the hero.
+  for (const route of ["/app", "/", "/docs", "/privacy"]) {
+    test(`the first Tab stop on ${route} skips past the chrome to the content`, async ({ page }) => {
+      await page.goto(route);
+      await page.keyboard.press("Tab");
+      await expect(page.locator(".skip-link")).toBeFocused();
+      await page.keyboard.press("Enter");
+      expect(new URL(page.url()).hash).toBe("#main");
+      await expect(page.locator("#main")).toBeVisible();
+    });
+  }
 
   test("reduced motion never hides the results", async ({ page }) => {
     // The tier entry animations start from opacity: 0. With animations
