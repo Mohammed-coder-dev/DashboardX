@@ -24,7 +24,13 @@ test("the dashboard renders and stays within the viewport", async ({ page }) => 
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 
-  // Column profiles live in tier ③, which arrives collapsed.
+  // Column profiles live in tier ③, which arrives collapsed. The jump buttons
+  // that open it are the first thing a phone visitor has to hit, so they meet
+  // the same 44px floor as the controls they reveal.
+  for (const control of ['[data-tier-jump="statsSection"]', "#tierDataToggle"]) {
+    const box = await page.locator(control).boundingBox();
+    expect(box.height, `${control} touch target`).toBeGreaterThanOrEqual(44);
+  }
   await page.locator('[data-tier-jump="statsSection"]').tap();
   await expect(page.locator("#statsSection")).toBeVisible();
 
@@ -90,6 +96,9 @@ test("the setup rail collapses into a drawer and still fits", async ({ page }) =
 
   // Collapsed by default on a phone, so setup never buries the results.
   await expect(page.locator("#railColumnList")).toBeHidden();
+  // The control that reveals the drawer meets the same 44px floor as the
+  // controls inside it.
+  expect((await page.locator("#railToggle").boundingBox()).height).toBeGreaterThanOrEqual(44);
   await page.locator("#railToggle").tap();
   await expect(page.locator("#railColumnList")).toBeVisible();
   await expect(page.locator("#railToggle")).toHaveAttribute("aria-expanded", "true");

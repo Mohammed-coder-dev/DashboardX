@@ -1709,6 +1709,11 @@ html { scroll-behavior: smooth; }
   .analysis-mode-btn, .reset-btn, .settings-btn, .sample-btn, .analyze-btn,
   .loading-cancel, .column-inspector-close, .file-chip-remove, .swap-files-btn,
   .chart-download, .structure-fix,
+  /* The controls that open a collapsed tier or the setup drawer were left off
+     this list and stayed near 27px — the smallest targets on the results
+     screen, and the ones a phone visitor has to hit first to reach anything
+     inside them. */
+  .rail-toggle, .tier-toggle, .tier-jump button,
   .result-nav a { min-height: 44px; }
   .file-chip-remove { min-width: 36px; }
   .result-nav a { display: inline-flex; align-items: center; }
