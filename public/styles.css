@@ -1827,7 +1827,7 @@ html { scroll-behavior: smooth; }
      screen, and the ones a phone visitor has to hit first to reach anything
      inside them. */
   .rail-toggle, .tier-toggle, .tier-jump button,
-  .result-nav a { min-height: 44px; }
+  .result-nav a { min-height: 45px; }
   .file-chip-remove { min-width: 36px; }
   .result-nav a { display: inline-flex; align-items: center; }
 }
