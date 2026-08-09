@@ -2,22 +2,23 @@
 
 /* ─── Variables ─────────────────────────────────────────────── */
 :root {
-  --bg:         #f6f7f9;
+  --bg:         #f4f6f1;
   --surface:    #ffffff;
-  --surface-2:  #f1f3f6;
-  --surface-3:  #e9ecf1;
-  --border:     #e0e3e8;
-  --border-2:   #c9ced6;
-  --text:       #15171a;
-  --text-2:     #51565f;
-  --text-3:     #636b78;
+  --surface-2:  #eef2ec;
+  --surface-3:  #e4e9e2;
+  --border:     #dce3da;
+  --border-2:   #bcc8bf;
+  --text:       #14201a;
+  --text-2:     #47574e;
+  --text-3:     #5d6d63;
   --text-secondary: var(--text-2);
   --text-tertiary: var(--text-3);
-  --accent:     #315ee7;
-  --accent-hover: #244fd0;
-  --accent-bg:  #eef2ff;
-  --green:      #177245;
-  --green-bg:   #f0fdf4;
+  --accent:     #176b51;
+  --accent-hover: #0f523e;
+  --accent-bg:  #e6f4ed;
+  --signal:     #d7ff64;
+  --green:      #16784f;
+  --green-bg:   #eaf7f0;
   --red:        #b91c1c;
   --red-bg:     #fef2f2;
   --amber:      #a1500b;
@@ -26,14 +27,14 @@
   --purple-bg:  #f5f3ff;
   --teal:       #0e7490;
   --teal-bg:    #ecfeff;
-  --ink-surface: #17191f;
-  --ink-surface-2: #22252d;
-  --on-ink:     #f7f6f2;
-  --on-ink-muted: #b8b7b1;
+  --ink-surface: #10231b;
+  --ink-surface-2: #183128;
+  --on-ink:     #f5f8f2;
+  --on-ink-muted: #b5c4ba;
   --on-ink-border: rgba(255,255,255,.1);
   --on-ink-soft: rgba(255,255,255,.06);
-  --on-ink-accent: #93b4ff;
-  --dialog-backdrop: rgba(23,25,31,.55);
+  --on-ink-accent: #9ee3c8;
+  --dialog-backdrop: rgba(16,35,27,.58);
   --dialog-shadow: 0 24px 80px rgba(0,0,0,.24);
   --shadow-sm:  0 1px 2px rgba(15,23,42,0.04);
   --shadow-md:  0 8px 24px rgba(15,23,42,0.07);
@@ -59,7 +60,9 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
 
 html, body {
   min-height: 100vh;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(215,255,100,.12), transparent 24rem),
+    var(--bg);
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
@@ -87,8 +90,8 @@ html { scroll-behavior: smooth; }
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 
 .topbar {
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(16px);
+  background: rgba(244,246,241,0.88);
+  backdrop-filter: blur(18px) saturate(140%);
   border-bottom: 1px solid var(--border);
   padding: 0 max(24px, calc((100vw - 1136px) / 2));
   height: 64px;
@@ -106,10 +109,10 @@ html { scroll-behavior: smooth; }
 
 .brand-mark {
   width: 30px; height: 30px;
-  background: var(--accent);
+  background: var(--ink-surface);
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  color: white; font-size: 13px; font-weight: 600;
+  color: var(--signal); font-size: 13px; font-weight: 600;
   font-family: 'DM Mono', monospace;
 }
 
@@ -1731,4 +1734,4 @@ html { scroll-behavior: smooth; }
 }
 
 /* ─── Ridge mark ────────────────────────────────────────────────── */
-.brand-glyph { width: 17px; height: 16px; display: block; color: var(--bg); }
+.brand-glyph { width: 17px; height: 16px; display: block; color: var(--signal); }

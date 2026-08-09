@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ridge | Spreadsheet answers you can defend</title>
   <meta name="description" content="Turn messy spreadsheets into computed evidence, full-file charts, quality diagnostics, and optional AI explanations. No signup or API key required." />
-  <meta name="theme-color" content="#f6f7f9" />
+  <meta name="theme-color" content="#f4f6f1" />
   <link rel="canonical" href="https://ridge-data.vercel.app/" />
   <meta property="og:site_name" content="Ridge" />
   <meta property="og:title" content="Ridge | Spreadsheet answers you can defend" />
@@ -26,16 +26,17 @@
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,600;1,500&display=swap');
 
     :root {
-      --paper:    #f6f7f9;
-      --ink:      #15171a;
-      --graphite: #51565f;
-      --faint:    #636b78;
-      --ledger:   #315ee7;
-      --ledger-hover: #244fd0;
-      --grid:     #e0e3e8;
+      --paper:    #f4f6f1;
+      --ink:      #14201a;
+      --graphite: #47574e;
+      --faint:    #5d6d63;
+      --ledger:   #176b51;
+      --ledger-hover: #0f523e;
+      --signal:   #d7ff64;
+      --grid:     #dce3da;
       --card:     #ffffff;
-      --moss:     #177245;
-      --moss-bg:  #f0fdf4;
+      --moss:     #16784f;
+      --moss-bg:  #eaf7f0;
       --amber:    #a1500b;
       --amber-bg: #fef3c7;
     }
@@ -53,7 +54,9 @@
     .skip-link:focus-visible { top: 10px; }
     body {
       font-family: 'DM Sans', sans-serif;
-      background: var(--paper);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(215,255,100,.15), transparent 26rem),
+        var(--paper);
       color: var(--ink);
       line-height: 1.55;
       -webkit-font-smoothing: antialiased;
@@ -69,7 +72,7 @@
     .wordmark { display: flex; align-items: center; gap: 10px; text-decoration: none; }
     .mark {
       width: 30px; height: 30px; border-radius: 8px;
-      background: var(--ledger); color: var(--paper);
+      background: #10231b; color: var(--signal);
       font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
       display: grid; place-items: center;
     }
@@ -79,12 +82,12 @@
     .nav-links a:hover { color: var(--ink); }
     .btn {
       display: inline-block;
-      background: var(--ledger); color: #fff !important;
+      background: #10231b; color: #fff !important;
       font-size: 13.5px; font-weight: 600;
       padding: 10px 18px; border-radius: 9px; text-decoration: none;
       transition: transform 0.12s ease, box-shadow 0.12s ease;
     }
-    .btn:hover { background: var(--ledger-hover); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(49, 94, 231, 0.22); }
+    .btn:hover { background: var(--ledger-hover); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(16, 35, 27, 0.2); }
 
     /* Hero */
     header.hero { padding: 82px 0 68px; }
