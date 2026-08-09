@@ -756,13 +756,13 @@ html { scroll-behavior: smooth; }
 
 .stat-card {
   width: 100%; text-align: left; color: inherit; font-family: inherit; cursor: pointer;
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 16px 18px;
+  border-radius: 11px;
+  padding: 17px 18px;
   transition: border-color .15s, box-shadow .15s, transform .15s;
 }
-.stat-card:hover { border-color: var(--border-2); background: var(--surface); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.stat-card:hover { border-color: var(--accent); background: var(--surface); box-shadow: 0 8px 22px rgba(16,35,27,.06); transform: translateY(-1px); }
 .stat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .stat-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .stat-card-action { flex: 0 0 auto; color: var(--text-3); font-size: 10px; }
@@ -878,7 +878,7 @@ html { scroll-behavior: smooth; }
 .corr-matrix-table thead th span { display: inline-block; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
 .corr-matrix-table td {
   min-width: 52px; height: 34px; padding: 0 6px;
-  border-radius: 6px; text-align: center; color: var(--text);
+  border-radius: 4px; text-align: center; color: var(--text);
 }
 .corr-matrix-cell { border: 1px solid var(--border); }
 .corr-matrix-diag { background: var(--surface-2); }
@@ -905,21 +905,21 @@ html { scroll-behavior: smooth; }
 .corr-caveat { flex-basis: 100%; font-size: 10.5px; color: var(--amber, #b45309); margin-top: 2px; }
 
 /* ─── Charts ─────────────────────────────────────────────────── */
-.charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
 
 .chart-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 22px;
-  box-shadow: none;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 6px 22px rgba(16,35,27,.035);
 }
 
 .chart-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .chart-download {
-  flex: 0 0 auto; padding: 3px 8px;
-  border: 1px solid var(--border); border-radius: 6px;
-  background: var(--surface); color: var(--text-2);
+  flex: 0 0 auto; min-height: 30px; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface-2); color: var(--text-2);
   font: 500 10px 'DM Mono', monospace; letter-spacing: .04em; cursor: pointer;
 }
 .chart-download:hover, .chart-download:focus-visible { color: var(--accent); border-color: var(--accent); }
@@ -1202,17 +1202,21 @@ html { scroll-behavior: smooth; }
 }
 
 /* ─── Deterministic comparison ───────────────────────────────── */
-.compare-section { display: flex; flex-direction: column; gap: 16px; }
+.compare-section {
+  display: flex; flex-direction: column; gap: 16px; padding: 24px;
+  border: 1px solid var(--border); border-radius: 18px;
+  background: rgba(255,255,255,.82); box-shadow: 0 10px 36px rgba(16,35,27,.045);
+}
 .compare-heading { display: flex; justify-content: space-between; align-items: end; gap: 20px; }
 .compare-title { margin-top: 5px; font: 600 22px 'Fraunces', serif; }
 .compare-note { max-width: 440px; color: var(--text-3); font-size: 12px; line-height: 1.5; }
 .compare-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.compare-metric { padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.compare-metric { padding: 16px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); }
 .compare-metric-label { display: block; color: var(--text-3); font: 10px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
 .compare-metric-value { display: block; margin-top: 5px; font: 600 20px 'DM Mono', monospace; }
 .compare-metric-context { display: block; margin-top: 2px; color: var(--text-2); font-size: 11px; }
 .compare-quality { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.compare-quality-card { padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.compare-quality-card { padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .compare-quality-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .compare-quality-name { overflow: hidden; color: var(--text); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .compare-quality-score { font: 600 13px 'DM Mono', monospace; }
@@ -1237,11 +1241,12 @@ html { scroll-behavior: smooth; }
 .compare-empty { padding: 16px; border: 1px dashed var(--border-2); border-radius: var(--radius-sm); background: var(--surface-2); }
 .compare-empty strong { display: block; color: var(--text); font-size: 12px; }
 .compare-empty p { margin-top: 3px; color: var(--text-2); font-size: 11px; line-height: 1.45; }
-.compare-columns-card { overflow: hidden; }
+.compare-columns-card { overflow: hidden; padding: 0; }
+.compare-columns-card > .card-title { padding: 20px 20px 0; }
 .compare-table-wrap { overflow-x: auto; }
 .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .compare-table th { color: var(--text-3); font: 10px 'DM Mono', monospace; letter-spacing: .05em; text-align: left; text-transform: uppercase; }
-.compare-table th, .compare-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.compare-table th, .compare-table td { padding: 12px 20px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .compare-table tr:last-child td { border-bottom: 0; }
 .compare-table td:first-child { color: var(--text); font-weight: 600; }
 .compare-table .change { color: var(--accent); font-family: 'DM Mono', monospace; }
