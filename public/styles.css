@@ -1507,7 +1507,7 @@ html { scroll-behavior: smooth; }
 .explain-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 18px;
   padding: 17px 20px; margin-bottom: 20px;
-  background: var(--accent-bg); border: 1px solid #dbe3ff; border-radius: 12px;
+  background: var(--accent-bg); border: 1px solid var(--border-2); border-radius: 12px;
 }
 .explain-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
 .explain-sub { font-size: 12.5px; color: var(--text-secondary); max-width: 560px; }
@@ -1555,9 +1555,18 @@ html { scroll-behavior: smooth; }
 /* Model prose is a different substance from engine output, and reads as one
    before a word is parsed. Every ink pairing here measures above 7:1. */
 .tier-interpretation .tier-body {
-  padding: 20px; border-radius: var(--radius);
-  background: var(--ink-surface); color: var(--on-ink);
+  padding: 0; border-radius: 0;
+  background: transparent; color: var(--on-ink);
 }
+.tier-interpretation {
+  border-color: var(--on-ink-border); background: var(--ink-surface);
+  box-shadow: 0 24px 60px rgba(16,35,27,.16);
+}
+.tier-interpretation .tier-head { border-color: var(--on-ink-border); }
+.tier-interpretation .tier-index { border-color: var(--signal); background: var(--signal); color: var(--ink-surface); }
+.tier-interpretation .tier-title { color: var(--on-ink); }
+.tier-interpretation .tier-note { color: var(--on-ink-muted); }
+.tier-interpretation > .tier-head [class~="prov--written"] { color: #d6c8ff; border-color: rgba(214,200,255,.35); background: rgba(124,58,237,.13); }
 .tier-interpretation .tier-body .card,
 .tier-interpretation .tier-body .summary-card,
 .tier-interpretation .tier-body .conclusion-card,
@@ -1579,10 +1588,27 @@ html { scroll-behavior: smooth; }
   background: var(--ink-surface); border-color: var(--on-ink-border); color: var(--on-ink);
 }
 .tier-interpretation .tier-body .question-input::placeholder { color: var(--on-ink-muted); }
+.tier-interpretation .explain-bar { background: var(--ink-surface-2); border-color: rgba(215,255,100,.24); }
+.tier-interpretation .explain-btn,
+.tier-interpretation .ask-btn { background: var(--signal); color: var(--ink-surface); }
+.tier-interpretation .insight-item { background: var(--on-ink-soft); }
+.tier-interpretation .insight-title,
+.tier-interpretation .insight-detail,
+.tier-interpretation .var-explanation,
+.tier-interpretation .ask-q,
+.tier-interpretation .ask-a { color: var(--on-ink); }
+.tier-interpretation .var-name { color: var(--on-ink-accent); }
+.tier-interpretation .var-notable,
+.tier-interpretation .ask-q::before { color: var(--on-ink-muted); }
+.tier-interpretation .var-item { border-color: var(--on-ink-border); }
 
 /* The printed report is the artifact most likely to reach a stranger, and
    printers drop backgrounds — so the boundary is carried by a rule, not a fill. */
 @media print {
+  .tier-interpretation { background: #fff; color: #000; border-color: #999; box-shadow: none; }
+  .tier-interpretation .tier-head { border-color: #999; }
+  .tier-interpretation .tier-title,
+  .tier-interpretation .tier-note { color: #000; }
   .tier-interpretation .tier-body {
     padding: 0 0 0 16px; border-left: 4px solid #000; border-radius: 0;
     background: #fff; color: #000;
