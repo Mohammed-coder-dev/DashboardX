@@ -1771,6 +1771,12 @@ html { scroll-behavior: smooth; }
   .result-overview-metric strong { font-size: 17px; }
   .result-overview-focus { grid-template-columns: 1fr; gap: 4px; }
   .result-nav { top: 64px; width: 100%; border-radius: 10px; }
+  .tier { padding: 18px 15px; border-radius: 14px; }
+  .tier + .tier { padding-top: 18px; }
+  .tier-head { gap: 10px; padding-bottom: 14px; }
+  .tier-note { font-size: 11.5px; }
+  .tier-jump { padding-left: 0; }
+  .prov-legend { padding: 10px 11px; gap: 6px 9px; }
   .stats-section-head { align-items: flex-start; flex-direction: column; gap: 0; margin-bottom: 12px; }
   .evidence-head { align-items: flex-start; flex-direction: column; gap: 6px; }
   .strength { order: 2; }
