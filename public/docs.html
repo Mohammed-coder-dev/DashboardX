@@ -13,12 +13,11 @@
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="app">
   <nav class="topbar">
-    <div class="topbar-brand">
-      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
-        <div class="brand-mark"><svg class="brand-glyph" viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <span class="brand-name">Ridge</span>
-      </a>
-    </div>
+    <a class="topbar-brand" href="/" aria-label="Ridge home">
+      <div class="brand-mark"><svg class="brand-glyph" viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span class="brand-name">Ridge</span>
+      <span class="brand-tag">Product guide</span>
+    </a>
     <div class="topbar-nav">
       <a class="topbar-link" href="/app">Open the app</a>
       <a class="topbar-link" href="/">Home</a>
@@ -27,11 +26,13 @@
   </nav>
 
   <main class="main doc-page" id="main">
+    <p class="doc-kicker">Product guide</p>
     <h1 class="doc-title">Using the app</h1>
+    <p class="doc-updated">A practical guide to moving from a raw file to evidence your team can inspect, export, and share.</p>
 
     <h2>Analyze a file</h2>
     <ul>
-      <li>Drop up to 10 files on the <a href="/">home page</a>, or paste an <code>https://</code> link to a file. Supported: <code>.xlsx</code> <code>.xls</code> <code>.csv</code> <code>.json</code> <code>.txt</code> <code>.md</code> <code>.pdf</code> <code>.pptx</code> <code>.ppt</code> <code>.docx</code> <code>.doc</code>.</li>
+      <li>Drop up to 10 files in the <a href="/app">Ridge workspace</a>, or paste an <code>https://</code> link to a file. Supported: <code>.xlsx</code> <code>.xls</code> <code>.csv</code> <code>.json</code> <code>.txt</code> <code>.md</code> <code>.pdf</code> <code>.pptx</code> <code>.ppt</code> <code>.docx</code> <code>.doc</code>.</li>
       <li>Uploads are capped at 4&nbsp;MB per request; larger files (to 25&nbsp;MB) go through the link box, which fetches server-side.</li>
       <li>Multi-sheet workbooks get a sheet picker after the first run.</li>
     </ul>
@@ -39,7 +40,7 @@
     <h2>No API key required</h2>
     <ul>
       <li>"Analyze data" runs the deterministic pipeline: statistics per column, a data-quality grade, pairwise-complete correlations with sample sizes, date profiles, and structured evidence.</li>
-      <li>Adding an Anthropic API key (⚙ in the top bar) unlocks <em>Explain with Claude</em>, cross-file synthesis, and follow-up questions. Deterministic numbers stay exactly the same either way.</li>
+      <li>Adding an Anthropic API key through <em>AI settings</em> unlocks <em>Explain with Claude</em>, cross-file synthesis, and follow-up questions. Deterministic numbers stay exactly the same either way.</li>
       <li>For documents (PDF, Word, PowerPoint), keyless mode shows the extracted text and counts; AI reading requires a key.</li>
     </ul>
 
