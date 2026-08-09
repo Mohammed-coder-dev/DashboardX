@@ -35,7 +35,7 @@
     <a class="topbar-brand" href="/" aria-label="Ridge home">
       <div class="brand-mark"><svg class="brand-glyph" viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <span class="brand-name">Ridge</span>
-      <span class="brand-tag">Evidence</span>
+      <span class="brand-tag">Evidence workspace</span>
     </a>
     <div class="topbar-nav">
       <a class="topbar-link" href="/privacy">Privacy</a>
@@ -48,6 +48,11 @@
 
     <!-- Settings Panel -->
     <div id="settingsPanel" class="settings-panel" role="region" aria-label="AI settings" style="display:none;">
+      <div class="settings-panel-head">
+        <span>Optional intelligence</span>
+        <h2>Add interpretation when you need it.</h2>
+        <p>Your deterministic analysis stays unchanged. A model can explain the evidence and answer follow-ups, but it never supplies the numbers.</p>
+      </div>
       <div class="settings-field">
         <label class="settings-label" for="apiKeyInput">Anthropic API key <span class="settings-optional">optional — unlocks AI interpretation</span></label>
         <input id="apiKeyInput" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
