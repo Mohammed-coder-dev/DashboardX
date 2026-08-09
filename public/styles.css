@@ -133,24 +133,51 @@ html { scroll-behavior: smooth; }
 
 .brand-tag { display: none; }
 
-.main { flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; padding: 36px 32px 80px; }
+.main { flex: 1; max-width: 1240px; margin: 0 auto; width: 100%; padding: 36px 32px 80px; }
 
 /* ─── Upload Zone ────────────────────────────────────────────── */
-.upload-section { max-width: 720px; margin: 0 auto; padding-top: 26px; }
+.upload-section {
+  max-width: 1120px; margin: 0 auto; padding-top: 54px;
+  display: grid; grid-template-columns: minmax(0, .82fr) minmax(500px, 1.18fr);
+  gap: clamp(42px, 7vw, 84px); align-items: start;
+}
+.upload-intro { min-width: 0; padding-top: 24px; }
+.upload-workbench {
+  min-width: 0; padding: 26px;
+  border: 1px solid var(--border); border-radius: 22px;
+  background: rgba(255,255,255,.94); box-shadow: 0 28px 70px rgba(16,35,27,.1);
+}
+.workbench-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+.workbench-kicker {
+  display: block; margin-bottom: 3px; color: var(--accent);
+  font: 600 9px 'DM Mono', monospace; letter-spacing: .12em; text-transform: uppercase;
+}
+.workbench-head h2 { font-size: 20px; line-height: 1.25; letter-spacing: -.025em; }
+.workbench-status {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px;
+  border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-2); font: 500 9px 'DM Mono', monospace; white-space: nowrap;
+}
+.workbench-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
 
 .upload-eyebrow {
-  margin-bottom: 10px; color: var(--accent);
+  margin-bottom: 14px; color: var(--accent);
   font: 600 11px 'DM Mono', monospace; letter-spacing: .1em; text-transform: uppercase;
 }
 
 .upload-headline {
   max-width: 620px; font-family: 'DM Sans', sans-serif;
-  font-size: 42px; font-weight: 700;
+  font-size: clamp(42px, 5vw, 58px); font-weight: 700;
   color: var(--text); letter-spacing: -0.045em;
-  margin-bottom: 12px; line-height: 1.08;
+  margin-bottom: 18px; line-height: 1.03;
 }
 
-.upload-sub { max-width: 650px; color: var(--text-2); font-size: 15px; line-height: 1.65; margin-bottom: 14px; }
+.upload-sub { max-width: 48ch; color: var(--text-2); font-size: 15.5px; line-height: 1.7; margin-bottom: 28px; }
+
+.upload-proof { display: grid; gap: 0; margin-bottom: 22px; border-top: 1px solid var(--border); }
+.upload-proof div { display: grid; grid-template-columns: 128px 1fr; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.upload-proof strong { color: var(--text); font-size: 12px; }
+.upload-proof span { color: var(--text-3); font-size: 11.5px; line-height: 1.45; }
 
 /* ─── File type pills ─────────────────────────────────────────── */
 .format-line {
@@ -198,8 +225,8 @@ html { scroll-behavior: smooth; }
 /* ─── Dropzone ────────────────────────────────────────────────── */
 .dropzone {
   border: 1.5px dashed var(--border-2);
-  border-radius: var(--radius);
-  padding: 34px 28px;
+  border-radius: 16px;
+  padding: 38px 28px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
@@ -222,8 +249,8 @@ html { scroll-behavior: smooth; }
 }
 
 .dropzone-icon {
-  width: 40px; height: 40px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;
-  border-radius: 10px; background: var(--accent-bg); color: var(--accent);
+  width: 44px; height: 44px; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--ink-surface); color: var(--signal);
   font: 600 13px 'DM Mono', monospace; transition: transform 0.2s;
 }
 .dropzone:hover .dropzone-icon { transform: translateY(-2px); }
@@ -270,7 +297,7 @@ html { scroll-behavior: smooth; }
 .analyze-btn {
   width: 100%; min-height: 46px; margin-top: 14px; padding: 12px 18px;
   background: var(--accent); color: white; border: none;
-  border-radius: 10px;
+  border-radius: 999px;
   font-family: 'DM Sans', sans-serif;
   font-size: 14px; font-weight: 600;
   cursor: pointer; transition: all 0.15s; letter-spacing: 0.01em;
@@ -1601,20 +1628,20 @@ html { scroll-behavior: smooth; }
    anything. Bordered, not filled: the filled button stays the analyze CTA. */
 .sample-strip {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin: 0 0 20px; padding: 13px 16px;
-  border: 1px solid #dbe3ff; border-radius: var(--radius);
-  background: var(--accent-bg);
+  margin: 0; padding: 16px;
+  border: 1px solid var(--on-ink-border); border-radius: 16px;
+  background: var(--ink-surface); color: var(--on-ink);
 }
-.sample-strip-text { display: grid; gap: 1px; font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
-.sample-strip-text strong { color: var(--text); font-size: 13px; }
+.sample-strip-text { display: grid; gap: 2px; font-size: 11.5px; color: var(--on-ink-muted); line-height: 1.45; }
+.sample-strip-text strong { color: var(--on-ink); font-size: 12.5px; }
 .sample-btn {
-  flex: 0 0 auto; padding: 10px 16px;
-  background: var(--surface); color: var(--accent);
-  border: 1px solid var(--accent); border-radius: var(--radius-sm);
+  flex: 0 0 auto; min-height: 40px; padding: 9px 15px;
+  background: var(--signal); color: var(--signal-ink, #183d2f);
+  border: 1px solid var(--signal); border-radius: 999px;
   font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600;
   white-space: nowrap; cursor: pointer; transition: all 0.15s;
 }
-.sample-btn:hover:not(:disabled), .sample-btn:focus-visible { background: var(--accent); color: #fff; }
+.sample-btn:hover:not(:disabled), .sample-btn:focus-visible { background: var(--on-ink); border-color: var(--on-ink); color: var(--ink-surface); }
 .sample-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (max-width: 560px) {
   .sample-strip { flex-direction: column; align-items: stretch; }
@@ -1626,7 +1653,7 @@ html { scroll-behavior: smooth; }
 .refine-group {
   margin-top: 18px; padding: 14px 16px 12px;
   border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
 }
 .refine-group .url-input-wrap { margin-top: 10px; }
 .refine-label {
@@ -1656,10 +1683,14 @@ html { scroll-behavior: smooth; }
   .analysis-record summary { align-items: center; gap: 7px; padding: 10px 12px; font-size: 8.5px; }
   .analysis-record-summary { max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .analysis-record-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .upload-section { padding-top: 12px; }
+  .upload-section { display: block; padding-top: 12px; }
+  .upload-intro { padding-top: 8px; }
+  .upload-workbench { margin-top: 28px; padding: 20px 16px; border-radius: 18px; }
+  .workbench-head { align-items: center; }
   .upload-eyebrow { margin-bottom: 8px; font-size: 9.5px; }
   .upload-headline { font-size: 33px; line-height: 1.08; }
   .upload-sub { font-size: 14px; line-height: 1.55; }
+  .upload-proof div { grid-template-columns: 116px 1fr; }
   .format-line { margin-bottom: 18px; gap: 7px; }
   .analysis-mode-btn { padding: 10px; align-items: flex-start; flex-direction: column; gap: 2px; }
   .analysis-mode-btn small { font-size: 10.5px; }

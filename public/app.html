@@ -69,72 +69,90 @@
 
     <!-- Upload Screen -->
     <div id="uploadScreen" class="upload-section animate">
-      <p class="upload-eyebrow">Private, deterministic spreadsheet analysis</p>
-      <h1 class="upload-headline">Turn messy files into<br>defensible answers.</h1>
-      <p class="upload-sub">Ridge profiles your data, surfaces quality issues and builds traceable statistical evidence. The analysis runs without an API key; AI interpretation is optional.</p>
+      <div class="upload-intro">
+        <p class="upload-eyebrow">Ridge evidence workspace</p>
+        <h1 class="upload-headline">From raw file to<br>decision-ready evidence.</h1>
+        <p class="upload-sub">Profile quality, surface material changes, and trace every finding back to the calculation and source rows behind it.</p>
 
-      <div class="sample-strip" id="sampleStrip">
-        <div class="sample-strip-text">
-          <strong>First time here?</strong>
-          <span>Open a finished analysis of a sample sales file — computed evidence, charts and a quality grade. No upload, no key.</span>
-        </div>
-        <button id="sampleBtn" class="sample-btn" type="button">Open a sample analysis</button>
-      </div>
-
-      <div class="analysis-mode" role="group" aria-label="Analysis mode">
-        <button class="analysis-mode-btn active" data-analysis-mode="analyze" type="button" aria-pressed="true">
-          <strong>Analyze</strong>
-          <small>Profile one or more files</small>
-        </button>
-        <button class="analysis-mode-btn" data-analysis-mode="compare" type="button" aria-pressed="false">
-          <strong>Compare</strong>
-          <small>Measure baseline-to-current changes</small>
-        </button>
-      </div>
-      <p id="analysisModeHint" class="analysis-mode-hint">Upload one file for a focused analysis, or several to explore them side by side.</p>
-
-      <div class="dropzone" id="dropzone" aria-describedby="dropzoneHelp uploadReadiness">
-        <input type="file" id="fileInput" aria-label="Choose files to analyze" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
-        <span class="dropzone-icon" id="dropzoneIcon" aria-hidden="true">↑</span>
-        <div class="dropzone-title" id="dropzoneTitle">Drop files here or click to browse</div>
-        <div class="dropzone-sub" id="dropzoneHelp">Up to 10 files · 4 MB total — larger files work through a public HTTPS link</div>
-        <div id="fileList" class="file-list" style="display:none;"></div>
-      </div>
-
-      <div class="format-line" aria-label="Supported file types">
-        <span>Supports</span>
-        <strong>XLSX</strong><strong>CSV</strong><strong>JSON</strong><strong>PDF</strong><strong>PPTX</strong><strong>DOCX</strong><strong>TXT</strong>
-      </div>
-
-      <div class="upload-status" id="uploadReadiness" role="status" aria-live="polite">
-        <span class="upload-status-dot"></span>
-        <span>Choose a file to begin. Deterministic analysis does not need an API key.</span>
-      </div>
-
-      <div class="refine-group" aria-label="Optional settings for this run">
-        <div class="refine-label">Refine the run <span>all optional</span></div>
-
-        <div id="urlInputWrap" class="url-input-wrap input-field">
-          <label for="urlInput">Analyze from a link <span>optional</span></label>
-          <input id="urlInput" class="question-input" type="url"
-            placeholder="https://example.com/data.csv" spellcheck="false" />
+        <div class="upload-proof" aria-label="Ridge analysis principles">
+          <div><strong>Computed first</strong><span>Statistics come from code, not a model.</span></div>
+          <div><strong>Private by default</strong><span>No account and no stored source file.</span></div>
+          <div><strong>Built to travel</strong><span>Export evidence your team can review.</span></div>
         </div>
 
-        <div id="questionInputWrap" class="question-input-wrap input-field">
-          <label for="questionInput">Focus the analysis <span>optional</span></label>
-          <input id="questionInput" class="question-input" type="text"
-            placeholder="e.g. Which regions are driving the change?" />
+        <div class="sample-strip" id="sampleStrip">
+          <div class="sample-strip-text">
+            <strong>See Ridge with real data</strong>
+            <span>Open a finished sales analysis with evidence, charts, and a quality grade.</span>
+          </div>
+          <button id="sampleBtn" class="sample-btn" type="button">Explore the sample</button>
         </div>
-
-        <label class="save-toggle" for="saveToggle">
-          <input type="checkbox" id="saveToggle" />
-          <span>Save this analysis to history and enable a share link</span>
-        </label>
-        <p class="save-toggle-hint" id="saveToggleHint" style="display:none;">The result (statistics, insights and sample rows — never your API key) will be stored server-side so you can reopen and share it.</p>
       </div>
 
-      <button id="analyzeBtn" class="analyze-btn" type="button" disabled>Analyze data →</button>
-      <div id="errorBox" class="error-box" role="alert" aria-live="assertive" style="display:none;"></div>
+      <div class="upload-workbench">
+        <div class="workbench-head">
+          <div>
+            <span class="workbench-kicker">New workspace</span>
+            <h2>Start an analysis</h2>
+          </div>
+          <span class="workbench-status"><i></i> Private by default</span>
+        </div>
+
+        <div class="analysis-mode" role="group" aria-label="Analysis mode">
+          <button class="analysis-mode-btn active" data-analysis-mode="analyze" type="button" aria-pressed="true">
+            <strong>Analyze</strong>
+            <small>Profile one or more files</small>
+          </button>
+          <button class="analysis-mode-btn" data-analysis-mode="compare" type="button" aria-pressed="false">
+            <strong>Compare</strong>
+            <small>Measure baseline-to-current changes</small>
+          </button>
+        </div>
+        <p id="analysisModeHint" class="analysis-mode-hint">Upload one file for a focused analysis, or several to explore them side by side.</p>
+
+        <div class="dropzone" id="dropzone" aria-describedby="dropzoneHelp uploadReadiness">
+          <input type="file" id="fileInput" aria-label="Choose files to analyze" accept=".xlsx,.xls,.csv,.json,.txt,.md,.pdf,.pptx,.ppt,.docx,.doc" multiple />
+          <span class="dropzone-icon" id="dropzoneIcon" aria-hidden="true">↑</span>
+          <div class="dropzone-title" id="dropzoneTitle">Drop files here or click to browse</div>
+          <div class="dropzone-sub" id="dropzoneHelp">Up to 10 files · 4 MB total — larger files work through a public HTTPS link</div>
+          <div id="fileList" class="file-list" style="display:none;"></div>
+        </div>
+
+        <div class="format-line" aria-label="Supported file types">
+          <span>Supports</span>
+          <strong>XLSX</strong><strong>CSV</strong><strong>JSON</strong><strong>PDF</strong><strong>PPTX</strong><strong>DOCX</strong><strong>TXT</strong>
+        </div>
+
+        <div class="upload-status" id="uploadReadiness" role="status" aria-live="polite">
+          <span class="upload-status-dot"></span>
+          <span>Choose a file to begin. Deterministic analysis does not need an API key.</span>
+        </div>
+
+        <div class="refine-group" aria-label="Optional settings for this run">
+          <div class="refine-label">Refine the run <span>all optional</span></div>
+
+          <div id="urlInputWrap" class="url-input-wrap input-field">
+            <label for="urlInput">Analyze from a link <span>optional</span></label>
+            <input id="urlInput" class="question-input" type="url"
+              placeholder="https://example.com/data.csv" spellcheck="false" />
+          </div>
+
+          <div id="questionInputWrap" class="question-input-wrap input-field">
+            <label for="questionInput">Focus the analysis <span>optional</span></label>
+            <input id="questionInput" class="question-input" type="text"
+              placeholder="e.g. Which regions are driving the change?" />
+          </div>
+
+          <label class="save-toggle" for="saveToggle">
+            <input type="checkbox" id="saveToggle" />
+            <span>Save this analysis to history and enable a share link</span>
+          </label>
+          <p class="save-toggle-hint" id="saveToggleHint" style="display:none;">The result (statistics, insights and sample rows — never your API key) will be stored server-side so you can reopen and share it.</p>
+        </div>
+
+        <button id="analyzeBtn" class="analyze-btn" type="button" disabled>Analyze data →</button>
+        <div id="errorBox" class="error-box" role="alert" aria-live="assertive" style="display:none;"></div>
+      </div>
 
       <div id="historySection" class="history-section" style="display:none;">
         <div class="history-title">Recent analyses</div>
