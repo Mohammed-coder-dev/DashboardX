@@ -123,7 +123,7 @@ const modelSelect     = document.getElementById("modelSelect");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const settingsStatus  = document.getElementById("settingsStatus");
 
-// ─── Browser storage (Ridge keys, migrated from the DashboardX era) ──
+// ─── Browser storage (Ridge keys, migrated from the pre-Ridge era) ────
 const KEY_STORAGE     = "ridge_api_key";
 const MODEL_STORAGE   = "ridge_model";
 const SESSION_STORAGE = "ridge_session";
