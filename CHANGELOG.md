@@ -318,7 +318,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [2.1.0] — 2026-07-30
 
-The DashboardX → Ridge release. The product is now the deterministic evidence
+The product-wide Ridge rebrand release. The product is now the deterministic evidence
 engine; AI interpretation is an optional layer over it.
 
 ### Added
@@ -421,7 +421,7 @@ a key or makes a provider call.
 
 ## [2.0.0] — 2026-07-29
 
-Released as DashboardX.
+Released under the legacy product name.
 
 - Layered architecture: routes → services → parsers/analytics.
 - BYOK with a model picker; structured JSON outputs.

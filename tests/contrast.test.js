@@ -96,7 +96,7 @@ describe("colour contrast", () => {
       ...Object.values(TEXT_TOKENS).flat(),
       ...ON_FILL.map(([, fill]) => fill),
       // Non-text tokens: borders, dividers, shadows and decorative fills.
-      "--surface-3", "--border", "--border-2",
+      "--surface-3", "--border", "--border-2", "--signal",
     ]);
     const unclassified = Object.keys(TOKENS).filter((token) => !classified.has(token));
     expect(unclassified, `unclassified colour tokens: ${unclassified.join(", ")}`).toEqual([]);

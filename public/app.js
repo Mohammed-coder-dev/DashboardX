@@ -123,7 +123,7 @@ const modelSelect     = document.getElementById("modelSelect");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const settingsStatus  = document.getElementById("settingsStatus");
 
-// ─── Browser storage (Ridge keys, migrated from the DashboardX era) ──
+// ─── Browser storage (Ridge keys, migrated from the pre-Ridge era) ────
 const KEY_STORAGE     = "ridge_api_key";
 const MODEL_STORAGE   = "ridge_model";
 const SESSION_STORAGE = "ridge_session";
@@ -2203,13 +2203,13 @@ function chartTheme() {
   const styles = getComputedStyle(document.documentElement);
   const token = (name, fallback) => (styles.getPropertyValue(name) || "").trim() || fallback;
   return {
-    accent:  token("--accent", "#315ee7"),
-    grid:    token("--border", "#e0e3e8"),
-    label:   token("--text-3", "#636b78"),
+    accent:  token("--accent", "#176b51"),
+    grid:    token("--border", "#dce3da"),
+    label:   token("--text-3", "#5d6d63"),
     surface: token("--surface", "#ffffff"),
     // Fixed categorical order for the legacy AI-spec fallback charts.
     series: [
-      token("--accent", "#315ee7"), token("--green", "#177245"),
+      token("--accent", "#176b51"), token("--green", "#16784f"),
       token("--amber", "#a1500b"), token("--red", "#b91c1c"),
       token("--purple", "#7c3aed"), token("--teal", "#0e7490"),
     ],

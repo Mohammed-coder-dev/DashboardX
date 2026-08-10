@@ -96,7 +96,7 @@ jobs:
           # test; historical names survive only in the changelog. This file is
           # excluded too — the pattern below contains the very strings it
           # searches for, so scanning it would always match itself.
-          if git grep -nE 'Dashboard''X|Analyze''X|dashboardx-demo' -- . \
+          if git grep -nE 'Dashboard''X|Analyze''X|dashboard''x-demo' -- . \
               ':!CHANGELOG.md' ':!public/app.js' ':!package-lock.json' \
               ':!.github/workflows/ci.yml'; then
             echo "::error::stale brand reference"; exit 1

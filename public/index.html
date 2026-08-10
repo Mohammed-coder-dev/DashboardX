@@ -5,21 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ridge | Spreadsheet answers you can defend</title>
   <meta name="description" content="Turn messy spreadsheets into computed evidence, full-file charts, quality diagnostics, and optional AI explanations. No signup or API key required." />
-  <meta name="theme-color" content="#f6f7f9" />
+  <meta name="theme-color" content="#f4f6f1" />
   <link rel="canonical" href="https://ridge-data.vercel.app/" />
   <meta property="og:site_name" content="Ridge" />
   <meta property="og:title" content="Ridge | Spreadsheet answers you can defend" />
   <meta property="og:description" content="Computed evidence, full-file charts, and quality diagnostics before AI explains a thing." />
   <meta property="og:url" content="https://ridge-data.vercel.app/" />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="https://ridge-data.vercel.app/og-ridge.png" />
+  <meta property="og:image" content="https://ridge-data.vercel.app/og-ridge-v2.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Ridge turns a spreadsheet into a distribution chart and evidence cards." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Ridge | Spreadsheet answers you can defend" />
   <meta name="twitter:description" content="Computed evidence and data-quality diagnostics for the spreadsheets your team relies on." />
-  <meta name="twitter:image" content="https://ridge-data.vercel.app/og-ridge.png" />
+  <meta name="twitter:image" content="https://ridge-data.vercel.app/og-ridge-v2.png" />
   <meta name="twitter:image:alt" content="Ridge turns a spreadsheet into a distribution chart and evidence cards." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23315ee7%22%2F%3E%3Cpath%20d%3D%22M6%2022.5%20L11.5%2013%20L15.5%2018%20L21%208.5%20L26%2016.5%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E" />
   <style>
@@ -128,16 +128,17 @@
     }
 
     :root {
-      --paper:    #f6f7f9;
-      --ink:      #15171a;
-      --graphite: #51565f;
-      --faint:    #636b78;
-      --ledger:   #315ee7;
-      --ledger-hover: #244fd0;
-      --grid:     #e0e3e8;
+      --paper:    #f4f6f1;
+      --ink:      #14201a;
+      --graphite: #47574e;
+      --faint:    #5d6d63;
+      --ledger:   #176b51;
+      --ledger-hover: #0f523e;
+      --signal:   #d7ff64;
+      --grid:     #dce3da;
       --card:     #ffffff;
-      --moss:     #177245;
-      --moss-bg:  #f0fdf4;
+      --moss:     #16784f;
+      --moss-bg:  #eaf7f0;
       --amber:    #a1500b;
       --amber-bg: #fef3c7;
     }
@@ -155,41 +156,59 @@
     .skip-link:focus-visible { top: 10px; }
     body {
       font-family: 'DM Sans', sans-serif;
-      background: var(--paper);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(215,255,100,.15), transparent 26rem),
+        var(--paper);
       color: var(--ink);
       line-height: 1.55;
       -webkit-font-smoothing: antialiased;
     }
     a { color: inherit; }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
 
     /* Nav */
     nav {
       display: flex; align-items: center; justify-content: space-between;
-      min-height: 64px; padding: 14px 0;
+      min-height: 76px; padding: 16px 0; border-bottom: 1px solid var(--grid);
     }
     .wordmark { display: flex; align-items: center; gap: 10px; text-decoration: none; }
     .mark {
       width: 30px; height: 30px; border-radius: 8px;
-      background: var(--ledger); color: var(--paper);
+      background: #10231b; color: var(--signal);
       font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
       display: grid; place-items: center;
     }
     .wordmark span { font-weight: 700; font-size: 16px; letter-spacing: -0.025em; }
-    .nav-links { display: flex; align-items: center; gap: 18px; }
+    .wordmark .wordmark-descriptor {
+      margin-left: 2px; padding-left: 12px; border-left: 1px solid var(--grid);
+      color: var(--faint); font-family: 'DM Mono', monospace;
+      font-size: 9px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .nav-links { display: flex; align-items: center; gap: 22px; }
     .nav-links a { font-size: 13.5px; color: var(--graphite); text-decoration: none; }
     .nav-links a:hover { color: var(--ink); }
     .btn {
-      display: inline-block;
-      background: var(--ledger); color: #fff !important;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: #10231b; color: #fff !important;
       font-size: 13.5px; font-weight: 600;
-      padding: 10px 18px; border-radius: 9px; text-decoration: none;
+      min-height: 44px; padding: 10px 20px; border-radius: 999px; text-decoration: none;
       transition: transform 0.12s ease, box-shadow 0.12s ease;
     }
-    .btn:hover { background: var(--ledger-hover); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(49, 94, 231, 0.22); }
+    .btn:hover { background: var(--ledger-hover); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(16, 35, 27, 0.2); }
 
     /* Hero */
-    header.hero { padding: 82px 0 68px; }
+    header.hero { padding: 92px 0 72px; }
+    .hero-grid {
+      display: grid; grid-template-columns: minmax(0, .92fr) minmax(430px, 1.08fr);
+      gap: clamp(42px, 7vw, 88px); align-items: center;
+    }
+    .hero-copy { min-width: 0; }
+    .hero-visual { min-width: 0; position: relative; }
+    .hero-visual::before {
+      content: ""; position: absolute; inset: -28px -24px auto auto;
+      width: 138px; height: 138px; border-radius: 50%;
+      background: var(--signal); opacity: .42; filter: blur(2px); z-index: -1;
+    }
     .eyebrow {
       font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--faint); margin-bottom: 16px;
@@ -198,11 +217,11 @@
     h1 {
       font-size: clamp(42px, 6vw, 64px);
       font-weight: 700; letter-spacing: -0.045em; line-height: 1.06;
-      max-width: 14ch;
+      max-width: 11ch;
     }
     h1 em { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; }
     .sub {
-      margin-top: 24px; max-width: 64ch;
+      margin-top: 24px; max-width: 55ch;
       font-size: 16.5px; color: var(--graphite); font-weight: 400; line-height: 1.65;
     }
     .sub strong { font-weight: 500; color: var(--ink); }
@@ -215,10 +234,10 @@
     .demo {
       display: grid; grid-template-columns: 1fr auto 1fr;
       gap: 18px; align-items: center;
-      margin: 42px 0 0; padding: 32px;
+      margin: 0; padding: 26px;
       background: var(--card);
-      border: 1px solid var(--grid); border-radius: 16px;
-      box-shadow: 0 10px 32px rgba(15,23,42,.055);
+      border: 1px solid var(--grid); border-radius: 22px;
+      box-shadow: 0 26px 70px rgba(16,35,27,.12);
     }
     .demo-file, .demo-read { min-width: 0; }
     .demo-label {
@@ -275,8 +294,8 @@
     .demo-insight b { color: var(--ink); font-weight: 500; }
     .proof-strip {
       display: grid; grid-template-columns: repeat(4, 1fr);
-      margin-top: 14px; border: 1px solid var(--grid); border-radius: 12px;
-      background: var(--card); overflow: hidden;
+      margin-top: 56px; border: 1px solid var(--grid); border-radius: 16px;
+      background: rgba(255,255,255,.64); overflow: hidden;
     }
     .proof-item { padding: 15px 16px; border-right: 1px solid var(--grid); }
     .proof-item:last-child { border-right: 0; }
@@ -287,20 +306,28 @@
     .proof-item span { color: var(--faint); font-size: 11px; }
 
     /* Sections */
-    section { padding: 72px 0; border-top: 1px solid var(--grid); }
+    section { padding: 88px 0; border-top: 1px solid var(--grid); }
     h2 {
       font-size: 13px; font-family: 'DM Mono', monospace; font-weight: 500;
       letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
       margin-bottom: 28px;
     }
-    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
-    .step { padding-top: 18px; border-top: 2px solid var(--grid); }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .step {
+      min-height: 210px; padding: 24px; border: 1px solid var(--grid);
+      border-radius: 16px; background: rgba(255,255,255,.64);
+    }
     .step-num { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ledger); margin-bottom: 10px; }
     .step h3, .feat h3 { font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 8px; }
     .step p, .feat p { font-size: 14px; color: var(--graphite); font-weight: 400; }
     .feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .feats + .feats { margin-top: 16px !important; }
-    .feat { min-width: 0; padding: 22px; border: 1px solid var(--grid); border-radius: 12px; background: var(--card); }
+    .feat {
+      min-width: 0; padding: 26px; border: 1px solid var(--grid);
+      border-radius: 16px; background: var(--card);
+      transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+    .feat:hover { transform: translateY(-2px); border-color: #b7c8bd; box-shadow: 0 14px 36px rgba(16,35,27,.07); }
     .feat-tag {
       display: inline-block; font-family: 'DM Mono', monospace; font-size: 10px;
       letter-spacing: 0.1em; text-transform: uppercase;
@@ -309,8 +336,8 @@
     }
     .deploy-panel {
       display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 32px;
-      align-items: start; padding: 36px; background: var(--ink); color: var(--paper);
-      border-radius: 16px;
+      align-items: start; padding: 46px; background: #10231b; color: var(--paper);
+      border-radius: 22px; box-shadow: 0 28px 70px rgba(16,35,27,.16);
     }
     .deploy-panel h3 { font-family: 'Fraunces', serif; font-size: 25px; line-height: 1.2; margin-bottom: 12px; }
     .deploy-panel p { color: #c8c5bc; font-size: 14px; }
@@ -318,7 +345,7 @@
     .deploy-option { padding: 12px 14px; border: 1px solid #3c3a35; border-radius: 8px; }
     .deploy-option strong { display: block; font-size: 13px; margin-bottom: 2px; }
     .deploy-option span { color: #a7a39a; font-size: 11.5px; }
-    .deploy-link { display: inline-block; margin-top: 18px; color: #93b4ff; font-size: 13px; }
+    .deploy-link { display: inline-block; margin-top: 18px; color: #9ee3c8; font-size: 13px; }
 
     /* Footer */
     footer {
@@ -338,16 +365,22 @@
       .wrap { padding: 0 16px; }
       .nav-links { gap: 0; }
       .nav-links .btn { padding: 9px 13px; font-size: 12.5px; }
+      .wordmark .wordmark-descriptor { display: none; }
       .cta-row { align-items: flex-start; flex-direction: column; gap: 13px; }
       .closer .cta-row { align-items: center; }
     }
 
     /* Audience, trust and closing sections */
     .lede { font-size: 16px; color: var(--graphite); margin-bottom: 26px; max-width: 60ch; }
-    .closer { text-align: center; padding: 8px 0 18px; }
-    .closer h2 { font-family: 'DM Sans', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: -.035em; line-height: 1.15; text-transform: none; color: var(--ink); }
-    .closer .lede { margin: 0 auto 22px; }
+    .closer {
+      margin: 40px 0 72px; padding: 72px 32px; text-align: center;
+      border: 0; border-radius: 24px; background: #10231b; color: var(--paper);
+    }
+    .closer h2 { font-family: 'DM Sans', sans-serif; font-size: 38px; font-weight: 700; letter-spacing: -.035em; line-height: 1.15; text-transform: none; color: var(--paper); }
+    .closer .lede { margin: 0 auto 22px; color: #b5c4ba; }
     .closer .cta-row { justify-content: center; }
+    .closer .btn { background: var(--signal); color: #10231b !important; }
+    .closer .ghost { color: #d5ded8; border-color: #52665b; }
     #trust .keyline { margin-top: 22px; }
 
     /* Load sequence */
@@ -374,6 +407,15 @@
       .deploy-panel { grid-template-columns: 1fr; padding: 24px; }
       section { padding: 54px 0; }
       .closer h2 { font-size: 29px; }
+      .closer { margin: 24px 0 48px; padding: 52px 20px; }
+      .hero-visual::before { right: 0; }
+    }
+    @media (max-width: 920px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .hero-copy { max-width: 720px; }
+      .hero-visual { max-width: 680px; }
+      .demo { margin-top: 6px; }
+      h1 { max-width: 13ch; }
     }
   </style>
 </head>
@@ -382,9 +424,10 @@
   <div class="wrap">
 
     <nav>
-      <a class="wordmark" href="/" aria-label="Ridge home"><span class="mark"><svg viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="width:15px;height:14px;display:block;"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Ridge</span></a>
+      <a class="wordmark" href="/" aria-label="Ridge home"><span class="mark"><svg viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="width:15px;height:14px;display:block;"><path d="M5 21 L10.5 12 L14.5 16.8 L20 7.5 L25 15.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Ridge</span><span class="wordmark-descriptor">Evidence engine</span></a>
       <div class="nav-links">
         <a href="#product">Product</a>
+        <a href="#how">Method</a>
         <a href="#deploy">Deploy</a>
         <a href="https://github.com/MohammedAlkindi/Ridge">GitHub</a>
         <a class="btn" href="/app">Analyze a file</a>
@@ -392,51 +435,55 @@
     </nav>
 
     <header class="hero" id="main">
-      <p class="eyebrow rise"><b>For finance and operations</b> · hosted or self-hosted</p>
-      <h1 class="rise d1">Turn messy spreadsheets into <em>answers you can defend.</em></h1>
-      <p class="sub rise d2">Ridge computes the evidence first: a chart for every column, scatter
-        plots and a correlation matrix, confidence intervals, two-file change detection, row-level
-        provenance, and explicit caveats.
-        <strong>AI is optional and only explains what the engine already proved.</strong></p>
-      <div class="cta-row rise d3">
-        <a class="btn" href="/app">Analyze a file</a>
-        <a class="ghost" href="/app?sample=1">Run the sample analysis</a>
-      </div>
-      <p class="keyline rise d3">no signup · no API key · source files never stored</p>
-
-      <div class="demo rise d4" aria-label="Example: a CSV file turned into a graded analysis">
-        <div class="demo-file">
-          <p class="demo-label">sales_q1.csv</p>
-          <table class="csv">
-            <tr><th>month</th><th>region</th><th>revenue</th></tr>
-            <tr><td>2024-01</td><td>GCC</td><td>48,200</td></tr>
-            <tr><td>2024-02</td><td>GCC</td><td>51,900</td></tr>
-            <tr><td>2024-03</td><td>GCC</td><td>67,400</td></tr>
-            <tr><td>2024-02</td><td>EU</td><td class="gap">∅</td></tr>
-            <tr><td>2024-03</td><td>EU</td><td>30,800</td></tr>
-          </table>
-        </div>
-        <div class="demo-arrow" aria-hidden="true">→</div>
-        <div class="demo-read">
-          <p class="demo-label">computed output</p>
-          <div class="grade-chip">B · 84/100 <span>1 missing value in revenue</span></div>
-          <div class="mini-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-          <div class="demo-spread" aria-label="Revenue spread: box across the middle 50%, tick at the median, dot at the mean">
-            <i class="ds-range"></i><i class="ds-box"></i><i class="ds-median"></i><i class="ds-mean"></i>
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow rise"><b>Decision intelligence</b> · built for real-world files</p>
+          <h1 class="rise d1">Turn messy spreadsheets into <em>answers you can defend.</em></h1>
+          <p class="sub rise d2">Ridge turns operational data into computed findings, clear quality signals, and an audit trail your team can follow.
+            <strong>AI stays optional—and never invents the numbers.</strong></p>
+          <div class="cta-row rise d3">
+            <a class="btn" href="/app">Analyze a file</a>
+            <a class="ghost" href="/app?sample=1">Run the sample analysis</a>
           </div>
-          <p class="demo-evidence">
-            <span class="ds-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-            <span>revenue ↔ spend rise together <b>+0.91</b> · n=90 · 98.9% coverage</span>
-          </p>
-          <p class="demo-insight"><b>GCC revenue grew 30% into March</b> while EU held flat —
-            though the missing February figure caps confidence in the EU trend.</p>
+          <p class="keyline rise d3">no signup · no API key · source files never stored</p>
+        </div>
+
+        <div class="hero-visual">
+          <div class="demo rise d4" aria-label="Example: a CSV file turned into a graded analysis">
+            <div class="demo-file">
+              <p class="demo-label">global_revenue.csv · source</p>
+              <table class="csv">
+                <tr><th>month</th><th>market</th><th>revenue</th></tr>
+                <tr><td>2026-01</td><td>EMEA</td><td>48,200</td></tr>
+                <tr><td>2026-02</td><td>EMEA</td><td>51,900</td></tr>
+                <tr><td>2026-03</td><td>EMEA</td><td>67,400</td></tr>
+                <tr><td>2026-02</td><td>APAC</td><td class="gap">∅</td></tr>
+                <tr><td>2026-03</td><td>APAC</td><td>30,800</td></tr>
+              </table>
+            </div>
+            <div class="demo-arrow" aria-hidden="true">→</div>
+            <div class="demo-read">
+              <p class="demo-label">Ridge · computed output</p>
+              <div class="grade-chip">B · 84/100 <span>1 missing value in revenue</span></div>
+              <div class="mini-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="demo-spread" aria-label="Revenue spread: box across the middle 50%, tick at the median, dot at the mean">
+                <i class="ds-range"></i><i class="ds-box"></i><i class="ds-median"></i><i class="ds-mean"></i>
+              </div>
+              <p class="demo-evidence">
+                <span class="ds-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <span>revenue ↔ spend rise together <b>+0.91</b> · n=90 · 98.9% coverage</span>
+              </p>
+              <p class="demo-insight"><b>EMEA revenue grew 30% into March</b> while APAC held flat—though the missing February figure caps confidence in the regional trend.</p>
+            </div>
+          </div>
         </div>
       </div>
+
       <div class="proof-strip rise d4" aria-label="Ridge product facts">
-        <div class="proof-item"><strong>0 accounts</strong><span>required to analyze</span></div>
-        <div class="proof-item"><strong>Full file</strong><span>statistics and charts</span></div>
-        <div class="proof-item"><strong>Traceable</strong><span>formula, source rows, caveat</span></div>
-        <div class="proof-item"><strong>Self-host</strong><span>production container included</span></div>
+        <div class="proof-item"><strong>No account</strong><span>start with a file</span></div>
+        <div class="proof-item"><strong>Full-file</strong><span>statistics and charts</span></div>
+        <div class="proof-item"><strong>Traceable</strong><span>formula, rows, caveat</span></div>
+        <div class="proof-item"><strong>Portable</strong><span>hosted or self-hosted</span></div>
       </div>
     </header>
 

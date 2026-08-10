@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const testPort = process.env.PLAYWRIGHT_PORT || "3210";
+
 // Browser journeys run against the real Express server. No Anthropic key is
 // configured, so every AI path is exercised through its keyless/mocked branch
 // and the suite never makes a provider call.
@@ -13,7 +15,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:3210",
+    baseURL: `http://127.0.0.1:${testPort}`,
     trace: "retain-on-failure",
   },
   projects: [
@@ -24,11 +26,11 @@ export default defineConfig({
   ],
   webServer: {
     command: "node server.js",
-    url: "http://127.0.0.1:3210/api/health",
+    url: `http://127.0.0.1:${testPort}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
     env: {
-      PORT: "3210",
+      PORT: testPort,
       // Keyless by design, and generous limits so a full journey run is not
       // throttled by the per-IP limiter.
       ANTHROPIC_API_KEY: "",
