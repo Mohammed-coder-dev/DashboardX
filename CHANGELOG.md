@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Fixed
+
+- The "Rows analyzed" tile printed a hardcoded "Full dataset", so a file whose
+  title block and TOTAL row had been deliberately set aside still announced
+  that every row counted — contradicting the provenance note rendered directly
+  below it. The tile now counts the exclusions in the same words that note
+  uses, so the headline and the audit trail underneath it cannot disagree.
+- A request that never reached the server put the browser's own wording in the
+  error box — "Failed to fetch" in Chrome, "Load failed" in Safari. Neither
+  names a cause nor suggests an action, and a reader could not tell whether
+  Ridge had broken or their connection had. All six request paths now explain
+  that case themselves; anything the server wrote still passes through
+  untouched.
+- Every unreadable response from the analyze endpoint was suffixed with "the
+  upload may be too large", so a 17 KB file meeting a 500 was told to shrink,
+  contradicting the readiness line that had just measured it. The size hint now
+  appears only on 413, the status that actually means it.
+- The keyless "Add API key to explain" button set the settings panel's display
+  directly, so the panel opened while the control that owns it still reported
+  `aria-expanded="false"`, and focus stayed at the foot of the results instead
+  of moving to the key field. Both entry points now share one open path.
+- Only `/app` carried a skip link, so a keyboard visitor landing on `/`,
+  `/docs` or `/privacy` had to walk the whole navigation before reaching the
+  content. All four routes now have one.
+- The tier toggles, the tier jump buttons and the setup-rail toggle were never
+  added to the coarse-pointer block that holds every other control to 44px, and
+  stayed near 27px. Those are the controls a phone visitor hits first, since
+  the rest of the results screen sits collapsed behind them.
+
 ## [2.2.1] — 2026-08-07
 
 ### Fixed
@@ -371,5 +402,7 @@ Released as DashboardX.
 - Supabase-backed history and share links.
 - Vitest suite and CI.
 
+[2.2.1]: https://github.com/MohammedAlkindi/Ridge/releases/tag/v2.2.1
+[2.2.0]: https://github.com/MohammedAlkindi/Ridge/releases/tag/v2.2.0
 [2.1.0]: https://github.com/MohammedAlkindi/Ridge/releases/tag/v2.1.0
 [2.0.0]: https://github.com/MohammedAlkindi/Ridge/releases/tag/v2.0.0
