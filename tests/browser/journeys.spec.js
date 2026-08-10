@@ -9,6 +9,9 @@ const SAMPLE_CSV = path.resolve(here, "../../public/samples/team-sales.csv");
 const MESSY_CSV = path.resolve(here, "../fixtures/messy-export.csv");
 // Clean, tiny, and entirely ordinary — and so clears no reporting threshold.
 const THIN_CSV = path.resolve(here, "../fixtures/thin-table.csv");
+// A grouping row above the real header gives two plausible header rows, so the
+// read comes back uncertain rather than merely messy.
+const AMBIGUOUS_CSV = path.resolve(here, "../fixtures/ambiguous-header.csv");
 
 // The server runs without an Anthropic key, so these journeys exercise the
 // deterministic product exactly as a first-time visitor experiences it.
@@ -304,6 +307,26 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#structureDetail")).toContainText("preamble");
     await expect(page.locator("#structureDetail")).toContainText("Row 9");
     await expect(page.locator("#structureDetail")).toContainText("aggregate");
+  });
+
+  test("an unsettled read opens its own reasoning; a confident one stays folded", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(AMBIGUOUS_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // Two plausible header rows. The caveat and the rows set aside are the
+    // reader's first business, so they are not left behind a summary line.
+    const note = page.locator("#structureNote");
+    await expect(note).toHaveAttribute("open", "");
+    await expect(page.locator("#structureDetail")).toContainText(/could not settle this from the file alone/i);
+    await expect(page.locator("#structureDetail")).toBeVisible();
+
+    // A file Ridge did settle keeps its detail folded away.
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#structureNote")).not.toHaveAttribute("open", "");
   });
 
   test("the rows tile counts the exclusions instead of claiming the full dataset", async ({ page }) => {

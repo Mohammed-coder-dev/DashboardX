@@ -1737,6 +1737,12 @@ function renderStructureNote(data) {
   const specified    = structure.headerSource === "specified";
   const clean        = structure.confidence === "none";
 
+  // When Ridge could not settle the shape from the file alone, the reasoning is
+  // the thing a reader most needs and least expects to go looking for. Collapsed,
+  // the caveat and the rows that were set aside sat behind a summary line, so the
+  // numbers above could be read as settled. A confident read stays folded away.
+  structureNote.open = uncertain;
+
   structureNote.classList.toggle("structure-note--uncertain", uncertain);
   structureNote.classList.toggle("structure-note--clean", clean);
 
