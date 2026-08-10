@@ -8,6 +8,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- A performance budget runs as a blocking check. Each page has a ceiling on
+  requests, transferred bytes and first contentful paint, plus an allowlist of
+  the hosts it may contact — empty for `/`, `/docs` and `/privacy`, and the
+  disclosed chart CDN for `/app`. The budgets are the measured cost plus about
+  a third, so ordinary authoring does not trip them while a new library, an
+  inlined asset or a reintroduced remote stylesheet does. A paint that never
+  happens fails rather than being skipped, since that was the shape of the
+  regression that prompted it. This is a budget expressed in Playwright, which
+  already runs in CI, rather than Lighthouse: `@lhci/cli` pulls a high-severity
+  advisory (`tmp <= 0.2.5`) into a repository whose CI fails on high, and the
+  gate is worth more than the score.
+
 - `RETENTION_DAYS` expires saved analyses after a configurable window. It is
   unset by default, so every existing deployment keeps the behaviour it has —
   an operator opts into expiry rather than having it applied to stored rows by
