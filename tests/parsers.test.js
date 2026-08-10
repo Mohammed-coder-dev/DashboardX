@@ -119,6 +119,42 @@ describe("parseSpreadsheet", () => {
     expect(parsed.rows[0].moment).toMatch(/^2024-01-16 09:(29|30)$/);
   });
 
+  // SheetJS calls an unheaded column `__EMPTY`. That is a fine internal handle
+  // and names nothing a reader can find in their file, so it is renamed at this
+  // boundary — where every downstream surface reads the same key.
+  it("names an unheaded column by its spreadsheet column letter", () => {
+    const parsed = parseSpreadsheet(
+      Buffer.from("region,,revenue\nGCC,a,48200\nEU,b,51900\nAPAC,c,67400\n"),
+      "gap.csv",
+    );
+    expect(parsed.columns).toEqual(["region", "Column B", "revenue"]);
+    expect(parsed.rows[0]).toMatchObject({ region: "GCC", "Column B": "a", revenue: 48200 });
+  });
+
+  it("never lets an __EMPTY handle reach the caller", () => {
+    const parsed = parseSpreadsheet(
+      Buffer.from("a,,,b\n1,x,y,2\n3,x,y,4\n5,x,y,6\n"),
+      "many-gaps.csv",
+    );
+    expect(JSON.stringify(parsed.columns)).not.toContain("__EMPTY");
+    expect(JSON.stringify(parsed.rows)).not.toContain("__EMPTY");
+    // Two unnamed columns, named for the two columns they actually occupy.
+    expect(parsed.columns).toEqual(["a", "Column B", "Column C", "b"]);
+  });
+
+  it("steps aside rather than colliding with a column really called Column B", () => {
+    // Merging two fields under one name would lose a column silently, which is
+    // worse than an awkward name.
+    const parsed = parseSpreadsheet(
+      Buffer.from("Column B,,revenue\nGCC,a,48200\nEU,b,51900\nAPAC,c,67400\n"),
+      "collide.csv",
+    );
+    expect(parsed.columns).toHaveLength(3);
+    expect(new Set(parsed.columns).size).toBe(3);
+    expect(parsed.columns).toContain("Column B");
+    expect(parsed.columns).toContain("Column B (2)");
+  });
+
   // A bare number with no date format stays a number. Guessing from the value
   // is how integer measurements get read as timelines.
   it("leaves an unformatted number alone even when it could be a serial", () => {

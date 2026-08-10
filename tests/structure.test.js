@@ -145,13 +145,24 @@ describe("a file with nothing unusual in it", () => {
     expect(parsed.structure.headerRow).toBe(1);
   });
 
-  it("keeps SheetJS's naming for duplicate and empty header cells", () => {
+  it("keeps SheetJS's naming for duplicate headers, and renames the empty one", () => {
     const buffer = xlsxBuffer([["a", null, "a"], ["1", "2", "3"], ["4", "5", "6"]]);
 
     const parsed = parseSpreadsheet(buffer, "dup.xlsx");
+    const legacy = legacyParse(buffer);
 
-    expect(parsed.rows).toEqual(legacyParse(buffer));
-    expect(parsed.columns).toEqual(["a", "__EMPTY", "a_1"]);
+    // Duplicate headers still get SheetJS's `a` / `a_1`, which is a name the
+    // reader can recognise from their own file.
+    expect(parsed.columns).toEqual(["a", "Column B", "a_1"]);
+
+    // The unheaded column is the one deliberate divergence from the legacy
+    // shape: `__EMPTY` is an internal handle, and a quality issue reading
+    // `"__EMPTY" is completely empty` names nothing anyone can go and look at.
+    // Everything else about the row — the values, their order, the genuine
+    // nulls — is still exactly what object-mode parsing produced.
+    expect(Object.values(parsed.rows[0])).toEqual(Object.values(legacy[0]));
+    expect(Object.keys(legacy[0])).toContain("__EMPTY");
+    expect(JSON.stringify(parsed.rows)).not.toContain("__EMPTY");
   });
 
   it("leaves a genuine zero and a blank cell alone", () => {

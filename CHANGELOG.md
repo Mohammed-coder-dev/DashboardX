@@ -31,6 +31,19 @@ All notable changes to this project are documented here. The format follows
   existed. A save also clears that session's expired rows, which is
   housekeeping for storage size rather than the guarantee itself.
 
+### Changed
+
+- A spreadsheet column with no header is now named for the column letter it
+  occupies — `Column D` rather than SheetJS's internal `__EMPTY` handle, which
+  produced quality issues reading `"__EMPTY" is completely empty` and named
+  nothing a reader could find in their file. The rename happens at the parser
+  boundary, so column selection, drill-downs, chart labels, the JSON export and
+  evidence provenance all read the same name; renaming it where it is displayed
+  would have made the exported name and the shown name disagree. A column
+  genuinely called `Column D` keeps its name and the unnamed one steps aside,
+  since merging two fields under one name would lose one of them silently.
+  Duplicate headers are untouched and still get SheetJS's `a` / `a_1`.
+
 ### Fixed
 
 - A true Excel serial date is now read from the cell's number format and

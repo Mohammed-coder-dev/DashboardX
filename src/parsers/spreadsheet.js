@@ -32,6 +32,53 @@ function normalizeDates(row) {
   return row;
 }
 
+/**
+ * SheetJS names a column with no header `__EMPTY`, then `__EMPTY_1` and so on.
+ * That is a fine internal handle and a poor thing to show someone: a quality
+ * issue reading `"__EMPTY" is completely empty` names nothing the reader can
+ * find in their file.
+ *
+ * The rename happens here, at the parser boundary, rather than where the name
+ * is displayed. Every surface downstream — column selection, drill-downs, chart
+ * labels, the JSON export, evidence provenance — reads the same key, so naming
+ * it once keeps them agreeing. Renaming at the display layer would have made
+ * the exported name and the shown name differ, which is the traceability the
+ * product is for.
+ *
+ * The new name is the spreadsheet's own column letter, so "Column D" is
+ * something the reader can go and look at.
+ */
+function nameUnheadedColumns(headerCells, existing) {
+  const taken = new Set(existing);
+  const renames = new Map();
+  let blankCount = 0;
+
+  for (let column = 0; column < headerCells.length; column++) {
+    const cell = headerCells[column];
+    if (cell !== null && cell !== undefined && String(cell).trim() !== "") continue;
+
+    const sheetJsKey = blankCount === 0 ? "__EMPTY" : `__EMPTY_${blankCount}`;
+    blankCount += 1;
+    if (!taken.has(sheetJsKey)) continue;
+
+    const letter = XLSX.utils.encode_col(column);
+    let name = `Column ${letter}`;
+    // A real column genuinely called "Column D" keeps its name; the unnamed one
+    // steps aside rather than colliding and silently merging two fields.
+    for (let suffix = 2; taken.has(name); suffix += 1) name = `Column ${letter} (${suffix})`;
+    taken.add(name);
+    renames.set(sheetJsKey, name);
+  }
+  return renames;
+}
+
+function applyRenames(row, renames) {
+  if (renames.size === 0) return row;
+  const renamed = {};
+  for (const [key, value] of Object.entries(row)) renamed[renames.get(key) ?? key] = value;
+  return renamed;
+}
+
 export function parseSpreadsheet(buffer, filename, sheet, overrides = {}) {
   const ext      = path.extname(filename).toLowerCase();
   const input    = ext === ".csv" ? buffer.toString("utf-8") : buffer;
@@ -65,12 +112,19 @@ export function parseSpreadsheet(buffer, filename, sheet, overrides = {}) {
   const objectRows = XLSX.utils.sheet_to_json(worksheet, { defval: null, range: headerIndex, blankrows: true });
   const excludedRows = new Set(structure.excluded.map((entry) => entry.row));
 
+  // Derived from the header row that was actually chosen, so the letters point
+  // at the columns as the reader's spreadsheet numbers them.
+  const renames = nameUnheadedColumns(
+    grid[headerIndex] || [],
+    new Set(objectRows.flatMap((row) => Object.keys(row))),
+  );
+
   const rows = [];
   for (let offset = 0; offset < objectRows.length; offset++) {
     const rowNumber = headerIndex + 2 + offset;
     if (excludedRows.has(rowNumber)) continue;
     if (isBlankRow(grid[rowNumber - 1])) continue;
-    rows.push(normalizeDates(objectRows[offset]));
+    rows.push(applyRenames(normalizeDates(objectRows[offset]), renames));
   }
 
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
