@@ -194,6 +194,7 @@ All optional; the app runs with none of them set.
 | `PORT` | Local port, default `3000`. |
 | `RATE_LIMIT_POINTS` | Analyze requests per minute per IP, default `10`. |
 | `RATE_LIMIT_ASK_POINTS` | Follow-up and explain requests per minute per IP, default `20`. |
+| `RETENTION_DAYS` | Days a saved analysis stays readable. Unset means kept until deleted. |
 
 Copy `.env.example` to `.env` to set them locally.
 

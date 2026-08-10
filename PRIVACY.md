@@ -60,10 +60,14 @@ Ticking *Save this analysis to history and enable a share link* stores one row:
 
 Your API key is never part of it.
 
-**Retention:** saved analyses persist until you delete them from the history
-list. There is no automatic expiry. Anyone holding a share link can view that
-analysis; deletion is scoped to the browser session that created it, so a share
-link alone never grants deletion.
+**Retention:** by default a saved analysis persists until you delete it from
+the history list. An operator can set `RETENTION_DAYS` to expire them instead;
+on this hosted instance it is unset, so nothing expires on its own. Where it is
+set, the window is applied when an analysis is *read*, so an expired one stops
+being readable at the moment it ages out — it does not wait for a cleanup job —
+and it answers exactly as something that never existed did. Anyone holding a
+share link can view that analysis until then; deletion is scoped to the browser
+session that created it, so a share link alone never grants deletion.
 
 If `SUPABASE_URL` / `SUPABASE_KEY` are unset, the feature is disabled entirely
 and the controls do not appear.

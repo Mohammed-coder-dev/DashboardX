@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `RETENTION_DAYS` expires saved analyses after a configurable window. It is
+  unset by default, so every existing deployment keeps the behaviour it has —
+  an operator opts into expiry rather than having it applied to stored rows by
+  an upgrade. The window is enforced when an analysis is *read*, not by a
+  scheduled sweep, because a serverless deployment has nowhere to put a cron:
+  an expired analysis stops being readable the moment it ages out rather than
+  whenever a job next runs, and the filter sits inside the query, so a share
+  link to an expired analysis answers exactly as a link to one that never
+  existed. A save also clears that session's expired rows, which is
+  housekeeping for storage size rather than the guarantee itself.
+
 ### Fixed
 
 - A true Excel serial date is now read from the cell's number format and

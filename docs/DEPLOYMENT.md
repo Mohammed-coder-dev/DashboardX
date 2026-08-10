@@ -31,6 +31,7 @@ All environment variables are optional:
 | `SUPABASE_URL` / `SUPABASE_KEY` | unset | Enables opt-in history and share links |
 | `RATE_LIMIT_POINTS` | `10` | Analysis requests per IP per minute |
 | `RATE_LIMIT_ASK_POINTS` | `20` | Explain/follow-up requests per IP per minute |
+| `RETENTION_DAYS` | unset | Days a saved analysis stays readable; unset keeps it until deleted |
 
 Keep secrets in Vercel project settings, not in the repository. After deploy,
 verify `GET /api/health`, load `/app`, and run a keyless sample analysis.
