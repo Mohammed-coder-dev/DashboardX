@@ -693,6 +693,59 @@ test.describe("error states", () => {
   });
 });
 
+test.describe("the pages stand on their own", () => {
+  // The type faces used to arrive through a render-blocking @import of
+  // fonts.googleapis.com. Behind a proxy that drops that request rather than
+  // refusing it, nothing painted at all: the landing page showed its nav and no
+  // hero, and the workspace showed a bare top bar and no dropzone.
+  for (const [route, marker] of [["/", "h1"], ["/app", "#dropzoneTitle"]]) {
+    test(`${route} renders with every external host unreachable`, async ({ page }) => {
+      for (const host of ["fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.net"]) {
+        await page.route(`**://${host}/**`, (route) => route.abort());
+      }
+      await page.goto(route);
+      await expect(page.locator(marker)).toBeVisible();
+      await expect(page.locator(marker)).not.toBeEmpty();
+    });
+  }
+
+  test("the landing page contacts no other host at all", async ({ page, baseURL }) => {
+    const own = new URL(baseURL).host;
+    const hosts = new Set();
+    page.on("request", (r) => {
+      if (!r.url().startsWith("data:")) hosts.add(new URL(r.url()).host);
+    });
+    await page.goto("/");
+    await page.evaluate(() => document.fonts.ready);
+    expect([...hosts], `hosts contacted: ${[...hosts].join(", ")}`).toEqual([own]);
+  });
+
+  test("the workspace loads its type faces from this origin", async ({ page, baseURL }) => {
+    const fontHosts = [];
+    page.on("request", (r) => {
+      if (r.resourceType() === "font") fontHosts.push(new URL(r.url()).host);
+    });
+    await page.goto("/app");
+    await page.evaluate(() => document.fonts.ready);
+    expect(fontHosts.length).toBeGreaterThan(0);
+    expect([...new Set(fontHosts)]).toEqual([new URL(baseURL).host]);
+
+    // DM Sans ships as one variable file per subset, so the weight axis has to
+    // interpolate — otherwise 500 and 600 silently render as 400.
+    const widths = await page.evaluate(() =>
+      [400, 500, 600, 700].map((weight) => {
+        const probe = document.createElement("span");
+        probe.textContent = "Handgloves 2026";
+        probe.style.cssText = `position:absolute;visibility:hidden;font-size:40px;font-family:'DM Sans';font-weight:${weight};`;
+        document.body.appendChild(probe);
+        const width = probe.getBoundingClientRect().width;
+        probe.remove();
+        return Math.round(width * 100);
+      }));
+    expect(new Set(widths).size, `weights rendered at widths ${widths}`).toBe(4);
+  });
+});
+
 test.describe("keyboard navigation", () => {
   test("the primary controls are reachable and operable by keyboard", async ({ page }) => {
     await page.goto("/app");

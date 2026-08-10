@@ -71,7 +71,10 @@ and the controls do not appear.
 ## Everything else
 
 - No analytics, tracking pixels, or third-party scripts beyond the charting
-  library (`cdn.jsdelivr.net`, pinned with subresource integrity).
+  library (`cdn.jsdelivr.net`, pinned with subresource integrity). That request
+  is the only one any page makes to another host: the type faces are served
+  from this origin, so loading `/`, `/docs` or `/privacy` contacts nobody but
+  this app, and the Content-Security-Policy permits fonts from `'self'` only.
 - A random session identifier lives in your browser's local storage to group
   your saved analyses. It is sent only to this app.
 - Requests are rate-limited per IP in memory. Addresses are not durably logged.

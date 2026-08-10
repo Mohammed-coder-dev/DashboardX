@@ -648,4 +648,32 @@ describe("routing", () => {
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(res.headers.get("x-frame-options")).toBe("DENY");
   });
+
+  it("permits fonts from this origin only", async () => {
+    const csp = (await fetch(`${base}/`)).headers.get("content-security-policy");
+    expect(csp).toContain("font-src 'self'");
+    // The type faces are bundled, so neither Google host may appear anywhere in
+    // the policy — a stylesheet cannot reintroduce the dependency by asking.
+    expect(csp).not.toContain("fonts.gstatic.com");
+    expect(csp).not.toContain("fonts.googleapis.com");
+  });
+
+  it("serves the bundled type faces with their licence", async () => {
+    const font = await fetch(`${base}/fonts/dm-sans-latin.woff2`);
+    expect(font.status).toBe(200);
+    expect(font.headers.get("content-type")).toContain("font/woff2");
+
+    const licence = await fetch(`${base}/fonts/OFL.txt`);
+    expect(licence.status).toBe(200);
+    expect(await licence.text()).toContain("SIL OPEN FONT LICENSE");
+  });
+
+  it("no stylesheet reaches for a remote font", async () => {
+    for (const route of ["/", "/app", "/docs", "/privacy", "/styles.css"]) {
+      const body = await (await fetch(`${base}${route}`)).text();
+      // Only the explanatory comment may name the host; no url() or @import may.
+      expect(body, route).not.toMatch(/@import\s+url\(\s*['"]?https:\/\/fonts\.googleapis/);
+      expect(body, route).not.toMatch(/url\(\s*['"]?https:\/\/fonts\.gstatic/);
+    }
+  });
 });
