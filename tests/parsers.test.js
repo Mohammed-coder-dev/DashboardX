@@ -69,9 +69,14 @@ describe("parseSpreadsheet", () => {
   });
 
   it("normalizes Excel date cells to ISO strings", () => {
+    // Constructed in local time on purpose: a spreadsheet date carries no
+    // timezone, so "15 January" is what the cell means wherever it is read.
+    // Writing a UTC instant here instead encoded this machine's offset into the
+    // serial, and the reader cancelled it back out — so the pair agreed while
+    // both were wrong, and a real workbook's plain serial was read a day early.
     const ws = XLSX.utils.json_to_sheet([
-      { day: new Date(Date.UTC(2024, 0, 15)), sales: 100 },
-      { day: new Date(Date.UTC(2024, 0, 16, 9, 30)), sales: 120 },
+      { day: new Date(2024, 0, 15), sales: 100 },
+      { day: new Date(2024, 0, 16, 9, 30), sales: 120 },
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "S");
@@ -79,6 +84,50 @@ describe("parseSpreadsheet", () => {
     const parsed = parseSpreadsheet(buffer, "dates.xlsx");
     expect(parsed.rows[0].day).toBe("2024-01-15");
     expect(parsed.rows[1].day).toMatch(/^2024-01-16 09:3\d$/);
+  });
+
+  // The fixture above writes its cells through SheetJS, which stores the local
+  // offset inside the serial and cancels any timezone error on the way back. A
+  // real workbook stores a plain serial plus a date number format, which is the
+  // shape this covers: 45292 formatted mm/dd/yyyy is 2024-01-01, and used to be
+  // reported as "2023-12-31 20:00" anywhere east of UTC.
+  it("reads a true Excel serial from the cell's date format, not its value", () => {
+    const serials = [45292, 45293, 45294];             // 2024-01-01 .. 2024-01-03
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ["day", "units"],
+      ...serials.map((serial, index) => [serial, 17 + index * 13]),
+    ]);
+    for (let rowNumber = 2; rowNumber <= serials.length + 1; rowNumber++) {
+      Object.assign(sheet[`A${rowNumber}`], { t: "n", z: "mm/dd/yyyy" });
+    }
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "S");
+    const parsed = parseSpreadsheet(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }), "serial.xlsx");
+
+    expect(parsed.rows.map((row) => row.day)).toEqual(["2024-01-01", "2024-01-02", "2024-01-03"]);
+  });
+
+  it("keeps the time when the serial carries one", () => {
+    // 45307.395833… is 2024-01-16 09:30, so the time survives rather than being
+    // rounded away with the offset.
+    const sheet = XLSX.utils.aoa_to_sheet([["moment", "units"], [45307 + 9.5 / 24, 17], [45308 + 9.5 / 24, 30]]);
+    for (const ref of ["A2", "A3"]) Object.assign(sheet[ref], { t: "n", z: "mm/dd/yyyy hh:mm" });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "S");
+    const parsed = parseSpreadsheet(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }), "moment.xlsx");
+
+    expect(parsed.rows[0].moment).toMatch(/^2024-01-16 09:(29|30)$/);
+  });
+
+  // A bare number with no date format stays a number. Guessing from the value
+  // is how integer measurements get read as timelines.
+  it("leaves an unformatted number alone even when it could be a serial", () => {
+    const sheet = XLSX.utils.aoa_to_sheet([["reading", "units"], [45292, 17], [45293, 30], [45294, 41]]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "S");
+    const parsed = parseSpreadsheet(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }), "readings.xlsx");
+
+    expect(parsed.rows.map((row) => row.reading)).toEqual([45292, 45293, 45294]);
   });
 });
 

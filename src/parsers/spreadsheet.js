@@ -3,15 +3,31 @@ import * as XLSX from "xlsx";
 import { inferStructure, isBlankRow } from "./structure.js";
 import { AppError } from "../errors.js";
 
-// Excel serial dates arrive as Date objects (cellDates) and are normalized
-// to ISO strings so stats/profile/charts see comparable values, not epochs.
+// Excel serial dates arrive as Date objects (cellDates) and are normalized to
+// ISO strings so stats/profile/charts see comparable values, not epochs.
+//
+// A spreadsheet date has no timezone: a cell formatted 2024-01-01 means that
+// calendar day and nothing else. SheetJS decodes the serial into calendar
+// components and builds the Date in local time, so local getters read back
+// exactly what the workbook said. Going through toISOString() instead
+// reinterpreted that instant as UTC and moved it across midnight — a real
+// workbook storing serial 45292 (2024-01-01) was reported as "2023-12-31
+// 20:00" east of UTC, turning a date into a wrong datetime. That never showed
+// up because the only fixture wrote its cells through SheetJS on the same
+// machine, which encodes the local offset into the serial and cancels the
+// error on the way back.
+const pad = (value) => String(value).padStart(2, "0");
+
+function localStamp(value) {
+  const day = `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  const hasTime = value.getHours() || value.getMinutes() || value.getSeconds();
+  return hasTime ? `${day} ${pad(value.getHours())}:${pad(value.getMinutes())}` : day;
+}
+
 function normalizeDates(row) {
   for (const key of Object.keys(row)) {
     const v = row[key];
-    if (v instanceof Date && !isNaN(v)) {
-      const iso = v.toISOString();
-      row[key] = iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso.slice(0, 16).replace("T", " ");
-    }
+    if (v instanceof Date && !isNaN(v)) row[key] = localStamp(v);
   }
   return row;
 }

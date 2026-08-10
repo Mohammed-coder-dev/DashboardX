@@ -8,6 +8,21 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A true Excel serial date is now read from the cell's number format and
+  reported as the calendar day the workbook states. A spreadsheet date carries
+  no timezone, but the reader converted SheetJS's local-time `Date` through
+  `toISOString()`, which reinterpreted that instant as UTC and moved it across
+  midnight: a cell holding serial 45292 formatted `mm/dd/yyyy` — 1 January 2024
+  — was reported as `2023-12-31 20:00` anywhere east of UTC, and as a spurious
+  datetime anywhere west of it. Only the hosted instance, which runs in UTC, was
+  unaffected. The one fixture covering this wrote its cells through SheetJS on
+  the same machine, which encodes the local offset into the serial and cancelled
+  the error on the way back, so the pair agreed while both were wrong. The
+  parser suite now reads the shape a real workbook stores — a plain serial plus
+  a date format — and passes in UTC, New York, Kolkata, Los Angeles and
+  Auckland. A bare number with no date format is still left alone: guessing a
+  timeline from a value is how integer measurements get read as dates.
+
 - The "Rows analyzed" tile printed a hardcoded "Full dataset", so a file whose
   title block and TOTAL row had been deliberately set aside still announced
   that every row counted — contradicting the provenance note rendered directly
