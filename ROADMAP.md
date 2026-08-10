@@ -23,6 +23,22 @@ scope by construction.
 
 ## Shipped after v2.1.0
 
+- **Excel serial dates**, read from the cell's number format rather than guessed
+  from the value. A bare number with no date format is still left alone, since
+  guessing a timeline from a value is how integer measurements get read as
+  dates. The calendar day the workbook states is the day reported, in every
+  timezone.
+- **Configurable retention** for saved analyses via `RETENTION_DAYS`, enforced
+  when a row is read rather than by a scheduled sweep, so the promise holds
+  where nothing is scheduled to run. Unset by default.
+- **A performance budget as a required check** — per-page ceilings on requests,
+  transferred bytes and first contentful paint, plus the list of hosts each page
+  may contact. Expressed in Playwright rather than Lighthouse: `@lhci/cli` pulls
+  a high-severity advisory into a repository whose CI fails on high.
+- **The type faces are served from this origin.** They arrived through a
+  render-blocking `@import` of a third-party host, so the product painted
+  nothing at all behind a proxy that dropped the request.
+
 - 95% mean intervals, Welch group/file comparisons with explicit unadjusted
   exploratory caveats, categorical chi-square with Cramér's V, two-sample KS
   distribution shifts, and robust candidate level-shift detection.
@@ -49,9 +65,6 @@ scope by construction.
 
 ## Next — strengthening the evidence
 
-- **Excel serial dates.** Date parsing is deliberately pattern-gated so integer
-  measurements are never read as timelines. Detect true Excel serials from cell
-  formatting in the workbook rather than guessing from the value.
 - **Structural shapes still out of scope**, with what each currently does when
   run through the real parser:
 
@@ -91,5 +104,3 @@ scope by construction.
 ## Operational
 
 - Screenshot regeneration in CI so README images cannot drift from the UI.
-- A Lighthouse budget as a required check.
-- Configurable retention or expiry for saved analyses.
