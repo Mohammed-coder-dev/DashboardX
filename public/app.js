@@ -77,6 +77,7 @@ const compareSection     = document.getElementById("compareSection");
 const compareTitle       = document.getElementById("compareTitle");
 const compareMetrics     = document.getElementById("compareMetrics");
 const compareQuality     = document.getElementById("compareQuality");
+const compareShifts      = document.getElementById("compareShifts");
 const compareSchema      = document.getElementById("compareSchema");
 const compareFindings    = document.getElementById("compareFindings");
 const compareColumnRows  = document.getElementById("compareColumnRows");
@@ -772,7 +773,7 @@ function comparisonColumnChange(column) {
       ? ` · 95% CI ${meanTest.confidenceInterval.lower} to ${meanTest.confidenceInterval.upper}, p=${formatPValue(meanTest.pValue)}`
       : "";
     const shift = distribution ? ` · KS D=${distribution.statistic}, p=${formatPValue(distribution.pValue)}` : "";
-    return `mean ${signed(column.deltas.mean)}${pct}${interval}${shift}`;
+    return `mean ${signed(column.deltas.mean)}${pct} · median ${signed(column.deltas.median)}${interval}${shift}`;
   }
   if (column.type === "categorical") {
     if (column.dominantChanged) return "leading category changed";
@@ -780,6 +781,84 @@ function comparisonColumnChange(column) {
   }
   if (column.type === "date") return "date range compared";
   return `coverage ${signed(column.deltas.coverage, " pts")}`;
+}
+
+/**
+ * Both sides' five-number summaries drawn on one shared scale per column, so
+ * a distribution shift is visible rather than a KS statistic in a table cell.
+ * Every mark comes from the per-file stats the comparison already computed;
+ * the identity of each strip is carried by its row label, never colour alone.
+ */
+function buildCompareShiftsHtml(comparison, files) {
+  const numericColumns = (comparison.columns || []).filter((column) => column.type === "numeric");
+  if (!numericColumns.length) {
+    return `<p class="compare-shifts-empty">No shared numeric columns to compare distributions for — schema and category changes are covered above.</p>`;
+  }
+  const baselineStats = files?.[0]?.stats || {};
+  const currentStats = files?.[1]?.stats || {};
+
+  // The strongest shifts lead: KS-significant columns by statistic, then the
+  // rest in shared-column order.
+  const ordered = [...numericColumns].sort((a, b) => {
+    const ksA = a.inference?.distributionShift;
+    const ksB = b.inference?.distributionShift;
+    return (ksB?.significant === true) - (ksA?.significant === true)
+      || (ksB?.statistic ?? 0) - (ksA?.statistic ?? 0);
+  });
+  const shown = ordered.slice(0, 6);
+
+  const strips = shown.map((column) => {
+    const baseline = baselineStats[column.column];
+    const current = currentStats[column.column];
+    if (!baseline?.quantiles || !current?.quantiles) return "";
+    const lo = Math.min(baseline.min, current.min);
+    const hi = Math.max(baseline.max, current.max);
+    const ks = column.inference?.distributionShift;
+    const meanTest = column.inference?.meanDifference;
+    const statParts = [];
+    statParts.push(ks
+      ? `KS D=${ks.statistic}, p=${formatPValue(ks.pValue)}${ks.significant ? "" : " — not distinguishable at 5%"}`
+      : "KS not testable — fewer than 4 values on a side");
+    if (meanTest?.confidenceInterval) {
+      statParts.push(`mean Δ ${signed(meanTest.difference)} (95% CI ${meanTest.confidenceInterval.lower} to ${meanTest.confidenceInterval.upper})`);
+    }
+    if (hi === lo) {
+      return `<div class="compare-shift"><div class="compare-shift-head">
+          <span class="compare-shift-name">${esc(column.column)}</span>
+          <span class="compare-shift-stat">constant at ${esc(lo)} on both sides</span>
+        </div></div>`;
+    }
+    const pos = (value) => Math.max(0, Math.min(100, (value - lo) / (hi - lo) * 100));
+    const side = (label, field) => {
+      const q = field.quantiles;
+      const ci = field.meanConfidence95;
+      const detail = `${label}: n=${field.validCount} · q1 ${q.q1} · median ${field.median} · q3 ${q.q3} · mean ${field.mean}${ci ? ` (95% CI ${ci.lower} to ${ci.upper})` : ""}`;
+      return `<div class="compare-shift-row${label === "Baseline" ? " compare-shift-row--baseline" : ""}" title="${esc(detail)}">
+        <span class="compare-shift-side">${esc(label)}</span>
+        <span class="spread-track" role="img" aria-label="${esc(detail)}">
+          <i class="spread-range" style="left:${pos(q.p05)}%;width:${Math.max(0.5, pos(q.p95) - pos(q.p05))}%"></i>
+          <i class="spread-box${label === "Baseline" ? " compare-shift-box--baseline" : ""}" style="left:${pos(q.q1)}%;width:${Math.max(0.75, pos(q.q3) - pos(q.q1))}%"></i>
+          ${ci ? `<i class="spread-ci" style="left:${pos(ci.lower)}%;width:${Math.max(0.75, pos(ci.upper) - pos(ci.lower))}%"></i>` : ""}
+          <i class="spread-median" style="left:${pos(field.median)}%"></i>
+          <i class="spread-mean" style="left:${pos(field.mean)}%"></i>
+        </span>
+        <span class="compare-shift-n">n=${esc(field.validCount)}</span>
+      </div>`;
+    };
+    return `<div class="compare-shift">
+      <div class="compare-shift-head">
+        <span class="compare-shift-name">${esc(column.column)}</span>
+        <span class="compare-shift-stat">${esc(statParts.join(" · "))}</span>
+      </div>
+      ${side("Baseline", baseline)}
+      ${side("Current", current)}
+      <div class="compare-shift-scale"><span>${esc(lo)}</span><span>shared scale</span><span>${esc(hi)}</span></div>
+    </div>`;
+  }).join("");
+
+  const capNote = numericColumns.length > shown.length
+    ? `<p class="compare-shifts-note">Showing ${shown.length} of ${numericColumns.length} shared numeric columns — the rest keep their deltas in the table below.</p>` : "";
+  return strips + capNote;
 }
 
 function renderComparisonDashboard(data) {
@@ -828,6 +907,8 @@ function renderComparisonDashboard(data) {
       <div class="compare-bar-row"><span>Complete</span><span class="compare-bar"><span style="width:${completeness}%"></span></span><span class="compare-bar-value">${esc(side.completeness ?? "—")}%</span></div>
     </div>`;
   }).join("");
+
+  compareShifts.innerHTML = buildCompareShiftsHtml(comparison, data.files);
 
   const schema = comparison.schema || {};
   const schemaGroup = (label, values, kind) => `<div class="compare-schema-group"><span class="compare-schema-label">${esc(label)}</span>${values.length

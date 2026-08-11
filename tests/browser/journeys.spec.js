@@ -582,6 +582,21 @@ test.describe("deterministic file comparison", () => {
     await expect(page.locator("#compareColumnRows")).toContainText("revenue");
     await expect(page.locator("#compareColumnRows")).toContainText("95% CI");
     await expect(page.locator("#compareColumnRows")).toContainText("KS D=");
+    // The median moved too, and it was always computed — say so in the cell.
+    await expect(page.locator("#compareColumnRows")).toContainText(/median [+-]/);
+
+    // The distribution shift is drawn, not just tabulated: both sides' five-
+    // number summaries on one shared scale, identity carried by row labels.
+    const shift = page.locator(".compare-shift").first();
+    await expect(shift).toBeVisible();
+    await expect(shift).toContainText("revenue");
+    await expect(shift.locator(".compare-shift-row--baseline")).toBeVisible();
+    await expect(shift).toContainText("Current");
+    await expect(shift).toContainText(/KS D=|KS not testable/);
+    await expect(shift).toContainText("shared scale");
+    // The interval bands ride on the strips: the mean is never a lone dot.
+    expect(await shift.locator(".spread-ci").count()).toBe(2);
+
     await expect(page.locator("#analysisRecordSummary")).toContainText(/deterministic comparison/i);
   });
 
