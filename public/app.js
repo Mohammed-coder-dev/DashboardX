@@ -1474,6 +1474,38 @@ function unsettledReads(data) {
   return items;
 }
 
+/**
+ * One stacked segment bar for every composition on the dashboard. The states
+ * are the encoding rule of the whole surface: filled means the engine settled
+ * it, hollow means it could not, muted means measured absence. Identity rides
+ * in the caption and the per-segment titles (same order as the segments),
+ * never in colour alone — the single accent hue was kept after the palette
+ * validator failed accent/teal/purple on the normal-vision floor (ΔE 9.8 < 15).
+ */
+function segmentBarHtml(segments, ariaLabel) {
+  const present = segments.filter((seg) => seg.count > 0);
+  const total = present.reduce((sum, seg) => sum + seg.count, 0);
+  if (total <= 0) return "";
+  const parts = present.map((seg) =>
+    `<i class="seg seg--${seg.state}" style="flex-grow:${seg.count}" title="${esc(`${seg.label}: ${seg.count}`)}"></i>`).join("");
+  return `<span class="segbar" role="img" aria-label="${esc(ariaLabel)}">${parts}</span>`;
+}
+
+/** Sparkline over already-computed period buckets (gaps restored as zeroes by
+ *  timelineBuckets). No axes, no grid; the endpoints are labelled beside it. */
+function sparklineHtml(buckets, ariaLabel) {
+  if (buckets.length < 2) return "";
+  const width = 120;
+  const height = 26;
+  const max = Math.max(1, ...buckets.map((bucket) => bucket.count));
+  const step = width / (buckets.length - 1);
+  const points = buckets.map((bucket, index) =>
+    `${(index * step).toFixed(1)},${(height - 2 - (bucket.count / max) * (height - 4)).toFixed(1)}`).join(" ");
+  return `<svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${esc(ariaLabel)}">
+    <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
 function overviewCard(kind, label, headline, bodyHtml, jump, jumpLabel) {
   return `<article class="overview-card overview-card--${kind}">
     <header class="overview-card-head"><span class="overview-card-label">${esc(label)}</span>${headline}</header>
@@ -1516,9 +1548,44 @@ function renderOverview(data) {
       : structure.confidence === "confident"
         ? `Read settled — header on row ${structure.headerRow}`
         : "Read as-is — nothing set aside";
+  // Column kinds as one segment bar: typed kinds filled, empty columns muted
+  // (their absence is a settled fact), unresolved types hollow. The caption
+  // names each segment in order, so colour never carries identity alone.
+  const kindCounts = {};
+  for (const c of Object.values(profile.columns || {})) kindCounts[c.type] = (kindCounts[c.type] || 0) + 1;
+  const kindSegments = [
+    { label: "numeric", count: kindCounts.numeric || 0, state: "filled" },
+    { label: "categorical", count: kindCounts.text || 0, state: "filled" },
+    { label: "date", count: kindCounts.date || 0, state: "filled" },
+    { label: "boolean", count: kindCounts.boolean || 0, state: "filled" },
+    { label: "empty", count: kindCounts.empty || 0, state: "muted" },
+    { label: "mixed types — not settled", count: kindCounts.mixed || 0, state: "hollow" },
+  ];
+  const kindsCaption = kindSegments.filter((seg) => seg.count > 0)
+    .map((seg) => `${seg.count} ${seg.label === "mixed types — not settled" ? "unsettled" : seg.label}`).join(" · ");
+  const kindsBar = segmentBarHtml(kindSegments,
+    `${context.columnCount} columns: ${kindsCaption}${kindCounts.mixed ? " — unsettled drawn hollow" : ""}`);
+
+  // Rows over time, when the file has a timeline: the same buckets the trend
+  // chart uses, gaps included, endpoints labelled.
+  const sparkColumn = (data.columns || []).find((column) => stats[column]?.type === "date" && stats[column].periods?.length > 1);
+  let sparkRow = "";
+  if (sparkColumn) {
+    const field = stats[sparkColumn];
+    const buckets = timelineBuckets(field);
+    const peak = Math.max(...buckets.map((bucket) => bucket.count));
+    sparkRow = `<div class="overview-spark">
+      <small>${esc(field.earliest)}</small>
+      ${sparklineHtml(buckets, `rows per ${field.granularity} by ${sparkColumn}, ${field.earliest} to ${field.latest}, peak ${peak}${field.gaps?.length ? `, ${field.gaps.length} empty period${field.gaps.length === 1 ? "" : "s"}` : ""}`)}
+      <small>${esc(field.latest)}</small>
+    </div>`;
+  }
+
   const fileCard = overviewCard("file", "This file",
     `<strong class="overview-card-value">${esc((meta.totalRows ?? profile.rows ?? 0).toLocaleString())}<small> rows</small></strong>`,
     `<div class="overview-line">${esc(rowsContext)} · ${esc(context.columnCount)} column${context.columnCount === 1 ? "" : "s"}${excludedColumns ? ` (${excludedColumns} excluded)` : ""}</div>
+     ${kindsBar}<div class="overview-line">${esc(kindsCaption)}</div>
+     ${sparkRow}
      <div class="overview-line overview-line--meter"><span class="overview-meter" aria-hidden="true"><i style="width:${completeness}%"></i></span> ${esc(profile.completeness)}% complete</div>
      <div class="overview-line">${esc(readLine)}</div>`,
     structure ? "structureNote" : null, "How it was read");

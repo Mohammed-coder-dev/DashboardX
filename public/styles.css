@@ -765,6 +765,21 @@ html { scroll-behavior: smooth; }
 }
 .overview-card-link:hover, .overview-card-link:focus-visible { text-decoration: underline; }
 
+/* The one segment-bar form for every composition on the dashboard.
+   Filled = the engine settled it · hollow = it could not · muted = measured
+   absence. Hollow keeps the same stroke weight everywhere: it is a different
+   answer, not a lesser one. */
+.segbar { display: flex; gap: 2px; height: 10px; }
+.segbar .seg { min-width: 3px; border-radius: 2px; }
+.seg--filled { background: var(--accent); }
+.seg--muted { background: var(--border-2); }
+.seg--hollow { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* Sparkline: no axes, no grid; endpoints labelled beside the line. */
+.overview-spark { display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; }
+.overview-spark .sparkline { display: block; width: 100%; height: 26px; }
+.overview-spark small { color: var(--text-3); font: 9.5px 'DM Mono', monospace; }
+
 /* Issue counts wear the severity colours the quality panel already uses,
    never colour alone: the count and the word ride beside the dot. */
 .overview-severity { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font-size: 11px; color: var(--text-2); }

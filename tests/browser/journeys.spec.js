@@ -237,6 +237,17 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator(".overview-card--file")).toContainText("Full dataset");
     await expect(page.locator(".overview-card--file")).toContainText(/read as-is/i);
 
+    // The file card carries marks, not only sentences: a column-kinds segment
+    // bar whose text names every segment, and the timeline as a sparkline
+    // with its endpoints labelled.
+    const kinds = page.locator(".overview-card--file .segbar");
+    await expect(kinds).toBeVisible();
+    await expect(kinds).toHaveAttribute("aria-label", /\d+ columns: .*numeric/);
+    const spark = page.locator(".overview-card--file .overview-spark");
+    await expect(spark).toBeVisible();
+    await expect(spark).toContainText("2024-01-02");
+    await expect(spark.locator(".sparkline")).toHaveAttribute("aria-label", /rows per month/);
+
     // The quality card says what it could NOT assess, or that it could
     // assess everything — either is an answer, so one must be present.
     await expect(page.locator(".overview-card--quality")).toContainText(/could not assess|every column was assessable/i);
