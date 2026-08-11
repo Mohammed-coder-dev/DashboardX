@@ -15,6 +15,9 @@ const AMBIGUOUS_CSV = path.resolve(here, "../fixtures/ambiguous-header.csv");
 // Five months of shipments with March entirely absent — the shape where a
 // timeline that plots only populated buckets hides the gap.
 const GAPPED_CSV = path.resolve(here, "../fixtures/gapped-timeline.csv");
+// A monotone pair with one extreme opposing outlier: Pearson and Spearman
+// tell materially different stories, and the engine's caveat says so.
+const DISAGREEING_CSV = path.resolve(here, "../fixtures/disagreeing-pair.csv");
 
 // The server runs without an Anthropic key, so these journeys exercise the
 // deterministic product exactly as a first-time visitor experiences it.
@@ -337,6 +340,21 @@ test.describe("deterministic analysis without an API key", () => {
     // distinguishes "below the reporting bar" from a measured zero.
     await expect(page.locator("#corrMatrix .corr-matrix-table")).toBeVisible();
     await expect(page.locator("#corrMatrix")).toContainText(/not a zero/);
+  });
+
+  test("a disagreeing correlation shows both computed coefficients", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(DISAGREEING_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#corrSection")).toBeVisible();
+
+    // Both coefficients were always in the payload; when the methods tell
+    // different stories, showing only the leader hid the disagreement's size.
+    const meta = await page.locator(".corr-meta").first().innerText();
+    expect(meta).toMatch(/pearson [+-]\d/);
+    expect(meta).toMatch(/spearman [+-]\d/);
+    await expect(page.locator(".corr-caveat").first()).toContainText(/pearson and spearman disagree/i);
   });
 
   test("uploading a file fixture works the same way", async ({ page }) => {

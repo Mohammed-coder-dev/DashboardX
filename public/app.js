@@ -1078,8 +1078,16 @@ function renderSingleFile(data, isTabbed) {
       const colA = c.columnA ?? c.colA;
       const colB = c.columnB ?? c.colB;
       const isPos = r >= 0, pct = Math.abs(r) * 100;
+      // When the two methods tell materially different stories the engine
+      // says so in the caveat — and both coefficients are in the payload, so
+      // both are shown rather than only the one that led.
+      const disagree = c.pearson != null && c.spearman != null
+        && /pearson and spearman disagree/i.test(c.caveat || "");
+      const methodText = disagree
+        ? `pearson ${c.pearson >= 0 ? "+" : ""}${c.pearson} · spearman ${c.spearman >= 0 ? "+" : ""}${c.spearman}`
+        : c.method || "pearson";
       const evidence = c.n !== undefined
-        ? `<div class="corr-meta">${c.strength ? strengthScale(c.strength) : ""}<span>${esc(c.method || "pearson")} · n=${c.n} · ${c.coverage}% coverage${c.smallSample ? " · small sample" : ""}</span></div>`
+        ? `<div class="corr-meta">${c.strength ? strengthScale(c.strength) : ""}<span>${esc(methodText)} · n=${c.n} · ${c.coverage}% coverage${c.smallSample ? " · small sample" : ""}</span></div>`
         : "";
       const caveat = c.caveat ? `<div class="corr-caveat">Caveat — ${esc(c.caveat)}</div>` : "";
       // Older saved analyses carry no pairs; the number stands alone there
