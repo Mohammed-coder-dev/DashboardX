@@ -2057,7 +2057,7 @@ html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate, .animate-delay-1, .animate-delay-2, .animate-delay-3, .animate-delay-4,
-  .loading-orbit, .corr-bar, .dropzone-icon, .loading-progress > span,
+  .loading-orbit, .corr-bar, .dropzone-icon, .loading-progress > span { animation: none; transition: none; }
   /* The delay classes hold opacity: 0 until their animation runs. With the
      animation disabled, nothing else ever shows them — so show them here.
      Without this, every result tier was invisible under reduced motion. */
