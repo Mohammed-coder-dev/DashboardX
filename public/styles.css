@@ -728,13 +728,87 @@ html { scroll-behavior: smooth; }
 }
 .result-overview h2 { font: 700 22px 'DM Sans', sans-serif; letter-spacing: -.025em; line-height: 1.2; }
 .result-overview-grid {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
   margin-top: 20px; gap: 1px; overflow: hidden;
   border: 1px solid var(--border); border-radius: 11px; background: var(--border);
 }
-.result-overview-metric { min-width: 0; padding: 16px; border: 0; border-radius: 0; background: var(--surface); }
-.result-overview-metric.has-visual { display: flex; align-items: center; gap: 12px; }
-.result-overview-metric-text { min-width: 0; }
+
+/* One card, one self-contained answer: a label, a headline value, a small
+   mark, and a route into the section holding the full detail. The unsettled
+   card deliberately shares this exact chrome — uncertainty is a kind of
+   answer here, so nothing about it may read as a demotion or a warning. */
+.overview-card {
+  grid-column: span 2; min-width: 0; display: flex; flex-direction: column;
+  gap: 9px; padding: 16px; background: var(--surface);
+}
+.overview-card--columns { grid-column: span 6; }
+.overview-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.overview-card-label {
+  color: var(--text-3);
+  font: 9px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.overview-card-value { color: var(--text); font: 600 19px 'DM Mono', monospace; white-space: nowrap; }
+.overview-card-value small { color: var(--text-3); font-size: 10.5px; font-weight: 500; }
+.overview-card-figure { display: flex; align-items: center; gap: 10px; }
+.overview-card-figure .health-ring { width: 34px; height: 34px; }
+.overview-card-body { display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 0; }
+.overview-line { color: var(--text-2); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.overview-line--meter { display: flex; align-items: center; gap: 8px; }
+.overview-card-link {
+  align-self: flex-start; margin-top: auto; padding: 0; border: 0; background: none;
+  color: var(--accent); font: 600 11px 'DM Sans', sans-serif; cursor: pointer;
+}
+.overview-card-link:hover, .overview-card-link:focus-visible { text-decoration: underline; }
+
+/* Issue counts wear the severity colours the quality panel already uses,
+   never colour alone: the count and the word ride beside the dot. */
+.overview-severity { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font-size: 11px; color: var(--text-2); }
+.overview-severity i { width: 7px; height: 7px; border-radius: 50%; }
+.overview-severity--high i { background: var(--red); }
+.overview-severity--medium i { background: var(--amber); }
+.overview-severity--low i { background: var(--text-3); }
+
+/* Evidence families: one hue for every bar — the label carries identity,
+   the length carries the count. A family the file cannot support states
+   what it needed, at the same size as a counted row. */
+.overview-family, .overview-worst {
+  display: grid; grid-template-columns: minmax(72px, 40%) 1fr auto;
+  align-items: center; gap: 8px; min-height: 18px;
+}
+.overview-family-name {
+  color: var(--text-2); font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.overview-family-track { display: block; height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.overview-family-track i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.overview-family strong, .overview-worst strong {
+  color: var(--text); font: 600 11px 'DM Mono', monospace; white-space: nowrap;
+}
+.overview-family-na { grid-column: 2 / -1; color: var(--text-2); font-size: 11px; }
+
+/* The target column's shape, drawn from the engine's own histogram bins.
+   Tail bins collect values beyond the IQR fences and render hollow so the
+   tail never masquerades as part of the central shape. */
+.overview-dist { display: flex; align-items: flex-end; gap: 2px; height: 56px; }
+.overview-dist-bar { flex: 1; min-width: 3px; border-radius: 2px 2px 0 0; background: var(--accent); opacity: .82; }
+.overview-dist-bar.is-tail { background: var(--surface); border: 1px solid var(--accent); opacity: 1; }
+
+.overview-finding { display: grid; gap: 3px; padding-bottom: 7px; border-bottom: 1px solid var(--border); }
+.overview-finding:last-of-type { border-bottom: 0; padding-bottom: 0; }
+.overview-finding-claim { color: var(--text); font-size: 11.5px; line-height: 1.4; overflow-wrap: anywhere; }
+.overview-vitals { color: var(--text-2); font: 10px 'DM Mono', monospace; }
+.overview-vitals-note { color: var(--text-3); font-size: 10px; }
+
+.overview-unsettled-item p { color: var(--text); font-size: 11.5px; line-height: 1.4; }
+.overview-unsettled-item small { color: var(--text-2); font-size: 10.5px; line-height: 1.4; }
+
+.overview-empty { color: var(--text-2); font-size: 11.5px; line-height: 1.5; }
+
+@media (max-width: 960px) {
+  .overview-card { grid-column: span 3; }
+  .overview-card--columns { grid-column: span 6; }
+}
 
 /* Health as a ring; the grade and score stay in text beside it. */
 .health-ring { flex: 0 0 auto; width: 46px; height: 46px; transform: rotate(-90deg); }
@@ -751,10 +825,6 @@ html { scroll-behavior: smooth; }
   border-radius: 4px; background: var(--border); overflow: hidden;
 }
 .overview-meter i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
-.result-overview-metric span, .result-overview-metric small { display: block; color: var(--text-3); }
-.result-overview-metric span { font: 9px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
-.result-overview-metric strong { display: block; margin: 4px 0 2px; overflow-wrap: anywhere; color: var(--text); font: 600 19px 'DM Mono', monospace; }
-.result-overview-metric small { font-size: 10.5px; line-height: 1.35; }
 .result-overview-focus {
   display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
   margin-top: 12px; padding: 13px 15px; border: 1px solid var(--border); border-radius: 10px; background: var(--accent-bg);
@@ -1898,9 +1968,8 @@ html { scroll-behavior: smooth; }
   .result-overview { padding: 18px 15px; }
   .result-overview-head { align-items: flex-start; flex-direction: row; gap: 10px; }
   .result-overview h2 { font-size: 20px; }
-  .result-overview-grid { grid-template-columns: 1fr 1fr; }
-  .result-overview-metric { padding: 12px; }
-  .result-overview-metric strong { font-size: 17px; }
+  .result-overview-grid { grid-template-columns: 1fr; }
+  .overview-card, .overview-card--columns { grid-column: 1 / -1; padding: 13px; }
   .result-overview-focus { grid-template-columns: 1fr; gap: 4px; }
   .result-nav { top: 64px; width: 100%; border-radius: 10px; }
   .tier { padding: 18px 15px; border-radius: 14px; }

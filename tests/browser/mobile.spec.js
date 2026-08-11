@@ -45,6 +45,25 @@ test("the dashboard renders and stays within the viewport", async ({ page }) => 
   await expect(page.locator("#columnInspector")).toBeHidden();
 });
 
+test("the overview cards stack single-column on a phone", async ({ page }) => {
+  await page.goto("/app");
+  await page.locator("#sampleBtn").tap();
+  await expect(page.locator("#overviewSection")).toBeVisible({ timeout: 25_000 });
+
+  // Every card takes the full row: dense grid on desktop, one column here.
+  const stacked = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll(".overview-card")];
+    const xs = new Set(cards.map((card) => Math.round(card.getBoundingClientRect().x)));
+    return { cards: cards.length, distinctX: xs.size };
+  });
+  expect(stacked.cards).toBeGreaterThan(0);
+  expect(stacked.distinctX).toBe(1);
+
+  const overflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test("the matrix, spread strips and charts stay within a phone viewport", async ({ page }) => {
   await page.goto("/app");
   await page.locator("#sampleBtn").tap();

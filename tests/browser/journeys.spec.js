@@ -169,8 +169,8 @@ test.describe("deterministic analysis without an API key", () => {
     // Provenance is stated once on the tier, not repeated on every card inside it.
     await expect(page.locator("#tierFindings .prov--computed")).toHaveText("Computed");
     await expect(page.locator("#evidenceSection .prov--derived")).toHaveText("Derived");
-    await expect(page.locator("#overviewGrid")).toContainText(/data health/i);
-    await expect(page.locator("#overviewGrid")).toContainText(/completeness/i);
+    await expect(page.locator("#overviewGrid")).toContainText(/quality/i);
+    await expect(page.locator("#overviewGrid")).toContainText(/% complete/);
     // The score is drawn as a ring beside its number, never instead of it.
     await expect(page.locator(".health-ring")).toBeVisible();
     await expect(page.locator(".overview-meter")).toBeVisible();
@@ -210,6 +210,70 @@ test.describe("deterministic analysis without an API key", () => {
     // columns, two categories and a date column; the old renderer stopped at
     // one chart per kind and three in total.
     expect(await page.locator(".chart-card").count()).toBeGreaterThan(3);
+  });
+
+  test("the overview is a grid of self-contained cards routing into detail", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#overviewSection")).toBeVisible({ timeout: 20_000 });
+
+    // Seven cards for the sample: file, quality, distribution, findings,
+    // strongest, unsettled, worst columns. Every one is a computed answer.
+    expect(await page.locator(".overview-card").count()).toBe(7);
+
+    // The file card and the structure note may never disagree about scope.
+    await expect(page.locator(".overview-card--file")).toContainText("Full dataset");
+    await expect(page.locator(".overview-card--file")).toContainText(/read as-is/i);
+
+    // The quality card says what it could NOT assess, or that it could
+    // assess everything — either is an answer, so one must be present.
+    await expect(page.locator(".overview-card--quality")).toContainText(/could not assess|every column was assessable/i);
+
+    // Findings by family: a family the file cannot support says what it
+    // needed, at the same weight as a counted one — never silently absent.
+    await expect(page.locator(".overview-card--findings")).toContainText(/not tested — needs a numeric target/);
+    await expect(page.locator(".overview-card--findings .overview-family-track").first()).toBeVisible();
+
+    // The strongest findings carry their support inline — n and the effect
+    // travel with the claim, not only in the detail view.
+    await expect(page.locator(".overview-vitals").first()).toContainText(/n=\d+/);
+
+    // The target column's shape is actually visible, not a number about it.
+    expect(await page.locator(".overview-dist-bar").count()).toBeGreaterThan(1);
+
+    // A card routes into the section holding the full detail; a details
+    // target opens itself so the jump never lands on a folded note.
+    await page.locator('.overview-card--file [data-overview-jump="structureNote"]').click();
+    await expect(page.locator("#structureNote")).toHaveAttribute("open", "");
+  });
+
+  test("uncertainty sits in the grid at the same visual weight as certainty", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#overviewSection")).toBeVisible({ timeout: 20_000 });
+
+    // The unsettled card is always present — its empty state ("nothing left
+    // unsettled") is as real an answer as a list of open questions.
+    const unsettled = page.locator(".overview-card--unsettled");
+    await expect(unsettled).toBeVisible();
+    await expect(unsettled).toContainText(/open question|nothing left unsettled/i);
+
+    // Same chrome as the confident cards: identical label typography and an
+    // identical surface — not an amber warning, not a demoted footnote.
+    const weights = await page.evaluate(() => {
+      const styleOf = (selector) => {
+        const style = getComputedStyle(document.querySelector(selector));
+        return { font: style.fontSize, background: style.backgroundColor };
+      };
+      return {
+        unsettled: styleOf(".overview-card--unsettled .overview-card-label"),
+        findings: styleOf(".overview-card--findings .overview-card-label"),
+        unsettledCard: styleOf(".overview-card--unsettled"),
+        findingsCard: styleOf(".overview-card--findings"),
+      };
+    });
+    expect(weights.unsettled.font).toBe(weights.findings.font);
+    expect(weights.unsettledCard.background).toBe(weights.findingsCard.background);
   });
 
   test("evidence carries method, sample size and coverage", async ({ page }) => {
@@ -268,6 +332,13 @@ test.describe("deterministic analysis without an API key", () => {
     // And it points at what was computed, so the page still has somewhere to go.
     await expect(evidence).toContainText(/column statistics/i);
     await expect(page.locator("#statsSection, [data-tier-jump=\"statsSection\"]").first()).toBeVisible();
+
+    // The overview says the same thing in its cards: zero findings is an
+    // answer, and a family this file cannot support says what it needed —
+    // two text columns support none of the seven evidence families.
+    await expect(page.locator(".overview-card--strongest")).toContainText(/no finding cleared the reporting thresholds/i);
+    expect(await page.locator(".overview-card--findings .overview-family-na").count()).toBe(7);
+    await expect(page.locator(".overview-card--columns")).toContainText(/complete and consistently typed/i);
   });
 
   test("confirms an ordinary file was read as-is, rather than saying nothing", async ({ page }) => {

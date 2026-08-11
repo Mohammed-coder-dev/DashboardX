@@ -1250,40 +1250,318 @@ resultNav.addEventListener("click", (event) => {
   if (link) setActiveResultSection(link.getAttribute("href").slice(1));
 });
 
+// ─── Overview dashboard grid ──────────────────────────────────
+// Every mark below traces to a value the engine already computed; the grid
+// only reshapes the payload. Empty states are answers ("nothing cleared the
+// bar"), never filler, and an unsettled reading gets a card at the same
+// visual weight as the settled ones — it is a different kind of answer, not
+// a lesser one.
+
+/** The evidence families the engine can produce, with when each applies.
+ *  "Not tested" and "tested, none found" are different statements, so a
+ *  family that could not run for this file says what it needed. */
+const EVIDENCE_FAMILIES = [
+  { label: "Correlations", metrics: ["pearson_r", "spearman_rho"],
+    applies: (ctx) => ctx.numericCols.length >= 2, needs: "two numeric columns" },
+  { label: "Group differences", metrics: ["group_mean_difference", "missingness_mean_difference"],
+    applies: (ctx) => ctx.targetNumeric && ctx.columnCount >= 2, needs: "a numeric target column" },
+  { label: "Category associations", metrics: ["cramers_v"],
+    applies: (ctx) => ctx.categoryCols.length >= 2, needs: "two category columns" },
+  { label: "Dominant categories", metrics: ["category_share"],
+    applies: (ctx) => ctx.categoryCols.length >= 1, needs: "a category column" },
+  { label: "Time patterns", metrics: ["period_volume_trend", "period_over_period_change", "target_time_trend"],
+    applies: (ctx) => ctx.dateCols.length >= 1, needs: "a date column with six dated rows" },
+  { label: "Level shifts", metrics: ["candidate_level_shift"],
+    applies: (ctx) => ctx.dateCols.length >= 1 && ctx.targetNumeric, needs: "a date column and a numeric target" },
+  { label: "Outliers", metrics: ["iqr_outliers"],
+    applies: (ctx) => ctx.numericCols.length >= 1, needs: "a numeric column" },
+];
+
+/** Column-type context for the family table, using the engine's own gates. */
+function familyContext(data) {
+  const stats = data.stats || {};
+  const columns = (data.columns || []).filter((column) => column !== "line");
+  const target = data.meta?.target || null;
+  return {
+    columnCount: columns.length,
+    numericCols: columns.filter((column) => stats[column]?.type === "numeric"),
+    categoryCols: columns.filter((column) => stats[column]?.type === "categorical"
+      && stats[column].role === "category" && stats[column].unique >= 2),
+    dateCols: columns.filter((column) => stats[column]?.type === "date" && stats[column].validCount >= 6),
+    targetNumeric: Boolean(target && stats[target]?.type === "numeric"),
+  };
+}
+
+/** n, effect size and p-value for one finding, from its computed statistics.
+ *  Only values the engine produced appear; nothing is derived here. */
+function findingVitals(e) {
+  const s = e.statistics || {};
+  const effect = {
+    pearson_r: `r=${e.value}`, spearman_rho: `ρ=${e.value}`,
+    cramers_v: `V=${e.value}`,
+    group_mean_difference: `d=${s.effectSize ?? e.value}`,
+    missingness_mean_difference: `d=${e.value}`,
+    category_share: `${e.value}% share`,
+    iqr_outliers: `${e.value} outside fences`,
+    period_over_period_change: `${e.value >= 0 ? "+" : ""}${e.value}%`,
+    target_time_trend: `ρ=${e.value}`,
+    candidate_level_shift: `robust d=${e.value}`,
+  }[e.metric];
+  const pValue = s.pValue ?? s.welch?.pValue ?? s.inference?.pValue ?? null;
+  const parts = [`n=${e.sampleSize}`];
+  if (effect !== undefined && e.value !== null) parts.push(effect);
+  if (pValue !== null && pValue !== undefined) parts.push(`p=${formatPValue(pValue)}`);
+  return { text: parts.join(" · "), hasP: pValue !== null && pValue !== undefined };
+}
+
+/** Everything the engine reported it could not settle, as first-class items. */
+function unsettledReads(data) {
+  const { meta = {}, profile, stats = {}, correlations = [] } = data;
+  const items = [];
+  const structure = meta.structure;
+  if (structure?.confidence === "uncertain") {
+    const causes = [];
+    if (structure.alternatives?.length) causes.push(`${structure.alternatives.length} other plausible header row${structure.alternatives.length === 1 ? "" : "s"}`);
+    const uncertainRows = (structure.excluded || []).filter((entry) => entry.confidence === "uncertain").length;
+    if (uncertainRows) causes.push(`${uncertainRows} row${uncertainRows === 1 ? "" : "s"} excluded as an open question`);
+    if (structure.unapplied?.length) causes.push(`${structure.unapplied.length} correction${structure.unapplied.length === 1 ? "" : "s"} did not apply`);
+    if (structure.warnings?.some((warning) => warning.kind === "possible-transpose")) causes.push("the sheet may be transposed");
+    items.push({ text: "How this file was read is unsettled", detail: causes.join(" · ") || "see the reading note", jump: "structureNote" });
+  }
+
+  const mixed = Object.entries(profile?.columns || {}).filter(([, c]) => c.type === "mixed");
+  if (mixed.length) {
+    const worst = Math.min(...mixed.map(([, c]) => c.typeConsistency));
+    items.push({
+      text: `${mixed.length} column${mixed.length === 1 ? "" : "s"} could not be typed`,
+      detail: `${mixed.slice(0, 3).map(([name]) => name).join(", ")}${mixed.length > 3 ? "…" : ""} mix value types (${Math.round(worst * 100)}% consistent at worst)`,
+      jump: "qualitySection",
+    });
+  }
+
+  const invalid = Object.entries(stats).filter(([, field]) => field.type === "numeric" && field.invalid > 0);
+  if (invalid.length) {
+    const cells = invalid.reduce((sum, [, field]) => sum + field.invalid, 0);
+    items.push({
+      text: `${cells} cell${cells === 1 ? "" : "s"} could not be read as numbers`,
+      detail: invalid.slice(0, 3).map(([name, field]) => `${name} (${field.invalid})`).join(", ") + (invalid.length > 3 ? "…" : ""),
+      jump: "statsSection",
+    });
+  }
+
+  const unchecked = Object.entries(stats).filter(([, field]) => field.type === "numeric" && field.outliers && !field.outliers.applied);
+  if (unchecked.length) {
+    items.push({
+      text: `Outlier check did not run for ${unchecked.length} column${unchecked.length === 1 ? "" : "s"}`,
+      detail: unchecked.slice(0, 3).map(([name, field]) => `${name}: ${field.outliers.reason}`).join(" · ") + (unchecked.length > 3 ? "…" : ""),
+      jump: "statsSection",
+    });
+  }
+
+  const context = familyContext(data);
+  if (context.numericCols.length >= 2) {
+    const pairs = context.numericCols.length * (context.numericCols.length - 1) / 2;
+    const unreported = pairs - correlations.length;
+    if (unreported > 0) {
+      items.push({
+        text: `${correlations.length} of ${pairs} numeric pair${pairs === 1 ? "" : "s"} cleared the reporting bar`,
+        detail: "the rest are below |0.3| or had too few complete pairs — not measured as zero",
+        jump: "corrSection",
+      });
+    }
+  }
+
+  const irregular = Object.entries(stats).filter(([, field]) => field.type === "date" && field.irregularIntervals);
+  for (const [name] of irregular) {
+    items.push({
+      text: `Dates in ${name} arrive at irregular intervals`,
+      detail: "trend buckets span uneven stretches of activity",
+      jump: "statsSection",
+    });
+  }
+  return items;
+}
+
+function overviewCard(kind, label, headline, bodyHtml, jump, jumpLabel) {
+  return `<article class="overview-card overview-card--${kind}">
+    <header class="overview-card-head"><span class="overview-card-label">${esc(label)}</span>${headline}</header>
+    <div class="overview-card-body">${bodyHtml}</div>
+    ${jump ? `<button type="button" class="overview-card-link" data-overview-jump="${esc(jump)}">${esc(jumpLabel)} →</button>` : ""}
+  </article>`;
+}
+
+/** A column's completeness track, shared with the quality panel's vocabulary. */
+function columnTrackHtml(valid, missing, invalid, total) {
+  const pct = (n) => +(n / Math.max(1, total) * 100).toFixed(2);
+  return `<span class="quality-col-track" aria-hidden="true">
+    <i class="q-valid" style="width:${pct(valid)}%"></i><i class="q-missing" style="width:${pct(missing)}%"></i><i class="q-invalid" style="width:${pct(invalid)}%"></i>
+  </span>`;
+}
+
 function renderOverview(data) {
-  const { meta = {}, profile, evidence = [], correlations = [] } = data;
+  const { meta = {}, profile, evidence = [], correlations = [], stats = {} } = data;
   if (!meta.isTabular || !profile) {
     overviewSection.style.display = "none";
     return;
   }
 
-  const issueCount = profile.issues?.length || 0;
   const completeness = Math.max(0, Math.min(100, Number(profile.completeness) || 0));
   const tone = ["A", "B"].includes(profile.healthGrade) ? "good" : profile.healthGrade === "C" ? "fair" : "poor";
+  const context = familyContext(data);
 
-  // "Full dataset" used to be hardcoded, so a file whose title block and TOTAL
-  // row had been deliberately left out still announced that every row counted —
-  // the one claim the provenance note directly contradicts. The tile now reports
-  // the exclusions in the same words the note uses, so the headline summary and
-  // the audit trail underneath it cannot disagree.
-  const excludedRows = meta.structure?.excluded?.length || 0;
+  // ① File scorecard. "Full dataset" is claimed only when the structure report
+  // set nothing aside — the headline and the audit trail must not disagree.
+  const structure = meta.structure;
+  const excludedRows = structure?.excluded?.length || 0;
   const rowsContext = excludedRows > 0
     ? `${excludedRows} row${excludedRows === 1 ? "" : "s"} excluded`
     : "Full dataset";
-  const tile = (label, value, context, visual = "") => `
-    <div class="result-overview-metric${visual ? " has-visual" : ""}">
-      ${visual}<div class="result-overview-metric-text">
-      <span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(context)}</small>
-      </div>
+  const excludedColumns = meta.excludedColumns?.length || 0;
+  const readLine = !structure
+    ? "Read not recorded for this analysis"
+    : structure.confidence === "uncertain"
+      ? "Read unsettled — check the reading note"
+      : structure.confidence === "confident"
+        ? `Read settled — header on row ${structure.headerRow}`
+        : "Read as-is — nothing set aside";
+  const fileCard = overviewCard("file", "This file",
+    `<strong class="overview-card-value">${esc((meta.totalRows ?? profile.rows ?? 0).toLocaleString())}<small> rows</small></strong>`,
+    `<div class="overview-line">${esc(rowsContext)} · ${esc(context.columnCount)} column${context.columnCount === 1 ? "" : "s"}${excludedColumns ? ` (${excludedColumns} excluded)` : ""}</div>
+     <div class="overview-line overview-line--meter"><span class="overview-meter" aria-hidden="true"><i style="width:${completeness}%"></i></span> ${esc(profile.completeness)}% complete</div>
+     <div class="overview-line">${esc(readLine)}</div>`,
+    structure ? "structureNote" : null, "How it was read");
+
+  // ② Quality — the grade, and just as loudly, what it could not assess.
+  const bySeverity = { high: 0, medium: 0, low: 0 };
+  for (const issue of profile.issues || []) bySeverity[issue.severity] = (bySeverity[issue.severity] || 0) + 1;
+  const severityLine = (profile.issues || []).length
+    ? ["high", "medium", "low"].filter((severity) => bySeverity[severity])
+        .map((severity) => `<span class="overview-severity overview-severity--${severity}"><i></i>${bySeverity[severity]} ${severity}</span>`).join(" ")
+    : `<span class="overview-line">No quality issues flagged</span>`;
+  const unassessed = [];
+  const mixedCount = Object.values(profile.columns || {}).filter((c) => c.type === "mixed").length;
+  const emptyCount = Object.values(profile.columns || {}).filter((c) => c.type === "empty").length;
+  const uncheckedCount = Object.values(stats).filter((field) => field.type === "numeric" && field.outliers && !field.outliers.applied).length;
+  if (mixedCount) unassessed.push(`${mixedCount} column${mixedCount === 1 ? "" : "s"} not typed`);
+  if (emptyCount) unassessed.push(`${emptyCount} empty`);
+  if (uncheckedCount) unassessed.push(`${uncheckedCount} outlier check${uncheckedCount === 1 ? "" : "s"} skipped`);
+  const qualityCard = overviewCard("quality", "Quality",
+    `<span class="overview-card-figure">${healthRingHtml(profile.healthScore, tone)}<strong class="overview-card-value">${esc(profile.healthGrade || "—")}<small> · ${esc(profile.healthScore ?? "—")}/100</small></strong></span>`,
+    `<div class="overview-line">${severityLine}</div>
+     <div class="overview-line">${esc(profile.duplicateRows || 0)} duplicate row${profile.duplicateRows === 1 ? "" : "s"}</div>
+     <div class="overview-line">${unassessed.length
+        ? `Could not assess: ${esc(unassessed.join(" · "))}`
+        : "Every column was assessable"}</div>`,
+    "qualitySection", "Full quality report");
+
+  // ③ Distribution of the target column, or the best-covered numeric one.
+  const distColumn = context.targetNumeric ? meta.target
+    : context.numericCols.slice().sort((a, b) => (stats[b].coverage ?? 0) - (stats[a].coverage ?? 0))[0] ?? null;
+  let distCard = "";
+  if (distColumn && stats[distColumn].histogram?.bins?.length) {
+    const field = stats[distColumn];
+    const bins = field.histogram.bins;
+    const maxCount = Math.max(1, ...bins.map((bin) => bin.count));
+    const bars = bins.map((bin) => {
+      const height = Math.max(3, Math.round(bin.count / maxCount * 100));
+      const tail = bin.kind !== "center";
+      return `<i class="overview-dist-bar${tail ? " is-tail" : ""}" style="height:${height}%" title="${esc(`${histogramLabel(bin)}: ${bin.count} row${bin.count === 1 ? "" : "s"}`)}"></i>`;
+    }).join("");
+    const tails = bins.some((bin) => bin.kind !== "center");
+    distCard = overviewCard("dist", `${distColumn} distribution`,
+      `<strong class="overview-card-value">${esc(field.median)}<small> median</small></strong>`,
+      `<div class="overview-dist" role="img" aria-label="${esc(`${distColumn}: ${bins.length} bins across ${field.validCount} values`)}">${bars}</div>
+       <div class="overview-line">n=${esc(field.validCount)} · ${esc(field.coverage)}% coverage${tails ? " · outlier tails drawn hollow" : ""}</div>`,
+      "chartsSection", "All distributions");
+  } else if (context.categoryCols.length) {
+    const column = context.categoryCols[0];
+    const top = stats[column].top || [];
+    const rows = top.slice(0, 4).map((entry) => `
+      <div class="overview-family"><span class="overview-family-name" title="${esc(entry.value)}">${esc(entry.value)}</span>
+        <span class="overview-family-track" aria-hidden="true"><i style="width:${Math.max(2, Math.min(100, entry.percentage))}%"></i></span>
+        <strong>${esc(entry.percentage)}%</strong></div>`).join("");
+    distCard = overviewCard("dist", `${column} breakdown`,
+      `<strong class="overview-card-value">${esc(stats[column].unique)}<small> levels</small></strong>`,
+      rows, "chartsSection", "All distributions");
+  }
+
+  // ④ Findings by family. A zero is "tested, nothing cleared the bar"; a
+  // family the file cannot support says what it needed instead.
+  const byMetric = new Map();
+  for (const item of evidence) byMetric.set(item.metric, (byMetric.get(item.metric) || 0) + 1);
+  const familyCounts = EVIDENCE_FAMILIES.map((family) => ({
+    ...family,
+    count: family.metrics.reduce((sum, metric) => sum + (byMetric.get(metric) || 0), 0),
+    applicable: family.applies(context),
+  }));
+  const familyMax = Math.max(1, ...familyCounts.map((family) => family.count));
+  const familyRows = familyCounts.map((family) => family.applicable
+    ? `<div class="overview-family"><span class="overview-family-name">${esc(family.label)}</span>
+        <span class="overview-family-track" aria-hidden="true"><i style="width:${family.count ? Math.max(4, Math.round(family.count / familyMax * 100)) : 0}%"></i></span>
+        <strong>${esc(family.count)}</strong></div>`
+    : `<div class="overview-family"><span class="overview-family-name">${esc(family.label)}</span>
+        <span class="overview-family-na">not tested — needs ${esc(family.needs)}</span></div>`).join("");
+  const findingsCard = overviewCard("findings", "Findings",
+    `<strong class="overview-card-value">${esc(evidence.length)}<small> cleared the bar</small></strong>`,
+    familyRows, "evidenceSection", "All evidence");
+
+  // ⑤ Strongest findings, each with its support inline.
+  let anyP = false;
+  const strongest = evidence.slice(0, 3).map((item) => {
+    const vitals = findingVitals(item);
+    anyP = anyP || vitals.hasP;
+    return `<div class="overview-finding">${strengthScale(item.strength)}
+      <p class="overview-finding-claim">${esc(item.claim)}</p>
+      <span class="overview-vitals">${esc(vitals.text)} · ${esc(item.coverage)}% coverage</span>
     </div>`;
-  overviewGrid.innerHTML =
-    tile("Rows analyzed", (meta.totalRows ?? profile.rows ?? 0).toLocaleString(), rowsContext)
-    + tile("Data health", `${profile.healthGrade || "—"} · ${profile.healthScore ?? "—"}/100`,
-        `${issueCount} flagged issue${issueCount === 1 ? "" : "s"}`, healthRingHtml(profile.healthScore, tone))
-    + tile("Completeness", `${profile.completeness ?? "—"}%`,
-        `${profile.duplicateRows || 0} duplicate row${profile.duplicateRows === 1 ? "" : "s"}`,
-        `<span class="overview-meter" aria-hidden="true"><i style="width:${completeness}%"></i></span>`)
-    + tile("Evidence", String(evidence.length), `${correlations.length} reported relationship${correlations.length === 1 ? "" : "s"}`);
+  }).join("");
+  const strongestCard = overviewCard("strongest", "Strongest findings",
+    `<strong class="overview-card-value">${esc(Math.min(3, evidence.length))}<small> of ${esc(evidence.length)}</small></strong>`,
+    evidence.length
+      ? strongest + (anyP ? `<span class="overview-vitals-note">p-values are exploratory and unadjusted across findings</span>` : "")
+      : `<p class="overview-empty">No finding cleared the reporting thresholds — a result, not a failure. The full statistics below were still computed.</p>`,
+    "evidenceSection", "All evidence");
+
+  // ⑥ Columns to fix first, ranked the way a toxicity table ranks.
+  const ranked = Object.entries(profile.columns || {})
+    .filter(([, c]) => c.missingPct > 0 || c.type === "mixed" || c.type === "empty")
+    .sort((a, b) => (b[1].missingPct - a[1].missingPct) || (a[1].typeConsistency - b[1].typeConsistency));
+  const worstRows = ranked.slice(0, 5).map(([name, c]) => {
+    const field = stats[name];
+    const total = profile.rows || meta.totalRows || 1;
+    const valid = field?.validCount ?? Math.max(0, Math.round((100 - c.missingPct) / 100 * total));
+    const invalidCells = field?.invalid ?? 0;
+    const missingCells = field?.missing ?? Math.max(0, total - valid - invalidCells);
+    const flag = c.type === "mixed" ? `mixed types` : c.type === "empty" ? "empty" : `${c.missingPct}% missing`;
+    return `<div class="overview-worst" title="${esc(`${name}: ${valid.toLocaleString()} valid · ${missingCells.toLocaleString()} missing${invalidCells ? ` · ${invalidCells.toLocaleString()} unparseable` : ""}`)}">
+      <span class="overview-family-name">${esc(name)}</span>
+      ${columnTrackHtml(valid, missingCells, invalidCells, valid + missingCells + invalidCells)}
+      <strong>${esc(flag)}</strong>
+    </div>`;
+  }).join("");
+  const worstCard = overviewCard("columns", "Columns to fix first",
+    `<strong class="overview-card-value">${esc(ranked.length)}<small> flagged</small></strong>`,
+    ranked.length
+      ? worstRows + (ranked.length > 5 ? `<div class="overview-line">and ${ranked.length - 5} more in the quality report</div>` : "")
+      : `<p class="overview-empty">Every column is complete and consistently typed.</p>`,
+    "qualitySection", "Full quality report");
+
+  // ⑦ Unsettled reads — the same weight as everything above, because "Ridge
+  // could not settle this" is an answer, not an error.
+  const unsettled = unsettledReads(data);
+  const unsettledRows = unsettled.slice(0, 5).map((item) => `
+    <div class="overview-unsettled-item">
+      <p>${esc(item.text)}</p>
+      <small>${esc(item.detail)}</small>
+    </div>`).join("");
+  const unsettledCard = overviewCard("unsettled", "Unsettled reads",
+    `<strong class="overview-card-value">${esc(unsettled.length)}<small> open question${unsettled.length === 1 ? "" : "s"}</small></strong>`,
+    unsettled.length
+      ? unsettledRows + (unsettled.length > 5 ? `<div class="overview-line">and ${unsettled.length - 5} more</div>` : "")
+      : `<p class="overview-empty">Nothing left unsettled — the header was unambiguous, every column typed cleanly, and every planned check ran.</p>`,
+    unsettled[0]?.jump || "statsSection", "Where it shows up");
+
+  overviewGrid.innerHTML = fileCard + qualityCard + distCard + findingsCard + strongestCard + unsettledCard + worstCard;
 
   const priorityIssue = (profile.issues || []).find((issue) => issue.severity === "high")
     || (profile.issues || []).find((issue) => issue.severity === "medium")
@@ -1296,6 +1574,16 @@ function renderOverview(data) {
       : "No material quality or evidence flags were found. Review the column profiles for context.";
   overviewSection.style.display = "";
 }
+
+// Each overview card routes into the section holding its full detail; a
+// details target opens itself so the jump never lands on a folded note.
+overviewGrid?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-overview-jump]");
+  if (!button) return;
+  const targetElement = document.getElementById(button.dataset.overviewJump);
+  if (targetElement instanceof HTMLDetailsElement) targetElement.open = true;
+  revealResultSection(button.dataset.overviewJump);
+});
 
 /**
  * The health score as a ring, sized to sit inside its overview tile. The score
