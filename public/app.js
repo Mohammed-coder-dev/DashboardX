@@ -1506,6 +1506,46 @@ function sparklineHtml(buckets, ariaLabel) {
   </svg>`;
 }
 
+/**
+ * Every class of read the engine attempted on this file, as settled-vs-open
+ * counts. Nothing here is computed — each number is a count of items already
+ * in the payload — so the card's shape (how much of it is hollow) is itself a
+ * faithful statement of how much the engine could not settle.
+ */
+function readLedger(data) {
+  const { meta = {}, profile, stats = {}, correlations = [] } = data;
+  const ledger = [];
+  const structure = meta.structure;
+  if (structure) {
+    const open = structure.confidence === "uncertain" ? 1 : 0;
+    ledger.push({ label: "File shape", settled: 1 - open, open, aria: open ? "read unsettled" : "read settled" });
+  }
+  const columnProfiles = Object.values(profile?.columns || {});
+  if (columnProfiles.length) {
+    const mixed = columnProfiles.filter((c) => c.type === "mixed").length;
+    ledger.push({ label: "Column types", settled: columnProfiles.length - mixed, open: mixed,
+      aria: mixed ? `typed cleanly; ${mixed} mixed, drawn hollow` : "typed cleanly" });
+  }
+  const numericFields = Object.values(stats).filter((field) => field.type === "numeric");
+  if (numericFields.length) {
+    const skipped = numericFields.filter((field) => field.outliers && !field.outliers.applied).length;
+    ledger.push({ label: "Outlier checks", settled: numericFields.length - skipped, open: skipped,
+      aria: skipped ? `ran; ${skipped} skipped, drawn hollow` : "ran" });
+  }
+  if (numericFields.length >= 2) {
+    const pairs = numericFields.length * (numericFields.length - 1) / 2;
+    ledger.push({ label: "Numeric pairs", settled: correlations.length, open: pairs - correlations.length,
+      aria: "cleared the reporting bar; unreported pairs are below |0.3| or had too few complete observations — not measured as zero" });
+  }
+  const dateFields = Object.values(stats).filter((field) => field.type === "date" && field.validCount > 0);
+  if (dateFields.length) {
+    const irregular = dateFields.filter((field) => field.irregularIntervals).length;
+    ledger.push({ label: "Date spacing", settled: dateFields.length - irregular, open: irregular,
+      aria: irregular ? `regular; ${irregular} irregular, drawn hollow` : "regular" });
+  }
+  return ledger;
+}
+
 function overviewCard(kind, label, headline, bodyHtml, jump, jumpLabel) {
   return `<article class="overview-card overview-card--${kind}">
     <header class="overview-card-head"><span class="overview-card-label">${esc(label)}</span>${headline}</header>
@@ -1663,12 +1703,16 @@ function renderOverview(data) {
     applicable: family.applies(context),
   }));
   const familyMax = Math.max(1, ...familyCounts.map((family) => family.count));
+  // An untested family draws the same track as a counted one, hollow: "the
+  // engine could not run this here" is an answer with a shape, not a footnote.
   const familyRows = familyCounts.map((family) => family.applicable
     ? `<div class="overview-family"><span class="overview-family-name">${esc(family.label)}</span>
         <span class="overview-family-track" aria-hidden="true"><i style="width:${family.count ? Math.max(4, Math.round(family.count / familyMax * 100)) : 0}%"></i></span>
         <strong>${esc(family.count)}</strong></div>`
     : `<div class="overview-family"><span class="overview-family-name">${esc(family.label)}</span>
-        <span class="overview-family-na">not tested — needs ${esc(family.needs)}</span></div>`).join("");
+        <span class="overview-family-track overview-family-track--hollow" role="img" aria-label="${esc(`${family.label}: not tested — needs ${family.needs}`)}"></span>
+        <strong class="overview-family-none">—</strong></div>
+      <small class="overview-family-needs">not tested — needs ${esc(family.needs)}</small>`).join("");
   const findingsCard = overviewCard("findings", "Findings",
     `<strong class="overview-card-value">${esc(evidence.length)}<small> cleared the bar</small></strong>`,
     familyRows, "evidenceSection", "All evidence");
@@ -1715,18 +1759,30 @@ function renderOverview(data) {
     "qualitySection", "Full quality report");
 
   // ⑦ Unsettled reads — the same weight as everything above, because "Ridge
-  // could not settle this" is an answer, not an error.
+  // could not settle this" is an answer, not an error. The ledger draws every
+  // class of read the engine attempted as settled (filled) against open
+  // (hollow), so how unsettled the file is reads as a shape from across the
+  // room; the item lines beneath say what, exactly, stayed open.
   const unsettled = unsettledReads(data);
-  const unsettledRows = unsettled.slice(0, 5).map((item) => `
+  const ledgerRows = readLedger(data).map((row) => {
+    const total = row.settled + row.open;
+    const bar = segmentBarHtml([
+      { label: "settled", count: row.settled, state: "filled" },
+      { label: "open", count: row.open, state: "hollow" },
+    ], `${row.label}: ${row.settled} of ${total} ${row.aria}`);
+    return `<div class="overview-family"><span class="overview-family-name">${esc(row.label)}</span>${bar}<strong>${esc(row.settled)}/${esc(total)}</strong></div>`;
+  }).join("");
+  const unsettledRows = unsettled.slice(0, 3).map((item) => `
     <div class="overview-unsettled-item">
       <p>${esc(item.text)}</p>
       <small>${esc(item.detail)}</small>
     </div>`).join("");
   const unsettledCard = overviewCard("unsettled", "Unsettled reads",
     `<strong class="overview-card-value">${esc(unsettled.length)}<small> open question${unsettled.length === 1 ? "" : "s"}</small></strong>`,
-    unsettled.length
-      ? unsettledRows + (unsettled.length > 5 ? `<div class="overview-line">and ${unsettled.length - 5} more</div>` : "")
-      : `<p class="overview-empty">Nothing left unsettled — the header was unambiguous, every column typed cleanly, and every planned check ran.</p>`,
+    ledgerRows
+      + (unsettled.length
+        ? unsettledRows + (unsettled.length > 3 ? `<div class="overview-line">and ${unsettled.length - 3} more</div>` : "")
+        : `<p class="overview-empty">Nothing left unsettled — every read above ran to a settled answer.</p>`),
     unsettled[0]?.jump || "statsSection", "Where it shows up");
 
   overviewGrid.innerHTML = fileCard + qualityCard + distCard + findingsCard + strongestCard + unsettledCard + worstCard;

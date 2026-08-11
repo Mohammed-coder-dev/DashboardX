@@ -794,7 +794,10 @@ html { scroll-behavior: smooth; }
 .overview-family strong, .overview-worst strong {
   color: var(--text); font: 600 11px 'DM Mono', monospace; white-space: nowrap;
 }
-.overview-family-na { grid-column: 2 / -1; color: var(--text-2); font-size: 11px; }
+.overview-family-track--hollow { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); }
+.overview-family-none { color: var(--text-3); }
+.overview-family-needs { color: var(--text-2); font-size: 10px; line-height: 1.35; margin-top: -3px; }
+.overview-family .segbar { min-width: 0; }
 
 /* The target column's shape, drawn from the engine's own histogram bins.
    Tail bins collect values beyond the IQR fences and render hollow so the

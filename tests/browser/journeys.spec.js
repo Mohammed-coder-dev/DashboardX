@@ -313,6 +313,15 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(unsettled).toBeVisible();
     await expect(unsettled).toContainText(/open question|nothing left unsettled/i);
 
+    // The read ledger gives uncertainty a shape: every class of read the
+    // engine attempted as filled-vs-hollow, so an unsettled file is legible
+    // from across the room. The sample reports 1 of its 3 numeric pairs, so
+    // that row carries a hollow remainder with the honest wording in text.
+    await expect(unsettled).toContainText("Numeric pairs");
+    await expect(unsettled.locator(".segbar .seg--hollow").first()).toBeVisible();
+    const pairsRow = unsettled.locator(".overview-family", { hasText: "Numeric pairs" });
+    await expect(pairsRow.locator(".segbar")).toHaveAttribute("aria-label", /not measured as zero/);
+
     // Same chrome as the confident cards: identical label typography and an
     // identical surface — not an amber warning, not a demoted footnote.
     const weights = await page.evaluate(() => {
@@ -472,11 +481,16 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#statsSection, [data-tier-jump=\"statsSection\"]").first()).toBeVisible();
 
     // The overview says the same thing in its cards: zero findings is an
-    // answer, and a family this file cannot support says what it needed —
+    // answer, and a family this file cannot support draws a hollow track —
     // two text columns support none of the seven evidence families.
     await expect(page.locator(".overview-card--strongest")).toContainText(/no finding cleared the reporting thresholds/i);
-    expect(await page.locator(".overview-card--findings .overview-family-na").count()).toBe(7);
+    expect(await page.locator(".overview-card--findings .overview-family-track--hollow").count()).toBe(7);
     await expect(page.locator(".overview-card--columns")).toContainText(/complete and consistently typed/i);
+
+    // A fully settled file draws a fully filled ledger: the unsettled card
+    // still has marks, and none of them are hollow.
+    expect(await page.locator(".overview-card--unsettled .seg--filled").count()).toBeGreaterThanOrEqual(2);
+    expect(await page.locator(".overview-card--unsettled .seg--hollow").count()).toBe(0);
   });
 
   test("confirms an ordinary file was read as-is, rather than saying nothing", async ({ page }) => {
