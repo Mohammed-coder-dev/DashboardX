@@ -12,6 +12,9 @@ const THIN_CSV = path.resolve(here, "../fixtures/thin-table.csv");
 // A grouping row above the real header gives two plausible header rows, so the
 // read comes back uncertain rather than merely messy.
 const AMBIGUOUS_CSV = path.resolve(here, "../fixtures/ambiguous-header.csv");
+// Five months of shipments with March entirely absent — the shape where a
+// timeline that plots only populated buckets hides the gap.
+const GAPPED_CSV = path.resolve(here, "../fixtures/gapped-timeline.csv");
 
 // The server runs without an Anthropic key, so these journeys exercise the
 // deterministic product exactly as a first-time visitor experiences it.
@@ -343,6 +346,26 @@ test.describe("deterministic analysis without an API key", () => {
     await page.locator("#analyzeBtn").click();
     await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("#evidenceSection")).toBeVisible();
+  });
+
+  test("a timeline shows its empty periods instead of compressing them away", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(GAPPED_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // The trend chart's stated basis names the gap it drew as zero, so a
+    // month with no shipments never looks like a month that never happened.
+    await page.locator('[data-tier-jump="chartsSection"]').click();
+    await expect(page.locator(".chart-reason", { hasText: /empty period/ })).toBeVisible();
+    await expect(page.locator(".chart-reason", { hasText: /shown as zero/ })).toBeVisible();
+
+    // The column inspector's timeline restores the same gap as a labelled
+    // zero-count bucket rather than skipping the month.
+    await page.locator('[data-column="shipped"]').click();
+    await expect(page.locator("#columnInspector")).toBeVisible();
+    await expect(page.locator("#columnInspectorVisual")).toContainText(/empty period/);
+    await expect(page.locator('.column-inspector-bar[title="2024-03: 0"]')).toBeVisible();
   });
 
   test("explains an empty evidence panel instead of removing it", async ({ page }) => {

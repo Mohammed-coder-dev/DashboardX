@@ -1610,11 +1610,29 @@ function histogramLabel(bin) {
   return bin.start === bin.end ? String(bin.start) : `${bin.start}–${bin.end}`;
 }
 
+/**
+ * A date column's timeline with its computed gaps restored as zero-count
+ * buckets. The engine's `periods` list holds only populated buckets, so a
+ * chart drawn from it alone compresses every empty stretch out of the axis —
+ * a month nobody shipped anything looks identical to a month that never
+ * happened. `gaps` already names the empty buckets; merging them back is a
+ * reshape of computed values, not a computation.
+ */
+function timelineBuckets(field) {
+  const periods = field.periods || [];
+  const gaps = field.gaps || [];
+  if (!gaps.length) return periods;
+  return [...periods, ...gaps.map((period) => ({ period, count: 0 }))]
+    .sort((a, b) => a.period.localeCompare(b.period));
+}
+
 function inspectorBars(items, labelFor, valueFor) {
   const maximum = Math.max(1, ...items.map(valueFor));
   return `<div class="column-inspector-bars">${items.map((item) => {
     const value = valueFor(item);
-    const height = Math.max(4, Math.round(value / maximum * 100));
+    // A zero-count bucket draws no bar: a minimum-height bar would show
+    // observations where the engine counted none.
+    const height = value === 0 ? 0 : Math.max(4, Math.round(value / maximum * 100));
     const label = labelFor(item);
     return `<div class="column-inspector-bar" title="${esc(`${label}: ${value}`)}">
       <span class="column-inspector-bar-value">${esc(value)}</span>
@@ -1633,8 +1651,9 @@ function renderColumnInspectorVisual(field) {
       ${inspectorBars(field.histogram.bins, histogramLabel, (bin) => bin.count)}`;
   }
   if (field.type === "date" && field.periods?.length) {
-    return `<div class="column-inspector-visual-head"><h3>Timeline coverage</h3><p>${esc(field.granularity || "period")} buckets · ${esc(field.trend || "no stable trend")}</p></div>
-      ${inspectorBars(field.periods.slice(-16), (period) => period.period, (period) => period.count)}`;
+    const gapNote = field.gaps?.length ? ` · ${field.gaps.length} empty period${field.gaps.length === 1 ? "" : "s"}` : "";
+    return `<div class="column-inspector-visual-head"><h3>Timeline coverage</h3><p>${esc(field.granularity || "period")} buckets · ${esc(field.trend || "no stable trend")}${esc(gapNote)}</p></div>
+      ${inspectorBars(timelineBuckets(field).slice(-16), (period) => period.period, (period) => period.count)}`;
   }
   if (field.top?.length) {
     return `<div class="column-inspector-visual-head"><h3>Most common values</h3><p>Ranked across ${esc(field.validCount ?? field.count ?? 0)} valid rows</p></div>
@@ -1722,13 +1741,16 @@ function buildDeterministicCharts(stats, target) {
         yLabel: "rows",
       });
     } else if (field.type === "date" && field.periods?.length > 1) {
+      const buckets = timelineBuckets(field);
+      const gapNote = field.gaps?.length
+        ? ` · ${field.gaps.length} empty period${field.gaps.length === 1 ? "" : "s"} shown as zero` : "";
       charts.push({
         deterministic: true,
         kind: "trend",
         title: `${column} over time`,
-        reason: `${field.validCount.toLocaleString()} dated rows · ${field.granularity} buckets · ${field.coverage}% coverage`,
-        labels: field.periods.map(period => period.period),
-        values: field.periods.map(period => period.count),
+        reason: `${field.validCount.toLocaleString()} dated rows · ${field.granularity} buckets · ${field.coverage}% coverage${gapNote}`,
+        labels: buckets.map(period => period.period),
+        values: buckets.map(period => period.count),
         xLabel: column,
         yLabel: "rows",
       });
