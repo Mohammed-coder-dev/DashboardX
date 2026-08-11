@@ -221,8 +221,10 @@ test.describe("deterministic analysis without an API key", () => {
     // band on the same scale, and the legend names it.
     await expect(page.locator(".spread-ci").first()).toBeVisible();
     await expect(page.locator(".spread-head")).toContainText(/95% interval/);
-    // Where a column has outliers, the IQR fences are drawn, not just counted.
+    // Where a column has outliers, the IQR fences are drawn, not just counted
+    // — as ink-coloured chart furniture, never a warning colour.
     expect(await page.locator(".spread-fence").count()).toBeGreaterThanOrEqual(2);
+    await expect(page.locator(".spread-fence").first()).not.toHaveCSS("background-color", "rgb(161, 80, 11)");
     await expect(page.locator("#chartsSection")).toBeVisible();
     await expect(page.locator("#chartsSection .card-note")).toContainText(/full dataset/i);
     // Every chartable column gets a chart. The sample has three numeric
@@ -281,6 +283,36 @@ test.describe("deterministic analysis without an API key", () => {
     // target opens itself so the jump never lands on a folded note.
     await page.locator('.overview-card--file [data-overview-jump="structureNote"]').click();
     await expect(page.locator("#structureNote")).toHaveAttribute("open", "");
+  });
+
+  test("no severity colour in the grid, and one route affordance on every card", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#overviewSection")).toBeVisible({ timeout: 20_000 });
+
+    // Colour never encodes severity here: nothing in the grid wears --red or
+    // --amber. Cell states use the one encoding — filled measured, muted
+    // settled-absent, hollow unsettled.
+    const severityPainted = await page.evaluate(() => {
+      const banned = ["rgb(185, 28, 28)", "rgb(161, 80, 11)"]; // --red, --amber
+      return [...document.querySelectorAll("#overviewGrid *")].filter((el) => {
+        const style = getComputedStyle(el);
+        return banned.includes(style.backgroundColor) || banned.includes(style.color)
+          || banned.includes(style.borderTopColor);
+      }).length;
+    });
+    expect(severityPainted).toBe(0);
+
+    // One affordance, same wording, every card — destinations stay distinct
+    // for screen readers through the aria-label.
+    const links = page.locator(".overview-card-link");
+    const texts = await links.allInnerTexts();
+    expect(texts.length).toBe(await page.locator(".overview-card").count());
+    expect(new Set(texts).size).toBe(1);
+    expect(texts[0]).toMatch(/View detail/);
+    const ariaLabels = await links.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label")));
+    expect(ariaLabels.every((label) => label && label.startsWith("View detail — "))).toBe(true);
+    expect(new Set(ariaLabels).size).toBeGreaterThan(1);
   });
 
   test("each card has one dominant headline numeral", async ({ page }) => {

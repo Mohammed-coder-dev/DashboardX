@@ -1632,9 +1632,13 @@ html { scroll-behavior: smooth; }
   border-radius: 4px; overflow: hidden; background: var(--surface);
 }
 .quality-col-track i { display: block; height: 100%; }
-.quality-col-track .q-valid   { background: var(--green); }
-.quality-col-track .q-missing { background: var(--amber); }
-.quality-col-track .q-invalid { background: var(--red); }
+/* Cell states follow the dashboard's one encoding, not a severity ramp:
+   valid is filled (measured), missing is muted (its absence is a settled
+   fact), unparseable is hollow (the engine could not settle what it was).
+   The counts ride in each row's text and title, never colour alone. */
+.quality-col-track .q-valid   { background: var(--accent); }
+.quality-col-track .q-missing { background: var(--border-2); }
+.quality-col-track .q-invalid { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); }
 .quality-col-pct { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-2); text-align: right; }
 
 /* ─── Numeric spread strips ─────────────────────────────────── */
@@ -1645,7 +1649,7 @@ html { scroll-behavior: smooth; }
 .spread-key-median { display: inline-block; width: 2px; height: 10px; background: var(--text); border-radius: 1px; }
 .spread-key-mean { display: inline-block; width: 7px; height: 7px; background: var(--accent); border-radius: 50%; }
 .spread-key-ci { display: inline-block; width: 14px; height: 5px; background: var(--accent); opacity: .28; border-radius: 2px; }
-.spread-key-fence { display: inline-block; width: 2px; height: 10px; background: var(--amber); border-radius: 1px; }
+.spread-key-fence { display: inline-block; width: 2px; height: 10px; background: var(--text-3); border-radius: 1px; }
 .spread-row {
   display: grid; grid-template-columns: minmax(76px, 130px) auto 1fr auto auto;
   align-items: center; gap: 10px; padding: 6px 0;
@@ -1664,9 +1668,11 @@ html { scroll-behavior: smooth; }
    interval, so the strip never shows the mean as a lone point estimate. */
 .spread-ci { height: 5px; transform: translateY(-50%); background: var(--accent); opacity: .28; border-radius: 2px; }
 .spread-mean { width: 7px; height: 7px; transform: translate(-3.5px, -50%); background: var(--accent); border-radius: 50%; }
-/* IQR fences, drawn only where at least one value sits beyond them. */
-.spread-fence { width: 2px; height: 12px; transform: translate(-1px, -50%); background: var(--amber); border-radius: 1px; }
-.spread-outliers { font-size: 10px; color: var(--amber); white-space: nowrap; }
+/* IQR fences, drawn only where at least one value sits beyond them. A fence
+   is a computed threshold, chart furniture like the median tick — it wears
+   ink, not a warning colour. */
+.spread-fence { width: 2px; height: 12px; transform: translate(-1px, -50%); background: var(--text-3); border-radius: 1px; }
+.spread-outliers { font-size: 10px; color: var(--text-2); white-space: nowrap; }
 .spread-constant { grid-column: 2 / -1; font-size: 11px; color: var(--text-3); }
 .spread-note { margin-top: 6px; font-size: 10.5px; color: var(--text-3); }
 

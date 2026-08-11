@@ -1546,11 +1546,15 @@ function readLedger(data) {
   return ledger;
 }
 
-function overviewCard(kind, label, headline, bodyHtml, jump, jumpLabel) {
+/**
+ * One affordance out of every card, same position, same wording — the
+ * destination stays distinct for screen readers via the aria-label.
+ */
+function overviewCard(kind, label, headline, bodyHtml, jump, jumpContext) {
   return `<article class="overview-card overview-card--${kind}">
     <header class="overview-card-head"><span class="overview-card-label">${esc(label)}</span>${headline}</header>
     <div class="overview-card-body">${bodyHtml}</div>
-    ${jump ? `<button type="button" class="overview-card-link" data-overview-jump="${esc(jump)}">${esc(jumpLabel)} →</button>` : ""}
+    ${jump ? `<button type="button" class="overview-card-link" data-overview-jump="${esc(jump)}" aria-label="${esc(`View detail — ${jumpContext}`)}">View detail →</button>` : ""}
   </article>`;
 }
 
@@ -2662,9 +2666,10 @@ function renderQuality(data) {
         <span class="dot"></span><span>${esc(i.message)}</span>
       </div>`).join("");
 
-  // Each column's completeness, drawn instead of abbreviated. Valid, missing
-  // and unparseable are states, so they wear the status colours — and the
-  // counts ride along in text and on hover, so colour never stands alone.
+  // Each column's completeness, drawn instead of abbreviated. Valid is
+  // filled, missing is muted (a settled absence), unparseable is hollow (an
+  // unsettled read) — and the counts ride along in text and on hover, so
+  // the encoding never stands alone.
   qualityColumns.innerHTML = Object.entries(profile.columns).map(([name, c]) => {
     const field = data?.stats?.[name];
     const rows = profile.rows ?? data?.meta?.totalRows ?? 0;
