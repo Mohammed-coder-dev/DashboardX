@@ -177,8 +177,15 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#evidenceSection .prov--derived")).toHaveText("Derived");
     await expect(page.locator("#overviewGrid")).toContainText(/quality/i);
     await expect(page.locator("#overviewGrid")).toContainText(/% complete/);
-    // The score is drawn as a ring beside its number, never instead of it.
-    await expect(page.locator(".health-ring")).toBeVisible();
+    // No gauge, no letter grade, no 0-100 score in the grid: the quality
+    // card's headline is the flagged-issue count, its mark a severity-
+    // ordered segment bar whose text names every count.
+    await expect(page.locator(".health-ring")).toHaveCount(0);
+    await expect(page.locator(".overview-card--quality .overview-card-value")).toContainText(/^\d+/);
+    await expect(page.locator(".overview-card--quality")).not.toContainText("/100");
+    const qualityBar = page.locator(".overview-card--quality .segbar");
+    await expect(qualityBar).toBeVisible();
+    await expect(qualityBar).toHaveAttribute("aria-label", /flagged issue/);
     await expect(page.locator(".overview-meter")).toBeVisible();
 
     await expect(page.locator("#aiDetailGrid")).toBeHidden();

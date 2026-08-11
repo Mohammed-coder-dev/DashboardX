@@ -1530,7 +1530,6 @@ function renderOverview(data) {
   }
 
   const completeness = Math.max(0, Math.min(100, Number(profile.completeness) || 0));
-  const tone = ["A", "B"].includes(profile.healthGrade) ? "good" : profile.healthGrade === "C" ? "fair" : "poor";
   const context = familyContext(data);
 
   // ① File scorecard. "Full dataset" is claimed only when the structure report
@@ -1590,13 +1589,13 @@ function renderOverview(data) {
      <div class="overview-line">${esc(readLine)}</div>`,
     structure ? "structureNote" : null, "How it was read");
 
-  // ② Quality — the grade, and just as loudly, what it could not assess.
+  // ② Quality — what was flagged, and just as loudly, what it could not
+  // assess. No gauge, no grade, no 0–100 score: a compressed number would
+  // manufacture confidence the engine does not claim. One severity-ordered
+  // segment bar in a single hue (order and caption carry rank, never a
+  // severity colour), with the unassessable count as a hollow segment.
   const bySeverity = { high: 0, medium: 0, low: 0 };
   for (const issue of profile.issues || []) bySeverity[issue.severity] = (bySeverity[issue.severity] || 0) + 1;
-  const severityLine = (profile.issues || []).length
-    ? ["high", "medium", "low"].filter((severity) => bySeverity[severity])
-        .map((severity) => `<span class="overview-severity overview-severity--${severity}"><i></i>${bySeverity[severity]} ${severity}</span>`).join(" ")
-    : `<span class="overview-line">No quality issues flagged</span>`;
   const unassessed = [];
   const mixedCount = Object.values(profile.columns || {}).filter((c) => c.type === "mixed").length;
   const emptyCount = Object.values(profile.columns || {}).filter((c) => c.type === "empty").length;
@@ -1604,9 +1603,19 @@ function renderOverview(data) {
   if (mixedCount) unassessed.push(`${mixedCount} column${mixedCount === 1 ? "" : "s"} not typed`);
   if (emptyCount) unassessed.push(`${emptyCount} empty`);
   if (uncheckedCount) unassessed.push(`${uncheckedCount} outlier check${uncheckedCount === 1 ? "" : "s"} skipped`);
+  const unassessedCount = mixedCount + uncheckedCount;
+  const issueCount = (profile.issues || []).length;
+  const severityCaption = ["high", "medium", "low"].filter((severity) => bySeverity[severity])
+    .map((severity) => `${bySeverity[severity]} ${severity}`).join(" · ");
+  const qualityBar = segmentBarHtml([
+    { label: "high severity", count: bySeverity.high, state: "filled" },
+    { label: "medium severity", count: bySeverity.medium, state: "filled" },
+    { label: "low severity", count: bySeverity.low, state: "filled" },
+    { label: "could not assess", count: unassessedCount, state: "hollow" },
+  ], `${issueCount} flagged issue${issueCount === 1 ? "" : "s"}${severityCaption ? ` (${severityCaption})` : ""}${unassessedCount ? `, plus ${unassessedCount} the engine could not assess, drawn hollow` : ""}`);
   const qualityCard = overviewCard("quality", "Quality",
-    `<span class="overview-card-figure">${healthRingHtml(profile.healthScore, tone)}<strong class="overview-card-value">${esc(profile.healthGrade || "—")}<small> · ${esc(profile.healthScore ?? "—")}/100</small></strong></span>`,
-    `<div class="overview-line">${severityLine}</div>
+    `<strong class="overview-card-value">${esc(issueCount)}<small> flagged</small></strong>`,
+    `${qualityBar}<div class="overview-line">${severityCaption ? esc(severityCaption) : "No quality issues flagged"}</div>
      <div class="overview-line">${esc(profile.duplicateRows || 0)} duplicate row${profile.duplicateRows === 1 ? "" : "s"}</div>
      <div class="overview-line">${unassessed.length
         ? `Could not assess: ${esc(unassessed.join(" · "))}`
@@ -1743,21 +1752,6 @@ overviewGrid?.addEventListener("click", (event) => {
   if (targetElement instanceof HTMLDetailsElement) targetElement.open = true;
   revealResultSection(button.dataset.overviewJump);
 });
-
-/**
- * The health score as a ring, sized to sit inside its overview tile. The score
- * and grade stay in text beside it — the ring adds glanceability, it never
- * replaces the number.
- */
-function healthRingHtml(score, tone) {
-  const circumference = 97.4; // 2π × r15.5, fixed so the dasharray maths stays in one place
-  const clamped = Math.max(0, Math.min(100, Number(score) || 0));
-  return `<svg class="health-ring health-ring--${esc(tone)}" viewBox="0 0 36 36" aria-hidden="true">
-    <circle class="health-ring-track" cx="18" cy="18" r="15.5"></circle>
-    <circle class="health-ring-value" cx="18" cy="18" r="15.5"
-      stroke-dasharray="${(clamped / 100 * circumference).toFixed(1)} ${circumference}"></circle>
-  </svg>`;
-}
 
 function inspectorMetric(label, value, context = "") {
   return `<div class="column-inspector-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${context ? `<small>${esc(context)}</small>` : ""}</div>`;
