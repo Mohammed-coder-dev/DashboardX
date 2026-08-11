@@ -1354,9 +1354,9 @@ const EVIDENCE_FAMILIES = [
     applies: (ctx) => ctx.numericCols.length >= 2, needs: "two numeric columns" },
   { label: "Group differences", metrics: ["group_mean_difference", "missingness_mean_difference"],
     applies: (ctx) => ctx.targetNumeric && ctx.columnCount >= 2, needs: "a numeric target column" },
-  { label: "Category associations", metrics: ["cramers_v"],
+  { label: "Associations", metrics: ["cramers_v"],
     applies: (ctx) => ctx.categoryCols.length >= 2, needs: "two category columns" },
-  { label: "Dominant categories", metrics: ["category_share"],
+  { label: "Dominant levels", metrics: ["category_share"],
     applies: (ctx) => ctx.categoryCols.length >= 1, needs: "a category column" },
   { label: "Time patterns", metrics: ["period_volume_trend", "period_over_period_change", "target_time_trend"],
     applies: (ctx) => ctx.dateCols.length >= 1, needs: "a date column with six dated rows" },
@@ -1385,15 +1385,18 @@ function familyContext(data) {
  *  Only values the engine produced appear; nothing is derived here. */
 function findingVitals(e) {
   const s = e.statistics || {};
+  // "rho", spelled out: the glyph ρ is indistinguishable from a Latin p at
+  // this size, and a coefficient misread as a p-value is the worst possible
+  // confusion for this product.
   const effect = {
-    pearson_r: `r=${e.value}`, spearman_rho: `ρ=${e.value}`,
+    pearson_r: `r=${e.value}`, spearman_rho: `rho=${e.value}`,
     cramers_v: `V=${e.value}`,
     group_mean_difference: `d=${s.effectSize ?? e.value}`,
     missingness_mean_difference: `d=${e.value}`,
     category_share: `${e.value}% share`,
     iqr_outliers: `${e.value} outside fences`,
     period_over_period_change: `${e.value >= 0 ? "+" : ""}${e.value}%`,
-    target_time_trend: `ρ=${e.value}`,
+    target_time_trend: `rho=${e.value}`,
     candidate_level_shift: `robust d=${e.value}`,
   }[e.metric];
   const pValue = s.pValue ?? s.welch?.pValue ?? s.inference?.pValue ?? null;

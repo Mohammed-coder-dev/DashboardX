@@ -247,8 +247,14 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator(".overview-card--findings .overview-family-track").first()).toBeVisible();
 
     // The strongest findings carry their support inline — n and the effect
-    // travel with the claim, not only in the detail view.
+    // travel with the claim, not only in the detail view. The rank coefficient
+    // is spelled "rho": the ρ glyph reads as a Latin p at this size, and a
+    // coefficient misread as a p-value is the worst confusion possible here.
     await expect(page.locator(".overview-vitals").first()).toContainText(/n=\d+/);
+    await expect(page.locator(".overview-vitals").first()).not.toContainText("ρ");
+
+    // Family labels fit their column instead of truncating.
+    await expect(page.locator(".overview-card--findings")).toContainText("Associations");
 
     // The target column's shape is actually visible, not a number about it.
     expect(await page.locator(".overview-dist-bar").count()).toBeGreaterThan(1);
