@@ -1803,11 +1803,12 @@ function evidenceStatisticsText(evidence) {
   }
   if (evidence.metric === "group_mean_difference" && statistics.welch) {
     const test = statistics.welch;
-    return `Cohen's d=${statistics.effectSize} · Welch difference=${test.difference}${test.confidenceInterval ? ` · 95% CI ${test.confidenceInterval.lower} to ${test.confidenceInterval.upper} · p=${formatPValue(test.pValue)}` : " · interval unavailable because both compared groups have zero observed variance"}`;
+    const unadjusted = statistics.multipleComparisonCorrection === "none" ? " · unadjusted" : "";
+    return `Cohen's d=${statistics.effectSize} · Welch difference=${test.difference}${test.confidenceInterval ? ` · 95% CI ${test.confidenceInterval.lower} to ${test.confidenceInterval.upper} · p=${formatPValue(test.pValue)}${unadjusted}` : " · interval unavailable because both compared groups have zero observed variance"}`;
   }
   if (evidence.metric === "candidate_level_shift") {
     const test = statistics.inference;
-    return `Robust effect=${statistics.robustEffect} · median difference=${statistics.medianDifference}${test?.confidenceInterval ? ` · Welch 95% CI ${test.confidenceInterval.lower} to ${test.confidenceInterval.upper} · p=${formatPValue(test.pValue)}` : " · confirmatory interval unavailable"}`;
+    return `Robust effect=${statistics.robustEffect} · median difference=${statistics.medianDifference}${test?.confidenceInterval ? ` · Welch 95% CI ${test.confidenceInterval.lower} to ${test.confidenceInterval.upper} · p=${formatPValue(test.pValue)} · unadjusted` : " · confirmatory interval unavailable"}`;
   }
   return "";
 }
@@ -1854,7 +1855,6 @@ function renderEvidence(evidence, data) {
         <div><span>Rule</span><strong>${esc(provenance.inclusionRule)}</strong></div>
         <div><span>Excluded</span><strong>${esc(provenance.excludedRows)} rows · ${esc(exclusions)}</strong></div>
       </div>
-      ${statistics ? `<div class="evidence-inference">${esc(statistics)}</div>` : ""}
       ${sourceRows.length ? `<div class="evidence-source-note">${esc(provenance.sourceRowsPolicy)}</div>
         <div class="evidence-source-wrap"><table class="evidence-source-table"><thead><tr><th>Row</th>${headers.map((column) => `<th>${esc(column)}</th>`).join("")}</tr></thead><tbody>
           ${sourceRows.map((source) => `<tr><td>${esc(source.rowNumber)}</td>${headers.map((column) => `<td>${esc(source.values?.[column] ?? "—")}</td>`).join("")}</tr>`).join("")}
@@ -1866,6 +1866,7 @@ function renderEvidence(evidence, data) {
         <span class="evidence-claim">${esc(e.claim)}</span>
       </div>
       <div class="evidence-meta">${esc(e.method)} · n=${esc(e.sampleSize)} · ${esc(e.coverage)}% coverage · engine v${esc(e.engineVersion)}</div>
+      ${statistics ? `<div class="evidence-inference">${esc(statistics)}</div>` : ""}
       ${e.caveat ? `<div class="evidence-caveat">Caveat — ${esc(e.caveat)}</div>` : ""}
       ${drilldown}
     </div>`;

@@ -291,6 +291,29 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(strength.locator(".strength-dots i.on")).not.toHaveCount(0);
   });
 
+  test("a finding's interval and p-value travel with the claim, not only the drilldown", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // Targeting revenue makes the engine compare its mean across the category
+    // levels, which ships a Welch test with an interval and a p-value. Setup
+    // changes are staged, so the re-run button fires the new analysis.
+    await page.locator("#targetSelect").selectOption("revenue");
+    await page.locator("#rerunBtn").click();
+    await expect(page.locator(".evidence-inference").first()).toBeVisible({ timeout: 20_000 });
+
+    // Visible without opening any drilldown: effect size, the interval as a
+    // range (never a lone number), the p-value, and that it is unadjusted.
+    const inference = await page.locator(".evidence-inference").first().innerText();
+    expect(inference).toMatch(/d=-?\d/);
+    expect(inference).toMatch(/95% CI .+ to |interval unavailable/);
+    expect(inference).toMatch(/p=|unavailable/);
+    expect(inference).toMatch(/unadjusted|unavailable/);
+    // The drilldown stayed closed — the statistics did not require it.
+    await expect(page.locator(".evidence-provenance[open]")).toHaveCount(0);
+  });
+
   test("correlations report their sample size", async ({ page }) => {
     await page.goto("/app");
     await page.locator("#sampleBtn").click();
