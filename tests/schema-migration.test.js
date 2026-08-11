@@ -51,6 +51,18 @@ describe("an analysis saved before structural inference", () => {
   });
 });
 
+describe("an analysis saved before outlier rows shipped (schema < 2.10)", () => {
+  it("keeps the stale-payload guard in the shipped source", () => {
+    // The UI must tell "not shipped by that version" apart from "none
+    // found": a pre-2.10 payload has a count and no rows, and rendering an
+    // empty list would be the false negative this product exists to refuse.
+    // The browser journey exercises the behaviour; this pins the guard and
+    // its wording against silent removal.
+    expect(APP_SOURCE).toContain("Array.isArray(outliers.rows)");
+    expect(APP_SOURCE).toContain("did not keep them");
+  });
+});
+
 describe("a structure the current engine produced", () => {
   it("confirms a clean read rather than saying nothing at all", () => {
     // Previously hidden. A file Ridge checked and found ordinary looked exactly

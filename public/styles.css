@@ -773,6 +773,20 @@ html { scroll-behavior: smooth; }
 .seg--muted { background: var(--border-2); }
 .seg--hollow { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); }
 
+/* Rows outside the IQR fences, in the column inspector. The table is the
+   form (past ~7 items a table beats more marks); the distance beyond the
+   fence rides as a filled track — a flagged row is a settled measurement,
+   so nothing here is hollow and nothing wears a severity colour. */
+.outlier-rows { margin-top: 16px; }
+.outlier-rows h3 { font-size: 12px; font-weight: 600; color: var(--text); }
+.outlier-rows-basis { margin-top: 3px; font-size: 10.5px; line-height: 1.45; color: var(--text-3); }
+.outlier-rows-note { margin-top: 7px; font-size: 11px; line-height: 1.45; color: var(--text-2); }
+.outlier-rows-wrap { max-height: 240px; overflow: auto; margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; }
+.outlier-rows-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.outlier-beyond { display: inline-flex; align-items: center; gap: 6px; }
+.outlier-beyond-track { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.outlier-beyond-track i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+
 /* Sparkline: no axes, no grid; endpoints labelled beside the line. */
 .overview-spark { display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; }
 .overview-spark .sparkline { display: block; width: 100%; height: 26px; }

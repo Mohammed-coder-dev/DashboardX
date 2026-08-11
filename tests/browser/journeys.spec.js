@@ -441,6 +441,101 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator(".corr-caveat").first()).toContainText(/pearson and spearman disagree/i);
   });
 
+  test("the column inspector lists the rows outside the IQR fences", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles(DISAGREEING_CSV);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    await page.locator('[data-tier-jump="statsSection"]').click();
+    await page.locator('[data-column="a"]').click();
+    await expect(page.locator("#columnInspector")).toBeVisible();
+
+    // The list the roadmap promised: each flagged row names its data-row
+    // number, value, the fence it crossed and the distance beyond it — with
+    // the rule, the fence values and the sample they came from beside it.
+    const list = page.locator(".outlier-rows");
+    await expect(list).toBeVisible();
+    await expect(list).toContainText("Rows outside the IQR fences");
+    await expect(list).toContainText(/Fences .+ to .+, from 15 values/);
+    await expect(list).toContainText("1.5×IQR");
+    await expect(list.locator("tbody tr")).toHaveCount(1);
+    await expect(list.locator("tbody tr td").nth(0)).toHaveText("15");
+    await expect(list.locator("tbody tr td").nth(1)).toHaveText("401");
+    await expect(list.locator("tbody tr td").nth(2)).toContainText("above");
+    await expect(list.locator(".outlier-beyond-track")).toBeVisible();
+
+    // The cap and the total in the same breath, and the full set's home.
+    await expect(list).toContainText("1 of 1 row listed, farthest first");
+    await expect(list).toContainText(/exported JSON/);
+
+    // A fence is a rule, not a verdict: no error framing anywhere in the copy.
+    const copy = await list.innerText();
+    expect(copy).not.toMatch(/anomal|bad row|\berror/i);
+
+    // The scroll region is keyboard-reachable.
+    await expect(list.locator(".outlier-rows-wrap")).toHaveAttribute("tabindex", "0");
+  });
+
+  test("fences from a small sample are said to be uncertain, beside the list", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#fileInput").setInputFiles([{
+      // Values start at 2 so no cell equals the sum of the cells above it —
+      // a 1,2,3 start trips the unlabelled-aggregate detector and loses a row.
+      name: "nine-values.csv", mimeType: "text/csv",
+      buffer: Buffer.from("x\n2\n3\n4\n5\n6\n7\n8\n9\n500\n"),
+    }]);
+    await page.locator("#analyzeBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    await page.locator('[data-tier-jump="statsSection"]').click();
+    await page.locator('[data-column="x"]').click();
+    await expect(page.locator(".outlier-rows")).toContainText(/from only 9 values — a small sample/);
+    await expect(page.locator(".outlier-rows")).toContainText(/starting point, not findings/);
+  });
+
+  test("a stale cached analysis says the rows were not kept, never an empty list", async ({ page }) => {
+    // A payload saved on schema 2.9: the outliers were counted, the rows were
+    // not shipped. Rendering an empty list would read as "none found" — the
+    // false negative this product exists to refuse.
+    const stalePayload = {
+      meta: {
+        filename: "stale.csv", fileType: "spreadsheet", isTabular: true, totalRows: 12, columns: 1,
+        sheets: [], target: null, activeColumns: ["x"], excludedColumns: [], structure: null,
+        schemaVersion: "2.9", evidenceEngine: "1.3.0", requestId: "stale-req",
+        generatedAt: "2026-08-01T00:00:00.000Z", processingMs: 12, aiIncluded: false, saved: true,
+      },
+      stats: { x: {
+        type: "numeric", count: 12, validCount: 12, missing: 0, invalid: 0, coverage: 100,
+        min: 1, max: 900, mean: 80, median: 6, std: 240,
+        meanConfidence95: { lower: -72, upper: 232, margin: 152, standardError: 69, degreesFreedom: 11 },
+        quantiles: { p05: 1, q1: 3, q3: 9, p95: 500 },
+        histogram: { method: "equal-width", bins: [{ start: 1, end: 900, count: 12, kind: "center" }] },
+        outliers: { count: 3, method: "iqr", applied: true, lowerFence: -6, upperFence: 18 },
+      } },
+      correlations: [],
+      profile: {
+        rows: 12, duplicateRows: 0, duplicatePct: 0, completeness: 100, healthScore: 95, healthGrade: "A", issues: [],
+        columns: { x: { type: "numeric", typeConsistency: 1, missing: 0, missingPct: 0, unique: 12, uniquePct: 100, outliers: 3 } },
+      },
+      evidence: [], analysis: null, chartData: [], columns: ["x"], rawText: null,
+    };
+    await page.route("**/api/analysis/stale-test", (route) => route.fulfill({
+      json: { id: "stale-test", kind: "single", payload: stalePayload },
+    }));
+    await page.goto("/app?a=stale-test");
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    await page.locator('[data-tier-jump="statsSection"]').click();
+    await page.locator('[data-column="x"]').click();
+    await expect(page.locator("#columnInspector")).toBeVisible();
+
+    const list = page.locator(".outlier-rows");
+    await expect(list).toContainText(/counted 3 rows outside the fences but did not keep them/);
+    await expect(list).toContainText(/Re-run the analysis/);
+    await expect(list.locator("table")).toHaveCount(0);
+  });
+
   test("uploading a file fixture works the same way", async ({ page }) => {
     await page.goto("/app");
     await page.locator("#fileInput").setInputFiles(SAMPLE_CSV);

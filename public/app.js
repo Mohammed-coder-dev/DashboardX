@@ -1855,13 +1855,67 @@ function inspectorBars(items, labelFor, valueFor) {
   }).join("")}</div>`;
 }
 
+/** The product's existing bar for "small sample" (correlations use the same
+ *  value); at or below it the fences rest on too little to lean on. */
+const SMALL_FENCE_SAMPLE = 12;
+
+/**
+ * The rows outside the IQR fences, as promised by the roadmap's column
+ * drill-down. A fence is a threshold from a rule applied to a sample, not a
+ * verdict — the copy never calls these rows errors, and each renders filled:
+ * the engine knows exactly why it flagged them, so they are settled
+ * measurements, never hollow.
+ */
+function outlierRowsHtml(field) {
+  const outliers = field.outliers;
+  if (!outliers?.applied || outliers.count === 0) return "";
+  const heading = `<h3>Rows outside the IQR fences</h3>`;
+
+  // A payload from before schema 2.10 counted these rows but did not ship
+  // them. Absence means "not kept by that version" — rendering an empty
+  // list would claim "none found", the one false negative this product
+  // exists to refuse.
+  if (!Array.isArray(outliers.rows)) {
+    return `<div class="outlier-rows">${heading}
+      <p class="outlier-rows-note">This analysis was saved by an earlier version that counted ${esc(outliers.count)} row${outliers.count === 1 ? "" : "s"} outside the fences but did not keep them. Re-run the analysis to see the rows.</p>
+    </div>`;
+  }
+
+  const rows = outliers.rows;
+  const maxBeyond = Math.max(...rows.map((row) => row.beyond), 0) || 1;
+  const bodyRows = rows.map((row) => `<tr>
+      <td>${esc(row.row)}</td>
+      <td>${esc(row.value)}</td>
+      <td>${esc(row.side === "above" ? `above ${outliers.upperFence}` : `below ${outliers.lowerFence}`)}</td>
+      <td><span class="outlier-beyond"><span class="outlier-beyond-track" aria-hidden="true"><i style="width:${Math.max(2, Math.round(row.beyond / maxBeyond * 100))}%"></i></span>${esc(row.beyond)}</span></td>
+    </tr>`).join("");
+
+  const capNote = outliers.count > rows.length
+    ? ` The payload carries the ${rows.length} farthest (cap ${esc(outliers.rowsCap)}); the other ${outliers.count - rows.length} are counted but not shipped.`
+    : " Every listed row also travels in the exported JSON.";
+  const smallSample = (field.validCount ?? 0) <= SMALL_FENCE_SAMPLE
+    ? `<p class="outlier-rows-note">Fences computed from only ${esc(field.validCount)} values — a small sample, so the fences themselves are uncertain; read these rows as a starting point, not findings.</p>`
+    : "";
+
+  return `<div class="outlier-rows">${heading}
+    <p class="outlier-rows-basis">Fences ${esc(outliers.lowerFence)} to ${esc(outliers.upperFence)}, from ${esc(field.validCount)} values · flagged when beyond 1.5×IQR of the middle half · ${esc(rows.length)} of ${esc(outliers.count)} row${outliers.count === 1 ? "" : "s"} listed, farthest first.${capNote}</p>
+    ${smallSample}
+    <div class="outlier-rows-wrap" role="region" aria-label="${esc(`Rows outside the IQR fences: ${rows.length} of ${outliers.count} listed, farthest first`)}" tabindex="0">
+      <table class="evidence-source-table"><thead><tr><th scope="col">Row</th><th scope="col">Value</th><th scope="col">Fence crossed</th><th scope="col">Beyond it</th></tr></thead>
+      <tbody>${bodyRows}</tbody></table>
+    </div>
+    <p class="outlier-rows-note">These rows may be genuine extremes or recording slips — the fence is a rule, not a verdict. Inspect them in the source file before acting; row numbers count the analyzed data rows, the same numbering the evidence drilldowns use.</p>
+  </div>`;
+}
+
 function renderColumnInspectorVisual(field) {
   if (field.type === "numeric" && field.histogram?.bins?.length) {
     const outliers = field.outliers?.applied
       ? `${field.outliers.count} outside the IQR fences`
       : `Outlier check unavailable${field.outliers?.reason ? `: ${field.outliers.reason}` : ""}`;
     return `<div class="column-inspector-visual-head"><h3>Distribution</h3><p>${esc(outliers)}</p></div>
-      ${inspectorBars(field.histogram.bins, histogramLabel, (bin) => bin.count)}`;
+      ${inspectorBars(field.histogram.bins, histogramLabel, (bin) => bin.count)}
+      ${outlierRowsHtml(field)}`;
   }
   if (field.type === "date" && field.periods?.length) {
     const gapNote = field.gaps?.length ? ` · ${field.gaps.length} empty period${field.gaps.length === 1 ? "" : "s"}` : "";
