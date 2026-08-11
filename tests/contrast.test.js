@@ -52,13 +52,21 @@ const TEXT_TOKENS = {
   "--amber":   [...NEUTRAL_SURFACES, "--amber-bg"],
   "--purple":  [...NEUTRAL_SURFACES, "--purple-bg"],
   "--teal":    [...NEUTRAL_SURFACES, "--teal-bg"],
-  "--on-ink":        ["--ink-surface", "--ink-surface-2"],
+  // --text and the hero gradient are ink-family grounds: the summary card and
+  // the cross-file card both set on-ink text over them.
+  "--on-ink":        ["--ink-surface", "--ink-surface-2", "--ink-hero", "--ink-hero-2", "--text"],
   "--on-ink-muted":  ["--ink-surface", "--ink-surface-2"],
   "--on-ink-accent": ["--ink-surface", "--ink-surface-2"],
+  "--on-ink-purple": ["--ink-surface"],
 };
 
-// Filled controls put white on a solid token rather than a tinted surface.
-const ON_FILL = [["#ffffff", "--accent"], ["#ffffff", "--accent-hover"]];
+// Filled controls put a named foreground token on a solid fill token — the
+// pairing is measured by token so retinting either side stays inside the gate.
+const ON_FILL = [
+  ["--on-fill", "--accent"],
+  ["--on-fill", "--accent-hover"],
+  ["--signal-ink", "--signal"],
+];
 
 describe("colour contrast", () => {
   it.each(Object.entries(TEXT_TOKENS).flatMap(([text, surfaces]) =>
@@ -75,11 +83,13 @@ describe("colour contrast", () => {
     },
   );
 
-  it.each(ON_FILL)("white on %s… %s clears WCAG AA", (white, fill) => {
-    const ratio = contrastRatio(white, TOKENS[fill]);
+  it.each(ON_FILL)("%s on the %s fill clears WCAG AA", (text, fill) => {
+    expect(TOKENS[text], `${text} is not defined in :root`).toBeTruthy();
+    expect(TOKENS[fill], `${fill} is not defined in :root`).toBeTruthy();
+    const ratio = contrastRatio(TOKENS[text], TOKENS[fill]);
     expect(
       Number(ratio.toFixed(2)),
-      `white on ${fill} (${TOKENS[fill]}) is ${ratio.toFixed(2)}:1, below ${AA}:1`,
+      `${text} (${TOKENS[text]}) on ${fill} (${TOKENS[fill]}) is ${ratio.toFixed(2)}:1, below ${AA}:1`,
     ).toBeGreaterThanOrEqual(AA);
   });
 
@@ -94,9 +104,12 @@ describe("colour contrast", () => {
     const classified = new Set([
       ...Object.keys(TEXT_TOKENS),
       ...Object.values(TEXT_TOKENS).flat(),
-      ...ON_FILL.map(([, fill]) => fill),
+      ...ON_FILL.flat(),
       // Non-text tokens: borders, dividers, shadows and decorative fills.
       "--surface-3", "--border", "--border-2", "--signal",
+      "--accent-border", "--green-border", "--red-border",
+      "--amber-border", "--purple-border", "--teal-border",
+      "--on-ink-blue", "--on-ink-amber",
     ]);
     const unclassified = Object.keys(TOKENS).filter((token) => !classified.has(token));
     expect(unclassified, `unclassified colour tokens: ${unclassified.join(", ")}`).toEqual([]);
