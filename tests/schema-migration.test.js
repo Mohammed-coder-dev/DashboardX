@@ -42,10 +42,12 @@ describe("an analysis saved before structural inference", () => {
     // first when rows began being excluded from every statistic, then when
     // values written in a spreadsheet's own notation began counting as numbers
     // at all. The payload version moved to 2.9 when correlations began
-    // carrying their paired observations for plotting — an additive change; a
-    // correlation without `scatter` is an older payload, not an empty pairing.
+    // carrying their paired observations for plotting, and to 2.10 when the
+    // outlier report began carrying the flagged rows themselves — additive
+    // changes both; a report without `rows` is an older payload, not a claim
+    // that nothing sits outside the fences.
     expect(EVIDENCE_ENGINE_VERSION).toBe("1.3.0");
-    expect(ANALYSIS_SCHEMA_VERSION).toBe("2.9");
+    expect(ANALYSIS_SCHEMA_VERSION).toBe("2.10");
   });
 });
 

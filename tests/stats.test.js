@@ -67,6 +67,41 @@ describe("computeStats — numeric fields", () => {
     expect(s.outliers.upperFence).toBeGreaterThan(12);
   });
 
+  it("ships the flagged rows themselves: position, value, side and distance", () => {
+    // Row 3 is missing and row 5 unparseable, so the flagged rows' numbers
+    // must still name their 1-based positions among the data rows — the same
+    // row space provenance source rows report.
+    const rows = [
+      { x: 5 }, { x: 6 }, { x: null }, { x: 7 }, { x: "bad" },
+      { x: 8 }, { x: 5 }, { x: 6 }, { x: 7 }, { x: 8 },
+      { x: 900 }, { x: -400 },
+    ];
+    const s = computeStats(rows, ["x"]).x;
+    expect(s.outliers.count).toBe(2);
+    // Ordered by distance beyond the fence, farthest first.
+    expect(s.outliers.rows[0]).toMatchObject({ row: 11, value: 900, side: "above" });
+    expect(s.outliers.rows[1]).toMatchObject({ row: 12, value: -400, side: "below" });
+    expect(s.outliers.rows[0].beyond).toBeCloseTo(900 - s.outliers.upperFence, 3);
+    expect(s.outliers.rows[1].beyond).toBeCloseTo(s.outliers.lowerFence - (-400), 3);
+  });
+
+  it("caps the shipped rows, keeps the true count, and states the cap", () => {
+    // A large central cluster plus more extremes than the cap admits — few
+    // enough that the quartiles stay inside the cluster and the fences hold.
+    // The extremes grow with their index so the distance ordering is checkable.
+    const cluster = Array.from({ length: 900 }, (_, i) => ({ x: (i % 10) + 1 }));
+    const extremes = Array.from({ length: 210 }, (_, i) => ({ x: 1_000 + i }));
+    const s = computeStats([...cluster, ...extremes], ["x"]).x;
+    expect(s.outliers.count).toBe(210);
+    expect(s.outliers.rows.length).toBe(200);
+    expect(s.outliers.rowsCap).toBe(200);
+    // Farthest first means the largest extreme leads and the nearest 10 are
+    // the ones cut — a truncated list can never pose as complete because the
+    // count still says 210.
+    expect(s.outliers.rows[0].value).toBe(1_209);
+    expect(s.outliers.rows.at(-1).value).toBe(1_010);
+  });
+
   it("builds a full-field histogram whose bins account for every valid value", () => {
     const rows = [1, 2, 3, 4, 5, 6, 7, 8, null, "bad", 100].map((x) => ({ x }));
     const s = computeStats(rows, ["x"]).x;

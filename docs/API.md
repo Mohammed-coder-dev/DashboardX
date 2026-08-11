@@ -85,16 +85,27 @@ Response:
       "alternatives": [],         // other candidate header rows, when uncertain
       "version": "1.0.0"
     },
-    "schemaVersion": "2.8", "evidenceEngine": "1.3.0"
+    "schemaVersion": "2.10", "evidenceEngine": "1.3.0"
   },
   // A numeric column carries `formats` only when it was written in a
   // spreadsheet's own notation — "currency", "thousands", "percent",
   // "negated parentheses". Absent means none were needed.
+  //
+  // `outliers.rows` (schema 2.10) are the flagged observations themselves:
+  // `row` is the 1-based data-row number in the same row space provenance
+  // source rows use, `side` says which fence, `beyond` how far past it. The
+  // list is ordered by distance, capped at `rowsCap`; `count` is always the
+  // true total. A payload without `rows` predates 2.10 — the rows were
+  // identified but not shipped, which is not a claim that none exist.
   "stats": { "revenue": { "type": "numeric", "formats": ["currency", "thousands"],
                           "validCount": 90, "missing": 1, "invalid": 0,
                           "coverage": 98.9, "min": 100, "max": 4980, "mean": 0, "median": 0,
                           "std": 0, "meanConfidence95": { "lower": 0, "upper": 0 }, "quantiles": {},
-                          "histogram": { "method": "iqr-tail-aware", "bins": [] }, "outliers": {} } },
+                          "histogram": { "method": "iqr-tail-aware", "bins": [] },
+                          "outliers": { "count": 2, "method": "iqr", "applied": true,
+                                        "lowerFence": 0, "upperFence": 460,
+                                        "rows": [ { "row": 11, "value": 900, "side": "above", "beyond": 440 } ],
+                                        "rowsCap": 200 } } },
   "correlations": [ { "columnA": "revenue", "columnB": "spend", "method": "spearman",
                       "coefficient": 0.9068, "pearson": -0.0895, "spearman": 0.9068,
                       "n": 90, "coverage": 98.9, "strength": "very strong",

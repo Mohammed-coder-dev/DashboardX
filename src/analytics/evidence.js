@@ -43,8 +43,16 @@ export const EVIDENCE_ENGINE_VERSION = "1.3.0";
  * not kept. `meta.structure.warnings` records shapes the reading could not
  * settle — currently a possible transposed layout — without changing what was
  * computed.
+ *
+ * 2.10 — a numeric column's `outliers` carries `rows`: the flagged
+ * observations themselves (1-based data-row number in the same row space as
+ * provenance source rows, the value, which side of the fences it sits on, and
+ * how far beyond), ordered by distance and capped at `rowsCap` with `count`
+ * still the authority on how many exist. Absent on payloads written before
+ * 2.10, where the rows were identified but not kept — absence means "not
+ * shipped by that version", never "none found".
  */
-export const ANALYSIS_SCHEMA_VERSION = "2.9";
+export const ANALYSIS_SCHEMA_VERSION = "2.10";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;

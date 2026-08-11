@@ -83,11 +83,25 @@ function histogram(numbers, outliers) {
   return { method: tailAware ? "iqr-tail-aware" : "equal-width", bins };
 }
 
-function outlierReport(numbers) {
-  if (numbers.length < OUTLIER_MIN_SAMPLE) {
+/**
+ * Flagged rows shipped with the fences, capped so a pathological column
+ * cannot balloon the payload. The cap is stated on the report (`rowsCap`)
+ * and `count` remains the authority on how many exist, so a truncated list
+ * can never present itself as complete.
+ */
+export const OUTLIER_ROWS_CAP = 200;
+
+/**
+ * `observations` pairs each numeric value with its 1-based position among the
+ * analyzed data rows — the same row space every provenance `sourceRows` table
+ * already reports, so the list and the drilldowns can never disagree about
+ * which row is which.
+ */
+function outlierReport(observations) {
+  if (observations.length < OUTLIER_MIN_SAMPLE) {
     return { count: 0, method: "iqr", applied: false, reason: `needs ${OUTLIER_MIN_SAMPLE} values` };
   }
-  const sorted = [...numbers].sort((a, b) => a - b);
+  const sorted = observations.map((observation) => observation.value).sort((a, b) => a - b);
   const q1 = quantile(sorted, 0.25);
   const q3 = quantile(sorted, 0.75);
   const iqr = q3 - q1;
@@ -96,12 +110,27 @@ function outlierReport(numbers) {
   }
   const low = q1 - 1.5 * iqr;
   const high = q3 + 1.5 * iqr;
+  // The rows themselves, not just their count: the fences already identified
+  // them, so shipping them is releasing information, not computing any.
+  // Ordered by distance beyond the fence, ties on row number, so the same
+  // file always ships the same list.
+  const flagged = observations
+    .filter(({ value }) => value < low || value > high)
+    .map(({ row, value }) => ({
+      row,
+      value,
+      side: value < low ? "below" : "above",
+      beyond: round(value < low ? low - value : value - high),
+    }))
+    .sort((a, b) => (b.beyond - a.beyond) || (a.row - b.row));
   return {
-    count: numbers.filter((n) => n < low || n > high).length,
+    count: flagged.length,
     method: "iqr",
     applied: true,
     lowerFence: round(low),
     upperFence: round(high),
+    rows: flagged.slice(0, OUTLIER_ROWS_CAP),
+    rowsCap: OUTLIER_ROWS_CAP,
   };
 }
 
@@ -145,17 +174,24 @@ export function frequencyTable(rawValues, limit = TOP_VALUES) {
 function numericField(rawValues, total, totalRows) {
   let missing = 0;
   const numbers = [];
-  for (const raw of rawValues) {
+  // Each parsed value keeps its 1-based data-row position, so the outlier
+  // report can name the rows it flags in the row space provenance uses.
+  const observations = [];
+  for (let index = 0; index < rawValues.length; index++) {
+    const raw = rawValues[index];
     if (isMissing(raw)) { missing++; continue; }
     const parsed = toFiniteNumber(raw);
-    if (parsed !== null) numbers.push(parsed);
+    if (parsed !== null) {
+      numbers.push(parsed);
+      observations.push({ row: index + 1, value: parsed });
+    }
   }
   const present = total - missing;
   const invalid = present - numbers.length;
   const sorted = [...numbers].sort((a, b) => a - b);
   const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
   const variance = numbers.reduce((a, b) => a + (b - mean) ** 2, 0) / numbers.length;
-  const outliers = outlierReport(numbers);
+  const outliers = outlierReport(observations);
   // Reading `$48,000` as 48000 is a reading, not a computation — but it is
   // still a reading, so the column says which conventions it was made through.
   // Absent means none were needed, never that the question went unasked.
