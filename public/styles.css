@@ -1624,6 +1624,8 @@ html { scroll-behavior: smooth; }
 .spread-head p { font-size: 10.5px; color: var(--text-3); display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .spread-key-median { display: inline-block; width: 2px; height: 10px; background: var(--text); border-radius: 1px; }
 .spread-key-mean { display: inline-block; width: 7px; height: 7px; background: var(--accent); border-radius: 50%; }
+.spread-key-ci { display: inline-block; width: 14px; height: 5px; background: var(--accent); opacity: .28; border-radius: 2px; }
+.spread-key-fence { display: inline-block; width: 2px; height: 10px; background: var(--amber); border-radius: 1px; }
 .spread-row {
   display: grid; grid-template-columns: minmax(76px, 130px) auto 1fr auto auto;
   align-items: center; gap: 10px; padding: 6px 0;
@@ -1638,7 +1640,12 @@ html { scroll-behavior: smooth; }
 .spread-range { height: 2px; transform: translateY(-50%); background: var(--border-2); border-radius: 1px; }
 .spread-box { height: 10px; transform: translateY(-50%); background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 3px; }
 .spread-median { width: 2px; height: 14px; transform: translate(-1px, -50%); background: var(--text); border-radius: 1px; }
+/* The mean's 95% interval as a band under the dot: the engine produced an
+   interval, so the strip never shows the mean as a lone point estimate. */
+.spread-ci { height: 5px; transform: translateY(-50%); background: var(--accent); opacity: .28; border-radius: 2px; }
 .spread-mean { width: 7px; height: 7px; transform: translate(-3.5px, -50%); background: var(--accent); border-radius: 50%; }
+/* IQR fences, drawn only where at least one value sits beyond them. */
+.spread-fence { width: 2px; height: 12px; transform: translate(-1px, -50%); background: var(--amber); border-radius: 1px; }
 .spread-outliers { font-size: 10px; color: var(--amber); white-space: nowrap; }
 .spread-constant { grid-column: 2 / -1; font-size: 11px; color: var(--text-3); }
 .spread-note { margin-top: 6px; font-size: 10.5px; color: var(--text-3); }

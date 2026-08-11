@@ -2543,11 +2543,13 @@ const MAX_SPREAD_STRIPS = 12;
 function buildSpreadStripsHtml(stats) {
   const numeric = Object.entries(stats || {}).filter(([, field]) =>
     field.type === "numeric" && field.quantiles && Number.isFinite(field.min) && Number.isFinite(field.max));
-  if (numeric.length < 2) return "";
+  if (numeric.length < 1) return "";
 
   const shown = numeric.slice(0, MAX_SPREAD_STRIPS);
+  let anyInterval = false;
+  let anyFence = false;
   const rows = shown.map(([column, field]) => {
-    const { min, max, mean, median, quantiles: q, outliers } = field;
+    const { min, max, mean, median, quantiles: q, outliers, meanConfidence95: ci } = field;
     if (max === min) {
       return `<div class="spread-row"><span class="spread-name">${esc(column)}</span>
         <span class="spread-constant">constant at ${esc(min)}</span></div>`;
@@ -2555,13 +2557,24 @@ function buildSpreadStripsHtml(stats) {
     const pos = (value) => Math.max(0, Math.min(100, (value - min) / (max - min) * 100));
     const outlierNote = outliers?.applied && outliers.count > 0
       ? `<span class="spread-outliers">${esc(outliers.count)} outside fences</span>` : "";
-    const detail = `${column}: min ${min} · p05 ${q.p05} · q1 ${q.q1} · median ${median} · q3 ${q.q3} · p95 ${q.p95} · max ${max} · mean ${mean}`;
+    // Fences are drawn only where they bite: with no value beyond them they
+    // sit past the strip's ends and a clamped tick would misplace them.
+    const fences = outliers?.applied && outliers.count > 0;
+    anyFence = anyFence || fences;
+    // The engine produced an interval around the mean, so the mean is never
+    // drawn as a lone dot: the band carries the interval on the same scale.
+    anyInterval = anyInterval || Boolean(ci);
+    const ciBand = ci
+      ? `<i class="spread-ci" style="left:${pos(ci.lower)}%;width:${Math.max(0.75, pos(ci.upper) - pos(ci.lower))}%"></i>` : "";
+    const detail = `${column}: min ${min} · p05 ${q.p05} · q1 ${q.q1} · median ${median} · q3 ${q.q3} · p95 ${q.p95} · max ${max} · mean ${mean}${ci ? ` (95% CI ${ci.lower} to ${ci.upper})` : " (no mean interval — fewer than 2 values)"}${fences ? ` · fences ${outliers.lowerFence} to ${outliers.upperFence}` : ""}`;
     return `<div class="spread-row" title="${esc(detail)}">
       <span class="spread-name">${esc(column)}</span>
       <span class="spread-end">${esc(min)}</span>
       <span class="spread-track" role="img" aria-label="${esc(detail)}">
         <i class="spread-range" style="left:${pos(q.p05)}%;width:${Math.max(0.5, pos(q.p95) - pos(q.p05))}%"></i>
         <i class="spread-box" style="left:${pos(q.q1)}%;width:${Math.max(0.75, pos(q.q3) - pos(q.q1))}%"></i>
+        ${fences ? `<i class="spread-fence" style="left:${pos(outliers.lowerFence)}%"></i><i class="spread-fence" style="left:${pos(outliers.upperFence)}%"></i>` : ""}
+        ${ciBand}
         <i class="spread-median" style="left:${pos(median)}%"></i>
         <i class="spread-mean" style="left:${pos(mean)}%"></i>
       </span>
@@ -2572,9 +2585,16 @@ function buildSpreadStripsHtml(stats) {
 
   const capNote = numeric.length > shown.length
     ? `<p class="spread-note">Showing the first ${shown.length} of ${numeric.length} numeric columns — the rest keep their full profiles below.</p>` : "";
+  const keyParts = [
+    "box = middle 50%", "line = 5th–95th percentile",
+    '<i class="spread-key-median"></i> median',
+    `<i class="spread-key-mean"></i> mean${anyInterval ? ' inside its <i class="spread-key-ci"></i> 95% interval' : ""}`,
+    ...(anyFence ? ['<i class="spread-key-fence"></i> IQR fences where outliers exist'] : []),
+    "each strip on its own scale",
+  ];
   return `<div class="spread-head">
       <h3>Numeric spread</h3>
-      <p>box = middle 50% · line = 5th–95th percentile · <i class="spread-key-median"></i> median · <i class="spread-key-mean"></i> mean · each strip on its own scale</p>
+      <p>${keyParts.join(" · ")}</p>
     </div>${rows}${capNote}`;
 }
 

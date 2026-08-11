@@ -204,6 +204,12 @@ test.describe("deterministic analysis without an API key", () => {
     expect(await page.locator(".spread-row").count()).toBe(3);
     await expect(page.locator(".spread-head")).toContainText(/middle 50%/);
     await expect(page.locator(".spread-outliers").first()).toBeVisible();
+    // The mean never stands as a lone dot: its computed 95% interval is a
+    // band on the same scale, and the legend names it.
+    await expect(page.locator(".spread-ci").first()).toBeVisible();
+    await expect(page.locator(".spread-head")).toContainText(/95% interval/);
+    // Where a column has outliers, the IQR fences are drawn, not just counted.
+    expect(await page.locator(".spread-fence").count()).toBeGreaterThanOrEqual(2);
     await expect(page.locator("#chartsSection")).toBeVisible();
     await expect(page.locator("#chartsSection .card-note")).toContainText(/full dataset/i);
     // Every chartable column gets a chart. The sample has three numeric
