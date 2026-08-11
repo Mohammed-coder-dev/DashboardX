@@ -265,6 +265,25 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#structureNote")).toHaveAttribute("open", "");
   });
 
+  test("each card has one dominant headline numeral", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#overviewSection")).toBeVisible({ timeout: 20_000 });
+
+    // Three text tiers: the headline reads from across the room (~3× body),
+    // the label stays quiet, and nothing else on the card competes.
+    const tiers = await page.evaluate(() => {
+      const card = document.querySelector(".overview-card--findings");
+      const px = (selector) => parseFloat(getComputedStyle(card.querySelector(selector)).fontSize);
+      return { headline: px(".overview-card-value"), label: px(".overview-card-label"), body: px(".overview-family-name") };
+    });
+    expect(tiers.headline / tiers.body).toBeGreaterThanOrEqual(2.5);
+    expect(tiers.label).toBeLessThan(tiers.body);
+    // Every card has exactly one headline value.
+    const cards = await page.locator(".overview-card").count();
+    expect(await page.locator(".overview-card .overview-card-value").count()).toBe(cards);
+  });
+
   test("uncertainty sits in the grid at the same visual weight as certainty", async ({ page }) => {
     await page.goto("/app");
     await page.locator("#sampleBtn").click();

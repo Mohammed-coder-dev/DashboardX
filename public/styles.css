@@ -748,8 +748,12 @@ html { scroll-behavior: smooth; }
   font: 9px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.overview-card-value { color: var(--text); font: 600 19px 'DM Mono', monospace; white-space: nowrap; }
-.overview-card-value small { color: var(--text-3); font-size: 10.5px; font-weight: 500; }
+/* Three text tiers per card: the headline numeral (~3× body, DM Mono is
+   tabular by construction), the quiet label, and the mono supporting
+   statistics. One value per card gets the headline size; everything else
+   stays demoted so the eye has exactly one landing point. */
+.overview-card-value { color: var(--text); font: 600 30px/1 'DM Mono', monospace; white-space: nowrap; letter-spacing: -.02em; }
+.overview-card-value small { color: var(--text-3); font-size: 10.5px; font-weight: 500; letter-spacing: 0; }
 .overview-card-figure { display: flex; align-items: center; gap: 10px; }
 .overview-card-figure .health-ring { width: 34px; height: 34px; }
 .overview-card-body { display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 0; }
@@ -1994,6 +1998,7 @@ html { scroll-behavior: smooth; }
   .result-overview h2 { font-size: 20px; }
   .result-overview-grid { grid-template-columns: 1fr; }
   .overview-card, .overview-card--columns { grid-column: 1 / -1; padding: 13px; }
+  .overview-card-value { font-size: 25px; }
   .result-overview-focus { grid-template-columns: 1fr; gap: 4px; }
   .result-nav { top: 64px; width: 100%; border-radius: 10px; }
   .tier { padding: 18px 15px; border-radius: 14px; }
