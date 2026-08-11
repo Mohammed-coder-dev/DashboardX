@@ -366,6 +366,31 @@ test.describe("deterministic analysis without an API key", () => {
     await expect(page.locator("#evidenceSection")).toBeVisible();
   });
 
+  test("histogram outlier tails render hollow, apart from the central shape", async ({ page }) => {
+    await page.goto("/app");
+    await page.locator("#sampleBtn").click();
+    await expect(page.locator("#dashboardScreen")).toBeVisible({ timeout: 20_000 });
+
+    // Charts build lazily as they approach the viewport, so open tier ③ and
+    // bring the grid on screen before reading the rendered configuration.
+    await page.locator('[data-tier-jump="chartsSection"]').click();
+    await expect(page.locator(".chart-card canvas").first()).toBeVisible();
+    await page.locator("#chartsGrid").scrollIntoViewIfNeeded();
+
+    // The sample has a column with IQR outliers, so its histogram carries a
+    // tail bin — drawn transparent inside its accent border, never as one
+    // more solid bar of the central shape.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        return [...document.querySelectorAll(".chart-canvas")].some((canvas) => {
+          const chart = Chart.getChart(canvas);
+          const fill = chart?.data?.datasets?.[0]?.backgroundColor;
+          return Array.isArray(fill) && fill.includes("transparent");
+        });
+      }), { timeout: 10_000 }).toBe(true);
+    await expect(page.locator(".chart-reason", { hasText: /drawn hollow/ }).first()).toBeVisible();
+  });
+
   test("a timeline shows its empty periods instead of compressing them away", async ({ page }) => {
     await page.goto("/app");
     await page.locator("#fileInput").setInputFiles(GAPPED_CSV);

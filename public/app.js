@@ -1823,9 +1823,10 @@ function buildDeterministicCharts(stats, target) {
         deterministic: true,
         kind: "histogram",
         title: `${column} distribution`,
-        reason: `${field.validCount.toLocaleString()} valid values · ${field.coverage}% coverage · ${field.histogram.method === "iqr-tail-aware" ? "outliers separated from central bins" : "equal-width bins"}`,
+        reason: `${field.validCount.toLocaleString()} valid values · ${field.coverage}% coverage · ${field.histogram.method === "iqr-tail-aware" ? "outlier tails drawn hollow, apart from the central bins" : "equal-width bins"}`,
         labels: field.histogram.bins.map(histogramLabel),
         values: field.histogram.bins.map(bin => bin.count),
+        binKinds: field.histogram.bins.map(bin => bin.kind),
         xLabel: column,
         yLabel: "rows",
       });
@@ -2621,6 +2622,12 @@ function renderAggregateChart(canvasId, spec) {
   if (!canvas) return;
   const theme = chartTheme();
   const isTrend = spec.kind === "trend";
+  // A tail bin collects everything beyond the IQR fences, so it draws hollow —
+  // the same convention as the overview's distribution card — and never
+  // masquerades as part of the central shape.
+  const barFill = spec.binKinds?.some((kind) => kind !== "center")
+    ? spec.binKinds.map((kind) => (kind === "center" ? `${theme.accent}22` : "transparent"))
+    : `${theme.accent}22`;
   const cfg = {
     type: isTrend ? "line" : "bar",
     data: {
@@ -2628,7 +2635,7 @@ function renderAggregateChart(canvasId, spec) {
       datasets: [{
         data: spec.values,
         borderColor: theme.accent,
-        backgroundColor: isTrend ? `${theme.accent}11` : `${theme.accent}22`,
+        backgroundColor: isTrend ? `${theme.accent}11` : barFill,
         borderWidth: isTrend ? 2 : 1.5,
         borderRadius: isTrend ? 0 : 4,
         pointRadius: isTrend ? 3 : 0,
