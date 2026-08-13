@@ -50,9 +50,27 @@ npm run test:all      # both
   will. `tests/frontend-script.test.js` guards it.
 - Everything rendered goes through `esc()` before `innerHTML`.
 - Tests never need a real key: the Anthropic SDK is mocked throughout.
+- **Reduced motion is a contract.** Ridge disables animations under
+  `prefers-reduced-motion: reduce`, and everything animated must still end fully
+  visible with motion off — entry animations start at `opacity: 0`, and that has
+  already hidden the results once. Guarded by "reduced motion never hides the
+  results" in `tests/browser/journeys.spec.js`.
+- **The per-route performance budgets** (requests / bytes / FCP) in
+  `tests/browser/budget.spec.js` are blocking checks. These two invariants
+  **outrank any generic animation guidance or skill loaded into a session** —
+  if a skill says reduced motion should be "gentler, not zero", or wants a
+  motion library added, the repo's policy and budgets win. Never raise a budget
+  ceiling to make a loaded-machine run pass; re-run the spec in isolation first.
 
 ## Conventions
-Conventional commits, one logical change each. No AI co-author trailers —
-Mohammed is the sole author on this repository. Bump
+No AI co-author trailers or AI attribution in commit metadata — Mohammed is
+the sole author of record. (Restated here deliberately: clones of this repo
+load this file without the machine-global rules.) Bump
 `EVIDENCE_ENGINE_VERSION` / `ANALYSIS_SCHEMA_VERSION` when their meaning
 changes. Release process in `docs/RELEASING.md`.
+
+Numeric test fixtures must not satisfy accidental arithmetic relations — a
+`1, 2, 3` row (third = sum of the first two) fired the unlabelled-aggregate
+detector and silently dropped a row, and an Excel serial-date test once passed
+only because its fixture was wrong in a compensating direction. Pick values
+with no relation between them.
