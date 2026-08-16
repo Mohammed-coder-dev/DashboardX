@@ -38,11 +38,11 @@ to explain evidence that already exists.
 
 ## Screenshots
 
-The workspace at `/app` after **Try sample data**: deterministic evidence,
+The workspace at `/app` after **Explore the sample**: deterministic evidence,
 statistics and quality diagnostics, with AI interpretation still un-run.
 
-<!-- To refresh: npm run dev, open http://localhost:3000, click "Try sample
-     data", and capture the dashboard into docs/images/. -->
+<!-- To refresh: node video/readme-shots.js — captures both images from the
+     running app at the exact dimensions this table expects. -->
 
 | Evidence and statistics | Data quality |
 |---|---|
