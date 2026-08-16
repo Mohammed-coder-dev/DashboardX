@@ -4,9 +4,60 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [2.3.0] — 2026-08-17
+
+### Security
+
+- `nanoid` is bumped past GHSA-2v37-7h3g-55p8 (infinite loop on a zero-size
+  request) with a lockfile-only move to 3.3.18 — no override, and the
+  "fail on high or critical" audit gate keeps its threshold. It reaches this
+  repository only through the test toolchain (vitest → vite → postcss) and
+  never ships in the serverless bundle.
 
 ### Added
+
+- **The support behind every finding travels with the claim.** The Welch
+  interval, Cohen's d, chi-square and p-value were computed for every
+  qualifying finding and then buried inside the collapsed provenance
+  drill-down, so the number's support never travelled with the number. The
+  statistics line now renders beside the claim, and an unadjusted p-value
+  says so where it appears rather than only in caveat prose. Numeric spread
+  strips draw the computed 95% mean interval as a band around the mean dot
+  and the IQR fences wherever a value sits beyond them — and a
+  single-numeric-column file now gets its strip instead of none. When
+  Pearson and Spearman disagree, the correlation's meta line carries both
+  signed coefficients instead of only the leading one with a caveat naming a
+  disagreement whose size stayed invisible.
+
+- **"N values outside the fences" now answers "which rows".** The IQR fences
+  already identified every row they flag; only the count and the fences
+  reached the payload. The report now ships the flagged observations
+  themselves — 1-based data-row number in the same row space evidence source
+  rows use, the value, which fence was crossed and how far beyond — ordered
+  by distance and capped at 200, with the count still the authority on how
+  many exist. The column drill-down lists them farthest first, with the
+  rule, the fence values and the sample size stated beside the list; fences
+  from twelve or fewer values are called uncertain rather than presented as
+  findings. No new statistic: this releases information the engine computed
+  and discarded. The analysis schema moves to 2.10; a payload saved before
+  it says its rows were counted but not kept — never an empty list, which
+  would read as none found.
+
+- **An overview that answers instead of summarising.** The summary tiles are
+  replaced by a dashboard grid of self-contained computed answers: the file
+  scorecard with how the file was read, quality including what could not be
+  assessed, the target column's distribution with hollow outlier tails,
+  findings by evidence family — a family the file cannot support says what
+  it needed — the strongest findings with n, effect size and p inline,
+  unsettled reads at the same visual weight as the settled cards, and the
+  columns to fix first ranked by missingness. Zero findings, zero flagged
+  columns and zero open questions all render as answers, never as absence.
+  Each card headlines one numeral at about three times body size, pinned by
+  a test. Two mark forms carry every composition: a stacked segment bar
+  (filled for settled, hollow for what the engine could not settle, muted
+  for measured absence — identity in the caption, never colour alone) and an
+  axis-free sparkline with labelled endpoints; the file card uses both, its
+  timeline drawn from the same gap-restored buckets as the trend chart.
 
 - A performance budget runs as a blocking check. Each page has a ceiling on
   requests, transferred bytes and first contentful paint, plus an allowlist of
@@ -33,6 +84,59 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- **The quality card stops manufacturing confidence.** The health ring's
+  0–100 gauge and the B · 87/100 headline compressed genuine uncertainty
+  into one number — the exact confidence this product exists to refuse. The
+  overview's quality card now headlines the flagged-issue count over a
+  severity-ordered segment bar in a single hue, with what the engine could
+  not assess drawn hollow in the same bar; the grade and score remain in the
+  full quality report and the top-bar chip. An untested evidence family
+  draws the same track as a counted one, hollow, with what it needed
+  beneath it, and the unsettled card gains a read ledger — every class of
+  read the engine attempted, drawn as settled against open counts — so how
+  unsettled a file is reads as a shape before any sentence is read.
+
+- **Charts state their treatment of the tails and the gaps.** Histogram tail
+  bins — everything beyond the IQR fences — draw transparent inside the
+  accent border instead of masquerading as part of the central shape, and
+  the chart's stated basis names the treatment. The trend chart and the
+  inspector timeline merge the computed gap list back in as zero-count
+  buckets and state how many were restored, so a month with no observations
+  no longer looks identical to a month that never happened; a zero-count
+  bucket draws no bar rather than a minimum-height one.
+
+- **A distribution shift is drawn, not just scored.** Each shared numeric
+  column in a two-file comparison draws both sides' five-number summaries as
+  strips on one shared scale — baseline in the neutral tone, current in the
+  accent — with the KS statistic and the Welch interval stated beside them
+  and KS-significant columns first; the median delta, computed but never
+  rendered, joins the change column. No shared numeric columns is stated as
+  an answer.
+
+- **The type faces are served from this origin.** They arrived through a
+  render-blocking `@import` of fonts.googleapis.com in both stylesheets, so
+  behind a proxy that drops the request rather than refusing it nothing
+  painted at all — and every visitor handed Google an IP and User-Agent on
+  every route, which the privacy page did not disclose. Twelve bundled woff2
+  subsets (207 KB, DM Sans as a variable font) now serve under
+  `font-src 'self'`, both Google hosts are gone from the CSP entirely so a
+  stylesheet cannot reintroduce the dependency by asking, and first
+  contentful paint drops from ~450 ms to ~105 ms on the landing page and
+  ~730 ms to ~255 ms in the workspace.
+
+- **An unsettled read explains itself unprompted.** When Ridge cannot settle
+  a file's shape from the file alone, the provenance note now opens itself —
+  the caveat and the rows it set aside no longer wait behind a collapsed
+  summary line where the numbers above could be read as settled by anyone
+  who did not think to expand it. A confident read stays folded as before.
+
+- **A redesign pass moved the whole surface onto the Ridge visual system:**
+  the analysis entry experience, navigation and AI settings, the progress
+  display, and a decision-first results workspace with a persistent section
+  nav, refined for small screens, with the landing page retold in the
+  product's own vocabulary, a social preview card, and the last of the
+  legacy DashboardX copy retired.
+
 - A spreadsheet column with no header is now named for the column letter it
   occupies — `Column D` rather than SheetJS's internal `__EMPTY` handle, which
   produced quality issues reading `"__EMPTY" is completely empty` and named
@@ -45,6 +149,12 @@ All notable changes to this project are documented here. The format follows
   Duplicate headers are untouched and still get SheetJS's `a` / `a_1`.
 
 ### Fixed
+
+- Entry animations ran for reduced-motion users again: removing a dead
+  health-ring rule took the terminal selector of the reduced-motion block's
+  selector list with it, so the `animation: none` declaration silently
+  vanished. The declaration is restored on the surviving selectors; the
+  existing reduced-motion journey caught it.
 
 - A true Excel serial date is now read from the cell's number format and
   reported as the calendar day the workbook states. A spreadsheet date carries
@@ -455,6 +565,7 @@ Released under the legacy product name.
 - Supabase-backed history and share links.
 - Vitest suite and CI.
 
+[2.3.0]: https://github.com/MohammedAlkindi/Ridge/releases/tag/v2.3.0
 [2.2.1]: https://github.com/MohammedAlkindi/Ridge/releases/tag/v2.2.1
 [2.2.0]: https://github.com/MohammedAlkindi/Ridge/releases/tag/v2.2.0
 [2.1.0]: https://github.com/MohammedAlkindi/Ridge/releases/tag/v2.1.0
