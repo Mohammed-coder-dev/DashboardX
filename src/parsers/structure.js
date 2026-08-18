@@ -451,7 +451,8 @@ function detectAggregates(grid, dataIndexes, columnNames) {
  *   headerRow: number|null, headerSource: "detected"|"specified",
  *   confidence: "none"|"confident"|"uncertain", observations: number,
  *   excluded: Array<object>, restored: Array<object>,
- *   alternatives: Array<object>, version: string,
+ *   unapplied: Array<{row: number, reason: string, correction?: string}>,
+ *   alternatives: Array<object>, warnings: Array<object>, version: string,
  * }} 1-indexed to match what the user sees in their spreadsheet
  */
 export function inferStructure(grid, overrides = {}) {
