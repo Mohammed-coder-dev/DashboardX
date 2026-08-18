@@ -7,8 +7,9 @@ behaviour and wording disagree, that is a bug — please report it.
 ## Your files
 
 - Uploaded files are held **in memory** for the duration of the request and are
-  not written to durable storage. PDF parsing writes a temporary file that is
-  deleted immediately after text extraction.
+  never written to disk — including PDFs, which are parsed from the uploaded
+  bytes. Earlier releases parsed a PDF through a temporary file and deleted it
+  after extraction; there is no temporary file any more.
 - Files fetched from a URL are handled identically. URL fetching is restricted
   to `https://` and blocks private, loopback, link-local and CGNAT addresses,
   re-validating after DNS resolution and after every redirect.

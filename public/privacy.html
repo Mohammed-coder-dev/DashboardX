@@ -32,7 +32,7 @@
 
     <h2>Your files</h2>
     <ul>
-      <li>Uploaded files are processed <strong>in memory</strong> on the server for the duration of the request and are not written to durable storage. PDF parsing uses a temporary file that is deleted immediately after extraction.</li>
+      <li>Uploaded files are processed <strong>in memory</strong> on the server for the duration of the request and are never written to disk — including PDFs, which are parsed from the uploaded bytes rather than through a temporary file.</li>
       <li>Files fetched by URL are subject to the same handling.</li>
       <li>Nothing about a file is retained after the response is sent — <em>unless you opt in to saving that analysis</em> (below).</li>
     </ul>
