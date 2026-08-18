@@ -462,8 +462,16 @@ export function inferStructure(grid, overrides = {}) {
   };
   if (rows.length === 0) return empty;
 
-  const specified = Number.isInteger(overrides.headerRow) && overrides.headerRow >= 1 && overrides.headerRow <= rows.length
+  // Kept apart from `specified` so a header row the caller named but the file
+  // does not have can be reported rather than dropped. Falling back silently
+  // left the report reading `headerSource: "detected"` with nothing in
+  // `unapplied` — indistinguishable from a request that was never sent, in a
+  // reading the caller believes they corrected.
+  const requestedHeaderRow = Number.isInteger(overrides.headerRow) && overrides.headerRow >= 1
     ? overrides.headerRow
+    : null;
+  const specified = requestedHeaderRow !== null && requestedHeaderRow <= rows.length
+    ? requestedHeaderRow
     : null;
   const includeRows = new Set(Array.isArray(overrides.includeRows) ? overrides.includeRows : []);
 
@@ -507,10 +515,20 @@ export function inferStructure(grid, overrides = {}) {
   }
 
   const appliedRows = new Set(restored.map((entry) => entry.row));
-  const unapplied = [...includeRows]
+  const unapplied = [];
+  if (requestedHeaderRow !== null && specified === null) {
+    // Carries `correction` because this entry is about the header, not about a
+    // row anyone asked to put back, and the two read differently.
+    unapplied.push({
+      row: requestedHeaderRow,
+      reason: "header row is outside the file",
+      correction: "headerRow",
+    });
+  }
+  unapplied.push(...[...includeRows]
     .filter((row) => !appliedRows.has(row))
     .sort((a, b) => a - b)
-    .map((row) => ({ row, reason: unapplicableReason(row, rows.length, headerIndex) }));
+    .map((row) => ({ row, reason: unapplicableReason(row, rows.length, headerIndex) })));
 
   // A shape the engine cannot settle is declared, never resolved quietly. The
   // rows are still computed as they stand — a warning changes what the reading

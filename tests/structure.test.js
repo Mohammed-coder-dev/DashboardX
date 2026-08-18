@@ -540,4 +540,44 @@ describe("inferStructure", () => {
     expect(report.excluded).toEqual([]);
     expect(report.observations).toBe(2);
   });
+
+  describe("a header row that is not in the file", () => {
+    // includeRows already reports a correction that did not take. headerRow
+    // did not: an out-of-range row silently became "no override", and the
+    // report then read headerSource: "detected" with an empty unapplied list -
+    // indistinguishable from a request that was never sent. The caller is
+    // working from a picture of the file this reading contradicts, which is
+    // exactly the case the unapplied list exists to declare.
+    const grid = [
+      ["Item", "Qty"],
+      ["A", 10],
+      ["B", 20],
+    ];
+
+    it("names the row it could not use", () => {
+      const report = inferStructure(grid, { headerRow: 99 });
+      expect(report.unapplied).toEqual([
+        { row: 99, reason: "header row is outside the file", correction: "headerRow" },
+      ]);
+    });
+
+    it("does not claim it detected the row it fell back to", () => {
+      const report = inferStructure(grid, { headerRow: 99 });
+      expect(report.headerRow).toBe(1);
+      expect(report.confidence).toBe("uncertain");
+    });
+
+    it("still applies a header row that is in the file", () => {
+      const report = inferStructure(grid, { headerRow: 2 });
+      expect(report.headerSource).toBe("specified");
+      expect(report.unapplied).toEqual([]);
+    });
+
+    it("reports an unusable header row alongside an unusable included row", () => {
+      const report = inferStructure(grid, { headerRow: 99, includeRows: [98] });
+      expect(report.unapplied).toHaveLength(2);
+      expect(report.unapplied.map((entry) => entry.row)).toEqual([99, 98]);
+    });
+  });
+
 });

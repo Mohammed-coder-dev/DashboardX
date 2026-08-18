@@ -48,7 +48,7 @@ interpretation only when a key is present.
 | `model` | string | Optional; one of the ids from `/health`. |
 | `sheet` | string | Optional worksheet name, ≤ 128 chars. |
 | `target` | string | Optional column to focus evidence on. Must exist in the file. |
-| `headerRow` | integer | Optional, 1-indexed. Overrides the detected header row. |
+| `headerRow` | integer | Optional, 1-indexed. Overrides the detected header row. A row past the end of the file is not an error — detection runs as it would have, and the request is reported in `meta.structure.unapplied` with `correction: "headerRow"`, which makes the reading `uncertain`. |
 | `includeRows` | JSON array | Optional, 1-indexed source rows to put back after they were excluded as aggregates. A row that matches no aggregate exclusion is not an error — it is reported in `meta.structure.unapplied` with the reason, and makes the reading `uncertain`. |
 | `save` | `"true"` \| `"false"` | Optional. **Persistence happens only when explicitly true.** |
 
@@ -81,7 +81,9 @@ Response:
           "detail": "units and revenue equal the sum of rows 4–7", "cells": ["TOTAL", "443", "183750"] }
       ],
       "restored": [],             // rows put back via includeRows, still shown
-      "unapplied": [],            // includeRows that matched no exclusion, with why
+      "unapplied": [],            // corrections that did not apply, with why:
+                                  // includeRows that matched no exclusion, and a
+                                  // headerRow past the end of the file
       "alternatives": [],         // other candidate header rows, when uncertain
       "version": "1.0.0"
     },
