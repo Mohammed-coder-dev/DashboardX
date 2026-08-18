@@ -1,4 +1,4 @@
-import { numericValues } from "./values.js";
+import { numericValues, toFiniteNumber } from "./values.js";
 
 const DATE_PATTERNS = [
   /^\d{4}-\d{2}-\d{2}([T ].*)?$/,          // ISO date / datetime
@@ -13,7 +13,15 @@ export function classifyValue(value) {
   if (typeof value === "boolean") return "boolean";
   const str = String(value).trim();
   if (str === "") return "missing";
-  if (str !== "" && !isNaN(Number(str))) return "numeric";
+  // toFiniteNumber, not Number(): values.js is the one coercion layer in this
+  // engine, and it has read `$48,000`, `12.5%` and `(1,200)` as numbers since
+  // the evidence engine reached 1.3.0. Bare Number() called all three text, so
+  // the quality profile labelled a currency column "text" while the statistics
+  // beside it reported its mean — and a column where only some cells carried a
+  // thousands separator split across two types and was reported as a
+  // high-severity "mixes value types" issue against nothing but numbers.
+  // Number() also accepted "Infinity", which is not an observation.
+  if (toFiniteNumber(str) !== null) return "numeric";
   if (DATE_PATTERNS.some(re => re.test(str))) return "date";
   return "text";
 }
