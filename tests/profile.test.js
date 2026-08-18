@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { classifyValue, countOutliers, profileColumn, profileDataset, profileSummaryForPrompt } from "../src/analytics/profile.js";
+import { computeStats } from "../src/analytics/stats.js";
 
 describe("classifyValue", () => {
   it("classifies numbers and numeric strings", () => {
@@ -120,5 +121,36 @@ describe("profileSummaryForPrompt", () => {
     expect(s).toContain(`Health ${p.healthGrade}`);
     expect(s).toContain("a: numeric");
     expect(s).toContain("50% missing");
+  });
+});
+
+describe("rows that are not objects", () => {
+  // A JSON export with a null element - `[{"a":1}, null, {"a":2}]` - is a
+  // valid file and reaches the analytics layer as a row of `null`. Every other
+  // module reads cells with `row?.[column]` and counts such a row as one whose
+  // values are all missing; profileDataset reached in with `row[column]` and
+  // threw a TypeError, which surfaced as a 500 on a file nothing was wrong with.
+  const rows = [{ a: 1, b: "x" }, null, { a: 2, b: "y" }, { a: 3, b: "z" }];
+
+  it("treats a null row as a row with every value missing", () => {
+    const p = profileDataset(rows, ["a", "b"]);
+    expect(p.rows).toBe(4);
+    expect(p.columns.a.missing).toBe(1);
+    expect(p.columns.a.missingPct).toBe(25);
+    expect(p.columns.a.type).toBe("numeric");
+  });
+
+  it("counts it once, not as a duplicate of a populated row", () => {
+    expect(profileDataset(rows, ["a", "b"]).duplicateRows).toBe(0);
+  });
+
+  it("agrees with computeStats about how many values are missing", () => {
+    const profile = profileDataset(rows, ["a", "b"]);
+    const stats = computeStats(rows, ["a", "b"]);
+    expect(profile.columns.a.missing).toBe(stats.a.missing);
+  });
+
+  it("survives an undefined row too", () => {
+    expect(() => profileDataset([{ a: 1 }, undefined], ["a"])).not.toThrow();
   });
 });

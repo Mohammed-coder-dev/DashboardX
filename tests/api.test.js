@@ -158,6 +158,23 @@ describe("deterministic analysis without a key", () => {
     expect(createMessage).not.toHaveBeenCalled();
   });
 
+  // A null element in a JSON array is a valid file, and it reaches the
+  // analytics layer as a row of `null`. The quality profiler used to reach
+  // into it directly and throw, which the error handler turned into a 500 on
+  // a file nothing was wrong with.
+  it("analyzes a JSON array that contains a null element", async () => {
+    const form = new FormData();
+    const json = JSON.stringify([{ a: 1, b: 12 }, null, { a: 2, b: 27 }, { a: 3, b: 41 }]);
+    form.append("file", new File([json], "records.json", { type: "application/json" }));
+    const res = await fetch(`${base}/api/analyze`, { method: "POST", body: form });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.profile.rows).toBe(4);
+    expect(body.profile.columns.a.missing).toBe(1);
+    expect(body.stats.a.validCount).toBe(3);
+  });
+
   it("never turns a blank cell into a zero", async () => {
     const res = await fetch(`${base}/api/analyze`, { method: "POST", body: csvForm() });
     const { stats } = await res.json();

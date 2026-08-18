@@ -79,14 +79,19 @@ function healthGrade(score) {
 export function profileDataset(rows, columns) {
   const total = rows.length;
   const cols = {};
+  // `r?.[col]`, not `r[col]`: a JSON export can hold a null element, which
+  // reaches here as a row of `null`. Every other module in the engine reads
+  // cells optionally and counts such a row as one whose values are all
+  // missing; reaching in directly threw a TypeError and surfaced as a 500 on a
+  // file nothing was wrong with.
   for (const col of columns) {
-    cols[col] = profileColumn(rows.map(r => r[col]));
+    cols[col] = profileColumn(rows.map(r => r?.[col]));
   }
 
   const seen = new Set();
   let duplicateRows = 0;
   for (const row of rows) {
-    const key = JSON.stringify(columns.map(c => row[c]));
+    const key = JSON.stringify(columns.map(c => row?.[c]));
     if (seen.has(key)) duplicateRows++;
     else seen.add(key);
   }
