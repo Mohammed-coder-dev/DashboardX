@@ -24,8 +24,28 @@ import { categoricalAssociation, detectLevelShift, welchMeanDifference } from ".
  * no evidence at all under 1.2.0 produces evidence here, and a column that
  * reported a mean over only the cells without separators now reports it over
  * the whole column.
+ *
+ * 1.4.0 — a batch of arithmetic corrections, each of which changes numbers
+ * 1.3.0 would have produced for the same file:
+ *
+ *  - Pearson is computed from centred deviations. On columns whose values dwarf
+ *    their spread (epoch milliseconds, account numbers, amounts in minor units)
+ *    the old shortcut lost the variance entirely and dropped a real correlation,
+ *    reported one with the wrong magnitude, or emitted a null coefficient.
+ *  - Statistics below the fourth decimal keep their significant digits instead
+ *    of rounding to 0, so a column of rates or probabilities reports a mean,
+ *    spread and interval rather than a row of zeroes. `min` and `max` are now
+ *    rounded like their siblings.
+ *  - Every date shape lands in one frame, so a US-format or timestamped column
+ *    reports the calendar day the cell names rather than one shifted by the
+ *    host's UTC offset.
+ *  - A cell is classified through the same coercion layer the statistics use,
+ *    so a currency column is numeric to the quality profile too — which changes
+ *    its type, its outlier count and the dataset's health score.
+ *  - Findings are ranked by a transitive comparator, so the order of the
+ *    evidence list — and, past the cap, its membership — can differ.
  */
-export const EVIDENCE_ENGINE_VERSION = "1.3.0";
+export const EVIDENCE_ENGINE_VERSION = "1.4.0";
 /**
  * Version of the saved/exported analysis payload shape.
  *
@@ -51,8 +71,13 @@ export const EVIDENCE_ENGINE_VERSION = "1.3.0";
  * still the authority on how many exist. Absent on payloads written before
  * 2.10, where the rows were identified but not kept — absence means "not
  * shipped by that version", never "none found".
+ *
+ * 2.11 — an entry in `meta.structure.unapplied` may carry `correction`, naming
+ * which correction did not apply. Only a rejected `headerRow` sets it today;
+ * an entry without it is an `includeRows` request, which is what every entry
+ * written before 2.11 was.
  */
-export const ANALYSIS_SCHEMA_VERSION = "2.10";
+export const ANALYSIS_SCHEMA_VERSION = "2.11";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;
