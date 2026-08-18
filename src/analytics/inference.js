@@ -68,6 +68,16 @@ function studentTCdf(t, degreesFreedom) {
 function studentTCritical(degreesFreedom, probability = 0.975) {
   let low = 0;
   let high = 20;
+  // The bracket is widened until it actually contains the answer. It used to be
+  // a fixed [0, 20], so any critical value above 20 came back as exactly 20 —
+  // t(1) at 99% is 63.657, and the interval built from it was about three times
+  // too narrow. 20 is a plausible-looking number, so nothing downstream could
+  // tell it apart from a real one, and too narrow is the dangerous direction:
+  // it claims the data pins the mean down harder than it does.
+  for (let widening = 0; widening < 60 && studentTCdf(high, degreesFreedom) < probability; widening++) {
+    low = high;
+    high *= 2;
+  }
   for (let iteration = 0; iteration < 80; iteration++) {
     const mid = (low + high) / 2;
     if (studentTCdf(mid, degreesFreedom) < probability) low = mid;

@@ -47,3 +47,34 @@ describe("deterministic inference", () => {
     expect(result.exploratory).toBe(true);
   });
 });
+
+describe("critical values beyond the default confidence", () => {
+  // The critical value is recovered as margin / standardError, which is what
+  // the interval is built from.
+  const criticalFor = (n, confidence) => {
+    const interval = meanConfidenceInterval(Array.from({ length: n }, (_, i) => i), confidence);
+    return interval.margin / interval.standardError;
+  };
+
+  it("matches the published t table at 95%", () => {
+    expect(criticalFor(2, 0.95)).toBeCloseTo(12.706, 2);
+    expect(criticalFor(6, 0.95)).toBeCloseTo(2.571, 2);
+    expect(criticalFor(31, 0.95)).toBeCloseTo(2.042, 2);
+  });
+
+  it("matches it at 99%, above the old search ceiling", () => {
+    // The bisection ran over a fixed [0, 20], so every critical value above 20
+    // came back as exactly 20 - and 20 is a plausible-looking number, so the
+    // interval was silently about three times too narrow. Too narrow is the
+    // dangerous direction: it overstates how much the data pins the mean down.
+    expect(criticalFor(2, 0.99)).toBeCloseTo(63.657, 1);
+    expect(criticalFor(3, 0.99)).toBeCloseTo(9.925, 2);
+  });
+
+  it("widens the interval as the confidence demanded rises", () => {
+    const values = [4, 9, 2, 7, 5, 11, 3];
+    const ninetyFive = meanConfidenceInterval(values, 0.95);
+    const ninetyNine = meanConfidenceInterval(values, 0.99);
+    expect(ninetyNine.margin).toBeGreaterThan(ninetyFive.margin);
+  });
+});
