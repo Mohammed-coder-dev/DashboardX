@@ -408,6 +408,38 @@ function anomalyEvidence(rows, columns, stats, target) {
 const STRENGTH_ORDER = { "very strong": 0, strong: 1, moderate: 2, weak: 3, negligible: 4 };
 
 /**
+ * Magnitude used for ranking. Not every metric has one: `period_volume_trend`
+ * carries a word ("increasing"), so `Math.abs` on it is NaN.
+ */
+function rankMagnitude(value) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.abs(value) : -Infinity;
+}
+
+/**
+ * Rank evidence: strongest first, then by magnitude, then by claim.
+ *
+ * The magnitude step compares two extracted numbers rather than subtracting
+ * `Math.abs(value)` directly. Subtracting produced NaN whenever either side
+ * carried a trend word; `||` reads NaN as "no opinion" and fell through to the
+ * claim text, which made the comparator non-transitive: with a trend item
+ * present, a |0.9| finding and a |0.1| finding could each be ranked above the
+ * other depending on which order they were pushed in. Measured on three items,
+ * the same three sorted three different ways, one of them leading with the
+ * weakest. Ranking decides both the headline order and, once there are more
+ * than `MAX_EVIDENCE` items, which findings survive the cut at all.
+ */
+export function compareEvidence(a, b) {
+  const byStrength = (STRENGTH_ORDER[a.strength] ?? 5) - (STRENGTH_ORDER[b.strength] ?? 5);
+  if (byStrength !== 0) return byStrength;
+  const magnitudeA = rankMagnitude(a.value);
+  const magnitudeB = rankMagnitude(b.value);
+  // Compared before subtracting, so two magnitude-less items are equal here
+  // rather than -Infinity − -Infinity, which is NaN all over again.
+  if (magnitudeA !== magnitudeB) return magnitudeB - magnitudeA;
+  return a.claim.localeCompare(b.claim);
+}
+
+/**
  * Build the evidence list for a dataset, optionally centred on a target column.
  *
  * Deterministic: same rows, columns, stats and target produce the same list in
@@ -434,11 +466,6 @@ export function buildEvidence(rows, columns, stats, { target = null, limit = MAX
   evidence.push(...dateEvidence(rows, columns, stats, target));
   evidence.push(...anomalyEvidence(rows, columns, stats, target));
 
-  const selected = evidence
-    .sort((a, b) =>
-      (STRENGTH_ORDER[a.strength] ?? 5) - (STRENGTH_ORDER[b.strength] ?? 5)
-      || Math.abs(b.value ?? 0) - Math.abs(a.value ?? 0)
-      || a.claim.localeCompare(b.claim))
-    .slice(0, limit);
+  const selected = evidence.sort(compareEvidence).slice(0, limit);
   return attachEvidenceProvenance(selected, rows, stats);
 }
