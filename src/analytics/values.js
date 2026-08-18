@@ -159,8 +159,24 @@ export function quantile(sortedAsc, q) {
   return next === undefined ? sortedAsc[base] : sortedAsc[base] + rest * (next - sortedAsc[base]);
 }
 
-/** Round to `digits` decimals, preserving null. */
+/**
+ * Round to `digits` decimals, preserving null.
+ *
+ * `toFixed` counts decimal places, not significant digits, so everything below
+ * the last place collapses to exactly 0. A column of rates, ppm concentrations,
+ * probabilities or p-values sits entirely under the fourth decimal, and every
+ * statistic computed over it came back 0 — a mean of 0 for a column holding no
+ * zeroes, printed beside a min and max that are never rounded and so still
+ * showed the real values. Histogram bins all became `0 → 0`, and a confidence
+ * interval became the point [0, 0].
+ *
+ * So when the fixed-decimal form would throw a value away entirely, the
+ * significant digits are kept instead. Every value that already rounded to
+ * something non-zero rounds to exactly what it did before.
+ */
 export function round(value, digits = 4) {
   if (value === null || value === undefined || !Number.isFinite(value)) return null;
-  return +value.toFixed(digits);
+  const fixed = +value.toFixed(digits);
+  if (fixed !== 0 || value === 0) return fixed;
+  return +value.toPrecision(digits);
 }

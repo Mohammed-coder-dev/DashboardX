@@ -250,3 +250,33 @@ describe("profileField", () => {
     expect(profileField(["x", "y"]).type).toBe("categorical");
   });
 });
+
+describe("columns of very small numbers", () => {
+  const rates = [0.000012, 0.000031, 0.000024, 0.000009, 0.000045,
+                 0.000018, 0.000027, 0.000033, 0.000015, 0.000021];
+
+  it("reports a mean that lies between the min and the max", () => {
+    const field = profileField(rates);
+    expect(field.mean).toBeGreaterThan(field.min);
+    expect(field.mean).toBeLessThan(field.max);
+  });
+
+  it("does not flatten the spread to zero", () => {
+    const field = profileField(rates);
+    expect(field.median).toBeGreaterThan(0);
+    expect(field.std).toBeGreaterThan(0);
+    expect(field.quantiles.q1).toBeGreaterThan(0);
+    expect(field.quantiles.q3).toBeGreaterThan(field.quantiles.q1);
+  });
+
+  it("gives the histogram bins actual edges", () => {
+    const bins = profileField(rates).histogram.bins;
+    expect(bins.some((bin) => bin.start !== bin.end)).toBe(true);
+  });
+
+  it("reports a confidence interval that is not a point at zero", () => {
+    const interval = profileField(rates).meanConfidence95;
+    expect(interval.lower).toBeGreaterThan(0);
+    expect(interval.upper).toBeGreaterThan(interval.lower);
+  });
+});

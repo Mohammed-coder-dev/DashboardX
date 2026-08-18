@@ -183,3 +183,37 @@ describe("round", () => {
     expect(round(1.23456)).toBe(1.2346);
   });
 });
+
+describe("round on small magnitudes", () => {
+  // toFixed counts decimal places, not significant digits. A column of rates,
+  // ppm concentrations, probabilities or p-values sits entirely below the
+  // fourth decimal, so every statistic computed over it was rounded away to
+  // exactly 0 - a mean of 0 for a column containing no zeroes at all, printed
+  // next to a min and max that were never rounded and so still showed the real
+  // values.
+  it("keeps a value the fixed-decimal form would erase", () => {
+    expect(round(0.000012)).toBe(0.000012);
+    expect(round(-0.000045)).toBe(-0.000045);
+    expect(round(1.7e-9, 6)).toBe(1.7e-9);
+  });
+
+  it("rounds ordinary magnitudes exactly as before", () => {
+    expect(round(1.23456)).toBe(1.2346);
+    expect(round(1.23456, 2)).toBe(1.23);
+    expect(round(48000)).toBe(48000);
+    expect(round(0.5)).toBe(0.5);
+    expect(round(-2.71828, 3)).toBe(-2.718);
+  });
+
+  it("still reports a genuine zero as zero", () => {
+    expect(round(0)).toBe(0);
+    expect(Object.is(round(0), 0)).toBe(true);
+  });
+
+  it("keeps null for absent and non-finite input", () => {
+    expect(round(null)).toBeNull();
+    expect(round(undefined)).toBeNull();
+    expect(round(NaN)).toBeNull();
+    expect(round(Infinity)).toBeNull();
+  });
+});
