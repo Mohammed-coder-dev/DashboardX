@@ -3,3 +3,32 @@
 # landed as a 4,500-line diff inside an unrelated commit — the kind of noise
 # this file exists to prevent. Working-tree endings stay per-platform.
 * text=auto
+
+# Formats that must never have their bytes rewritten. `text=auto` above only
+# leaves a file alone if git's heuristic decides it is binary, and that
+# heuristic is a NUL-byte scan of the first 8 KB — which a small PDF can pass
+# without containing one. tests/fixtures/minimal.pdf was read as text and came
+# out of a Windows checkout at 630 bytes instead of 598, every xref offset in
+# it moved, while CI on Linux never saw a thing. Saying so explicitly does not
+# depend on what the first 8 KB happen to hold.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+*.xlsx  binary
+*.xls   binary
+*.docx  binary
+*.doc   binary
+*.pptx  binary
+*.ppt   binary
+*.zip   binary
+*.mp4   binary
+*.webm  binary
