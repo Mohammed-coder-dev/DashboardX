@@ -1,3 +1,5 @@
+import { decodeText } from "./encoding.js";
+
 export function flattenObject(obj, prefix = "", result = {}) {
   for (const [key, val] of Object.entries(obj)) {
     const newKey = prefix ? `${prefix}.${key}` : key;
@@ -8,7 +10,7 @@ export function flattenObject(obj, prefix = "", result = {}) {
 }
 
 export function parseJSON(buffer) {
-  const raw = JSON.parse(buffer.toString("utf-8"));
+  const raw = JSON.parse(decodeText(buffer));
   let rows = [], columns = [];
   if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === "object") {
     rows = raw.map(r => typeof r === "object" ? r : { value: r });
@@ -23,7 +25,7 @@ export function parseJSON(buffer) {
 }
 
 export function parseText(buffer) {
-  const text = buffer.toString("utf-8");
+  const text = decodeText(buffer);
   const lines = text.split("\n").filter(l => l.trim());
   return { rows: lines.map((l, i) => ({ line: i + 1, content: l.trim() })), columns: ["line","content"],
     sheetName: "Text", totalRows: lines.length, fileType: "text", isTabular: false, rawText: text.slice(0, 8000) };
