@@ -116,3 +116,66 @@ describe("profileDates", () => {
     expect(profileDates(values, 3)).toEqual(profileDates(values, 3));
   });
 });
+
+describe("one frame for every date shape", () => {
+  // JavaScript reads `2024-03-01` as UTC midnight but `03/01/2024`,
+  // `Jan 5, 2024` and `2024-03-01 00:30` as midnight *in the machine's zone*.
+  // Everything downstream then formats with toISOString(), so east of UTC a
+  // US-format date came back as the day before: `03/01/2024` was reported as
+  // 2024-02-29 in earliest, latest, every period bucket and every evidence
+  // claim quoting them. A spreadsheet date has no timezone - the cell means
+  // that calendar day - so all four shapes have to land in one frame.
+  //
+  // These assertions compare shapes against each other rather than against a
+  // literal instant, so they hold in any zone the suite is run in.
+  const dayMs = 86_400_000;
+
+  it("reads a slash date as the same day as the ISO form", () => {
+    expect(toDate("03/01/2024").getTime()).toBe(toDate("2024-03-01").getTime());
+  });
+
+  it("reads a spelled-out date as the same day as the ISO form", () => {
+    expect(toDate("Jan 5, 2024").getTime()).toBe(toDate("2024-01-05").getTime());
+    expect(toDate("5 Jan 2024").getTime()).toBe(toDate("2024-01-05").getTime());
+  });
+
+  it("puts a naive timestamp the stated distance after its own midnight", () => {
+    // The spreadsheet parser writes "YYYY-MM-DD HH:MM" for a cell carrying a
+    // time, so this is the exact shape that reached here from a workbook.
+    expect(toDate("2024-03-01 00:30").getTime() - toDate("2024-03-01").getTime())
+      .toBe(30 * 60_000);
+    expect(toDate("2024-03-01T18:45").getTime() - toDate("2024-03-01").getTime())
+      .toBe((18 * 60 + 45) * 60_000);
+  });
+
+  it("keeps consecutive days exactly one day apart", () => {
+    expect(toDate("03/02/2024").getTime() - toDate("03/01/2024").getTime()).toBe(dayMs);
+  });
+
+  it("reports the calendar day the cell names", () => {
+    const slash = profileDates(["03/01/2024", "03/02/2024", "03/03/2024"], 3);
+    expect(slash.earliest).toBe("2024-03-01");
+    expect(slash.latest).toBe("2024-03-03");
+    expect(slash.periods.map((p) => p.period)).toEqual(["2024-03-01", "2024-03-02", "2024-03-03"]);
+  });
+
+  it("keeps a timestamped cell on the day it was written", () => {
+    const stamped = profileDates(
+      ["2024-03-01 00:30", "2024-03-02 00:30", "2024-03-03 23:30"], 3,
+    );
+    expect(stamped.earliest).toBe("2024-03-01");
+    expect(stamped.latest).toBe("2024-03-03");
+  });
+
+  it("leaves a value carrying its own zone as the instant it names", () => {
+    // Z is not a wall clock waiting to be interpreted; it is an absolute point
+    // in time, and re-basing it would move it.
+    expect(toDate("2024-03-01T10:30:00Z").toISOString()).toBe("2024-03-01T10:30:00.000Z");
+  });
+
+  it("does not remap a two-digit year into the twentieth century", () => {
+    // Date.UTC(24, ...) means 1924. Any normalisation that goes through it has
+    // to set the year explicitly.
+    expect(toDate("0024-01-01").getUTCFullYear()).toBe(24);
+  });
+});
