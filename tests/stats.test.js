@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { profileDataset } from "../src/analytics/profile.js";
 import {
   classifyCategoricalRole, computeStats, frequencyTable, profileField,
 } from "../src/analytics/stats.js";
@@ -215,9 +216,14 @@ describe("computeStats — general behaviour", () => {
     expect(s.coverage).toBe(0);
   });
 
-  it("skips the synthetic line column", () => {
+  it("profiles a column named line instead of skipping it", () => {
+    // This assertion is the reverse of the one it replaces. `line` was skipped
+    // as the synthetic row index the text parsers add - but those parsers set
+    // isTabular: false and their rows never reach computeStats, so the skip
+    // only ever hit a real column of the same name. Text-parser output is
+    // covered where it actually flows, by the route tests for a .txt upload.
     const stats = computeStats([{ line: 1, content: "hi" }], ["line", "content"]);
-    expect(stats.line).toBeUndefined();
+    expect(stats.line).toBeDefined();
     expect(stats.content).toBeDefined();
   });
 
@@ -248,5 +254,93 @@ describe("profileField", () => {
   it("can be called directly on a raw column", () => {
     expect(profileField([1, 2, 3]).type).toBe("numeric");
     expect(profileField(["x", "y"]).type).toBe("categorical");
+  });
+});
+
+describe("columns of very small numbers", () => {
+  const rates = [0.000012, 0.000031, 0.000024, 0.000009, 0.000045,
+                 0.000018, 0.000027, 0.000033, 0.000015, 0.000021];
+
+  it("reports a mean that lies between the min and the max", () => {
+    const field = profileField(rates);
+    expect(field.mean).toBeGreaterThan(field.min);
+    expect(field.mean).toBeLessThan(field.max);
+  });
+
+  it("does not flatten the spread to zero", () => {
+    const field = profileField(rates);
+    expect(field.median).toBeGreaterThan(0);
+    expect(field.std).toBeGreaterThan(0);
+    expect(field.quantiles.q1).toBeGreaterThan(0);
+    expect(field.quantiles.q3).toBeGreaterThan(field.quantiles.q1);
+  });
+
+  it("gives the histogram bins actual edges", () => {
+    const bins = profileField(rates).histogram.bins;
+    expect(bins.some((bin) => bin.start !== bin.end)).toBe(true);
+  });
+
+  it("reports a confidence interval that is not a point at zero", () => {
+    const interval = profileField(rates).meanConfidence95;
+    expect(interval.lower).toBeGreaterThan(0);
+    expect(interval.upper).toBeGreaterThan(interval.lower);
+  });
+});
+
+describe("min and max are reported like every other statistic", () => {
+  it("does not print float noise next to rounded siblings", () => {
+    // 87.6/100 is 0.8759999999999999 in binary floating point. Reported raw, a
+    // column holding it showed max: 0.8759999999999999 beside mean: 0.876 -
+    // which reads as a mean above the maximum.
+    const field = profileField([87.6 / 100, 0.4, 0.55]);
+    expect(field.max).toBe(0.876);
+    expect(String(field.max)).not.toContain("999999");
+  });
+
+  it("keeps the mean inside the range it reports", () => {
+    const field = profileField([87.6 / 100, 87.6 / 100, 87.6 / 100]);
+    expect(field.mean).toBeLessThanOrEqual(field.max);
+    expect(field.mean).toBeGreaterThanOrEqual(field.min);
+  });
+
+  it("still reports a small minimum rather than rounding it to zero", () => {
+    const field = profileField([0.000009, 0.000045, 0.000021]);
+    expect(field.min).toBe(0.000009);
+    expect(field.max).toBe(0.000045);
+  });
+
+  it("leaves ordinary values untouched", () => {
+    const field = profileField([100, 205, 48000]);
+    expect(field.min).toBe(100);
+    expect(field.max).toBe(48000);
+  });
+});
+
+describe("a column genuinely named \"line\"", () => {
+  // "line" is an ordinary header: invoice line items, log line numbers,
+  // production line, line of business. computeStats skipped it unconditionally,
+  // on the grounds that the text parsers synthesise a `line` index - but those
+  // parsers report isTabular: false, so their rows never reach computeStats at
+  // all. The skip protected nothing and silently dropped a real column.
+  const rows = [
+    { line: 1, amount: 120 }, { line: 2, amount: 340 }, { line: 3, amount: 210 },
+    { line: 4, amount: 455 }, { line: 5, amount: 180 }, { line: 6, amount: 390 },
+  ];
+
+  it("profiles it like any other column", () => {
+    const stats = computeStats(rows, ["line", "amount"]);
+    expect(Object.keys(stats)).toEqual(["line", "amount"]);
+    expect(stats.line.type).toBe("numeric");
+    expect(stats.line.validCount).toBe(6);
+    expect(stats.line.min).toBe(1);
+    expect(stats.line.max).toBe(6);
+  });
+
+  it("reports the same column set as the quality profile", () => {
+    // The two panels described different columns of the same file: the
+    // statistics table had no row for it, the quality table did.
+    const stats = computeStats(rows, ["line", "amount"]);
+    const profile = profileDataset(rows, ["line", "amount"]);
+    expect(Object.keys(stats).sort()).toEqual(Object.keys(profile.columns).sort());
   });
 });

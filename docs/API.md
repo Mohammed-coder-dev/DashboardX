@@ -48,7 +48,7 @@ interpretation only when a key is present.
 | `model` | string | Optional; one of the ids from `/health`. |
 | `sheet` | string | Optional worksheet name, ≤ 128 chars. |
 | `target` | string | Optional column to focus evidence on. Must exist in the file. |
-| `headerRow` | integer | Optional, 1-indexed. Overrides the detected header row. |
+| `headerRow` | integer | Optional, 1-indexed. Overrides the detected header row. A row past the end of the file is not an error — detection runs as it would have, and the request is reported in `meta.structure.unapplied` with `correction: "headerRow"`, which makes the reading `uncertain`. |
 | `includeRows` | JSON array | Optional, 1-indexed source rows to put back after they were excluded as aggregates. A row that matches no aggregate exclusion is not an error — it is reported in `meta.structure.unapplied` with the reason, and makes the reading `uncertain`. |
 | `save` | `"true"` \| `"false"` | Optional. **Persistence happens only when explicitly true.** |
 
@@ -81,11 +81,13 @@ Response:
           "detail": "units and revenue equal the sum of rows 4–7", "cells": ["TOTAL", "443", "183750"] }
       ],
       "restored": [],             // rows put back via includeRows, still shown
-      "unapplied": [],            // includeRows that matched no exclusion, with why
+      "unapplied": [],            // corrections that did not apply, with why:
+                                  // includeRows that matched no exclusion, and a
+                                  // headerRow past the end of the file
       "alternatives": [],         // other candidate header rows, when uncertain
       "version": "1.0.0"
     },
-    "schemaVersion": "2.10", "evidenceEngine": "1.3.0"
+    "schemaVersion": "2.11", "evidenceEngine": "1.4.0"
   },
   // A numeric column carries `formats` only when it was written in a
   // spreadsheet's own notation — "currency", "thousands", "percent",
@@ -250,3 +252,105 @@ Per IP, per warm instance, in memory.
 | `/ask`, `/explain` | 20/min | `RATE_LIMIT_ASK_POINTS` |
 
 Exceeding a limit returns `429 rate_limited` with a `Retry-After` header.
+
+---
+
+## Error codes
+
+Every failure returns `{ "error": string, "code": string, "requestId": string }`.
+`code` is the stable identifier — match on it rather than on the message, which
+is written for a person and may be reworded. The reference below is complete:
+`tests/api-docs.test.js` fails if the server can emit a code this table does not
+list.
+
+### The request
+
+| Code | Status | Meaning |
+|---|---|---|
+| `no_file` | 400 | No file was attached to the upload. |
+| `empty_file` | 400 | The file parsed but held no rows and no text. |
+| `unsupported_file_type` | 400 | The extension is not one of the supported kinds. |
+| `file_too_large` | 413 | One file exceeds the 4 MB per-file limit. |
+| `upload_too_large` | 413 | The files together exceed the 4 MB request budget. |
+| `too_many_files` | 400 | More than 10 files in one multi-file request. |
+| `unexpected_field` | 400 | A file arrived under a field name the route does not accept. |
+| `upload_error` | 400 | The upload failed for another reason reported by the parser of the multipart body. |
+| `invalid_json` | 400 | A JSON request body did not parse. |
+| `parse_failed` | 422 | The file matched a supported extension but could not be read. |
+| `pdf_timeout` | 422 | A PDF took longer than 45 seconds to read and was abandoned. |
+
+### The analysis parameters
+
+| Code | Status | Meaning |
+|---|---|---|
+| `invalid_question` | 400 | `question` was not a string. |
+| `question_too_long` | 400 | `question` exceeds 2000 characters. |
+| `invalid_sheet` | 400 | `sheet` was not a string, or exceeds 128 characters. |
+| `unknown_sheet` | 400 | The workbook has no sheet of that name; the available names are listed in the message. |
+| `invalid_target` | 400 | `target` was not a string, or exceeds 200 characters. |
+| `unknown_target` | 400 | `target` names a column the file does not have. |
+| `invalid_columns` | 400 | `columns` was not a JSON array of column names, or was too long. |
+| `unknown_column` | 400 | `columns` names a column the file does not have. |
+| `no_columns_selected` | 400 | The selection resolved to nothing to analyze. |
+| `invalid_header_row` | 400 | `headerRow` was not a positive row number. |
+| `invalid_include_rows` | 400 | `includeRows` was not a JSON array of positive row numbers, or was too long. |
+| `unsupported_model` | 400 | `model` is not one of the ids `/health` returns. |
+| `invalid_context` | 400 | `/ask` or `/explain` was called without usable dataset context. |
+| `missing_question` | 400 | `/ask` was called without a question. |
+| `comparison_requires_two_files` | 400 | `/compare` needs exactly two files, baseline first. |
+| `comparison_requires_tabular` | 400 | A file given to `/compare` could not be read as a table. |
+
+A `headerRow` past the end of the file is **not** an error: detection runs as it
+would have, and the request is reported in `meta.structure.unapplied`.
+
+### The API key
+
+| Code | Status | Meaning |
+|---|---|---|
+| `missing_api_key` | 401 | An AI endpoint was called with no key configured or supplied. |
+| `invalid_api_key_format` | 400 | The key does not begin with `sk-ant-`. Rejected before any provider call. |
+| `invalid_api_key` | 401 | Anthropic rejected the key. |
+| `model_not_allowed` | 403 | The key has no access to the selected model. |
+
+### The upstream model
+
+| Code | Status | Meaning |
+|---|---|---|
+| `upstream_rate_limited` | 429 | The Anthropic account hit a rate limit. |
+| `upstream_bad_request` | 400 | Anthropic rejected the request; its reason is included. |
+| `upstream_unreachable` | 502 | The Anthropic API could not be reached. |
+| `upstream_error` | 502 | Anthropic returned an error. |
+| `analysis_refused` | 422 | The model declined to analyze the content. |
+| `answer_refused` | 422 | The model declined to answer the question. |
+| `analysis_truncated` | 502 | The analysis hit the output limit before finishing. |
+| `analysis_unparseable` | 502 | The model's structured output did not parse. |
+| `empty_answer` | 502 | The model returned no text. |
+
+### URL ingestion
+
+| Code | Status | Meaning |
+|---|---|---|
+| `invalid_url` | 400 | Not a valid URL, or one carrying embedded credentials. |
+| `unsupported_protocol` | 400 | Only `https://` is fetched. |
+| `private_host` | 400 | The URL resolves to a private, loopback, link-local or CGNAT address. Re-checked after DNS and after every redirect. |
+| `dns_failed` | 400 | The host did not resolve. |
+| `too_many_redirects` | 400 | More than 3 redirects, or a redirect with no location. |
+| `fetch_failed` | 502 | The fetch failed, or the URL returned a non-2xx status. |
+| `fetch_timeout` | 502 | The fetch exceeded 20 seconds. |
+
+### History
+
+| Code | Status | Meaning |
+|---|---|---|
+| `history_disabled` | 404 | Supabase is not configured on this deployment. |
+| `history_unavailable` | 502 | The store could not be reached. |
+| `invalid_id` | 400 | The analysis id is not a uuid. |
+| `not_found` | 404 | No such analysis — also returned for one that has passed its retention window, so a share link to an expired analysis discloses nothing about what was once there. |
+| `missing_session` | 400 | Deleting requires `x-ridge-session`. |
+
+### Everything else
+
+| Code | Status | Meaning |
+|---|---|---|
+| `rate_limited` | 429 | Per-IP limit exceeded. Carries `Retry-After`. |
+| `internal_error` | 500 | An unexpected failure. The message is deliberately generic; correlate with `requestId` in the server log. |

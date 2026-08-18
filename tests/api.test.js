@@ -158,6 +158,23 @@ describe("deterministic analysis without a key", () => {
     expect(createMessage).not.toHaveBeenCalled();
   });
 
+  // A null element in a JSON array is a valid file, and it reaches the
+  // analytics layer as a row of `null`. The quality profiler used to reach
+  // into it directly and throw, which the error handler turned into a 500 on
+  // a file nothing was wrong with.
+  it("analyzes a JSON array that contains a null element", async () => {
+    const form = new FormData();
+    const json = JSON.stringify([{ a: 1, b: 12 }, null, { a: 2, b: 27 }, { a: 3, b: 41 }]);
+    form.append("file", new File([json], "records.json", { type: "application/json" }));
+    const res = await fetch(`${base}/api/analyze`, { method: "POST", body: form });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.profile.rows).toBe(4);
+    expect(body.profile.columns.a.missing).toBe(1);
+    expect(body.stats.a.validCount).toBe(3);
+  });
+
   it("never turns a blank cell into a zero", async () => {
     const res = await fetch(`${base}/api/analyze`, { method: "POST", body: csvForm() });
     const { stats } = await res.json();
@@ -675,5 +692,49 @@ describe("routing", () => {
       expect(body, route).not.toMatch(/@import\s+url\(\s*['"]?https:\/\/fonts\.googleapis/);
       expect(body, route).not.toMatch(/url\(\s*['"]?https:\/\/fonts\.gstatic/);
     }
+  });
+});
+
+describe("a column genuinely named \"line\"", () => {
+  // Invoice line items, log line numbers, production line, line of business.
+  // The statistics engine used to skip the name outright, which dropped the
+  // column from /analyze, produced no evidence when it was the target, and
+  // crashed /compare with a 500 when the comparison reached for its type.
+  const LINE_CSV = "line,amount,region\n1,120,north\n2,340,south\n3,210,east\n"
+    + "4,455,west\n5,180,north\n6,390,south\n";
+
+  function fileForm(field, name, body) {
+    const form = new FormData();
+    form.append(field, new File([body], name, { type: "text/csv" }));
+    return form;
+  }
+
+  it("appears in the statistics, not only in the column list", async () => {
+    const res = await fetch(`${base}/api/analyze`, { method: "POST", body: fileForm("file", "invoice.csv", LINE_CSV) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.columns).toContain("line");
+    expect(Object.keys(body.stats)).toContain("line");
+    // The statistics panel and the quality panel describe the same file.
+    expect(Object.keys(body.stats).sort()).toEqual(Object.keys(body.profile.columns).sort());
+  });
+
+  it("can be the target and produce evidence", async () => {
+    const form = fileForm("file", "invoice.csv", LINE_CSV);
+    form.append("target", "line");
+    const res = await fetch(`${base}/api/analyze`, { method: "POST", body: form });
+    const body = await res.json();
+    expect(body.meta.target).toBe("line");
+    expect(body.evidence.length).toBeGreaterThan(0);
+  });
+
+  it("does not crash a comparison", async () => {
+    const form = new FormData();
+    form.append("files", new File([LINE_CSV], "before.csv", { type: "text/csv" }));
+    form.append("files", new File([LINE_CSV.replace("120", "999")], "after.csv", { type: "text/csv" }));
+    const res = await fetch(`${base}/api/compare`, { method: "POST", body: form });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.comparison.schema.shared).toContain("line");
   });
 });

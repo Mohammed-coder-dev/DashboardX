@@ -17,7 +17,46 @@ const DATE_PATTERNS = [
 
 const MS_PER_DAY = 86_400_000;
 
-/** Parse a cell into a Date, or null when it is not recognisably a date. */
+/** Carries its own zone, so it names an absolute instant, not a wall clock. */
+const EXPLICIT_ZONE = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+/** ISO date with no time part — the language already reads this one as UTC. */
+const ISO_DATE_ONLY = /^\d{4}-\d{1,2}-\d{1,2}$/;
+
+/**
+ * Re-read a locally-parsed wall clock in the UTC frame.
+ *
+ * Built through a leap-year placeholder and an explicit `setUTCFullYear`
+ * because `Date.UTC(24, …)` means 1924: a year under 100 would otherwise be
+ * silently moved to the twentieth century.
+ */
+function asUtcWallClock(parsed) {
+  const shifted = new Date(Date.UTC(
+    2000, parsed.getMonth(), parsed.getDate(),
+    parsed.getHours(), parsed.getMinutes(), parsed.getSeconds(), parsed.getMilliseconds(),
+  ));
+  shifted.setUTCFullYear(parsed.getFullYear());
+  return Number.isFinite(shifted.getTime()) ? shifted : null;
+}
+
+/**
+ * Parse a cell into a Date, or null when it is not recognisably a date.
+ *
+ * Every shape lands in one frame. JavaScript does not do this on its own:
+ * `2024-03-01` is read as UTC midnight, while `03/01/2024`, `Jan 5, 2024` and
+ * `2024-03-01 00:30` are read as midnight *in the machine's zone*. Everything
+ * downstream formats with `toISOString()`, so east of UTC a US-format date came
+ * back as the day before — `03/01/2024` reported as 2024-02-29 in `earliest`,
+ * `latest`, every period bucket and every evidence claim quoting them, and a
+ * spreadsheet's own `2024-03-01 00:30` reported against February. The same file
+ * therefore read differently on a machine in Dubai and on one in London, which
+ * a module documented as pure and deterministic must not do.
+ *
+ * A spreadsheet date has no timezone: the cell means that calendar day. So the
+ * naive shapes are re-read in the UTC frame, where the calendar components that
+ * come back out are the ones the cell wrote. A value carrying an explicit `Z`
+ * or offset is an absolute instant and is left exactly where it is — re-basing
+ * it would move it.
+ */
 export function toDate(value) {
   if (value instanceof Date) return Number.isFinite(value.getTime()) ? value : null;
   if (isMissing(value)) return null;
@@ -27,7 +66,9 @@ export function toDate(value) {
   const str = String(value).trim();
   if (!DATE_PATTERNS.some((re) => re.test(str))) return null;
   const parsed = new Date(str);
-  return Number.isFinite(parsed.getTime()) ? parsed : null;
+  if (!Number.isFinite(parsed.getTime())) return null;
+  if (ISO_DATE_ONLY.test(str) || EXPLICIT_ZONE.test(str)) return parsed;
+  return asUtcWallClock(parsed);
 }
 
 export function looksLikeDateColumn(rawValues) {

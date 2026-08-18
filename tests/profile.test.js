@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { classifyValue, countOutliers, profileColumn, profileDataset, profileSummaryForPrompt } from "../src/analytics/profile.js";
+import { computeStats } from "../src/analytics/stats.js";
 
 describe("classifyValue", () => {
   it("classifies numbers and numeric strings", () => {
@@ -120,5 +121,89 @@ describe("profileSummaryForPrompt", () => {
     expect(s).toContain(`Health ${p.healthGrade}`);
     expect(s).toContain("a: numeric");
     expect(s).toContain("50% missing");
+  });
+});
+
+describe("rows that are not objects", () => {
+  // A JSON export with a null element - `[{"a":1}, null, {"a":2}]` - is a
+  // valid file and reaches the analytics layer as a row of `null`. Every other
+  // module reads cells with `row?.[column]` and counts such a row as one whose
+  // values are all missing; profileDataset reached in with `row[column]` and
+  // threw a TypeError, which surfaced as a 500 on a file nothing was wrong with.
+  const rows = [{ a: 1, b: "x" }, null, { a: 2, b: "y" }, { a: 3, b: "z" }];
+
+  it("treats a null row as a row with every value missing", () => {
+    const p = profileDataset(rows, ["a", "b"]);
+    expect(p.rows).toBe(4);
+    expect(p.columns.a.missing).toBe(1);
+    expect(p.columns.a.missingPct).toBe(25);
+    expect(p.columns.a.type).toBe("numeric");
+  });
+
+  it("counts it once, not as a duplicate of a populated row", () => {
+    expect(profileDataset(rows, ["a", "b"]).duplicateRows).toBe(0);
+  });
+
+  it("agrees with computeStats about how many values are missing", () => {
+    const profile = profileDataset(rows, ["a", "b"]);
+    const stats = computeStats(rows, ["a", "b"]);
+    expect(profile.columns.a.missing).toBe(stats.a.missing);
+  });
+
+  it("survives an undefined row too", () => {
+    expect(() => profileDataset([{ a: 1 }, undefined], ["a"])).not.toThrow();
+  });
+});
+
+describe("numbers written in a spreadsheet's own formatting", () => {
+  // values.js is the coercion layer everything numeric goes through, and it has
+  // read `$48,000`, `12.5%` and `(1,200)` as numbers since the evidence engine
+  // hit 1.3.0. classifyValue still reached for bare Number(), so the quality
+  // profile called a currency column "text" while the statistics panel beside
+  // it reported a mean - two readings of one column, disagreeing on screen.
+  it("classifies formatted numbers as numeric", () => {
+    expect(classifyValue("$48,000")).toBe("numeric");
+    expect(classifyValue("12.5%")).toBe("numeric");
+    expect(classifyValue("(1,200)")).toBe("numeric");
+    expect(classifyValue("1,234.56")).toBe("numeric");
+  });
+
+  it("still calls text text", () => {
+    expect(classifyValue("hello world")).toBe("text");
+    expect(classifyValue("555-1234")).toBe("text");
+    expect(classifyValue("N/A")).toBe("text");
+    // Not a finite observation, so not a number the engine can use.
+    expect(classifyValue("Infinity")).toBe("text");
+  });
+
+  it("agrees with computeStats on a currency column's type", () => {
+    const rows = [
+      { region: "north", revenue: "$48,000" }, { region: "south", revenue: "$52,300" },
+      { region: "east", revenue: "$41,900" }, { region: "west", revenue: "$63,150" },
+      { region: "north", revenue: "$37,420" }, { region: "south", revenue: "$59,880" },
+    ];
+    const columns = ["region", "revenue"];
+    const profile = profileDataset(rows, columns);
+    const stats = computeStats(rows, columns);
+    expect(stats.revenue.type).toBe("numeric");
+    expect(profile.columns.revenue.type).toBe(stats.revenue.type);
+  });
+
+  // The damaging case: a column where only some cells wear a thousands
+  // separator split numeric/text, fell under the 0.8 consistency bar, and was
+  // reported as a high-severity "mixes value types" issue against a column
+  // that holds nothing but numbers.
+  it("does not report a partly-formatted numeric column as mixed", () => {
+    const values = ["1,200", "980", "1,450", "760", "1,010", "890", "1,340", "1,120", "705", "1,275"];
+    const p = profileColumn(values);
+    expect(p.type).toBe("numeric");
+    expect(p.typeConsistency).toBe(1);
+  });
+
+  it("counts outliers in a currency column", () => {
+    // countOutliers only runs on a column typed numeric, so a currency column
+    // reported zero outliers however extreme its values were.
+    const values = ["$10", "$12", "$11", "$13", "$9", "$14", "$10", "$12", "$5,000"];
+    expect(profileColumn(values).outliers).toBe(1);
   });
 });

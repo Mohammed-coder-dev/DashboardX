@@ -1,4 +1,4 @@
-import { numericValues } from "./values.js";
+import { numericValues, toFiniteNumber } from "./values.js";
 
 const DATE_PATTERNS = [
   /^\d{4}-\d{2}-\d{2}([T ].*)?$/,          // ISO date / datetime
@@ -13,7 +13,15 @@ export function classifyValue(value) {
   if (typeof value === "boolean") return "boolean";
   const str = String(value).trim();
   if (str === "") return "missing";
-  if (str !== "" && !isNaN(Number(str))) return "numeric";
+  // toFiniteNumber, not Number(): values.js is the one coercion layer in this
+  // engine, and it has read `$48,000`, `12.5%` and `(1,200)` as numbers since
+  // the evidence engine reached 1.3.0. Bare Number() called all three text, so
+  // the quality profile labelled a currency column "text" while the statistics
+  // beside it reported its mean — and a column where only some cells carried a
+  // thousands separator split across two types and was reported as a
+  // high-severity "mixes value types" issue against nothing but numbers.
+  // Number() also accepted "Infinity", which is not an observation.
+  if (toFiniteNumber(str) !== null) return "numeric";
   if (DATE_PATTERNS.some(re => re.test(str))) return "date";
   return "text";
 }
@@ -79,14 +87,19 @@ function healthGrade(score) {
 export function profileDataset(rows, columns) {
   const total = rows.length;
   const cols = {};
+  // `r?.[col]`, not `r[col]`: a JSON export can hold a null element, which
+  // reaches here as a row of `null`. Every other module in the engine reads
+  // cells optionally and counts such a row as one whose values are all
+  // missing; reaching in directly threw a TypeError and surfaced as a 500 on a
+  // file nothing was wrong with.
   for (const col of columns) {
-    cols[col] = profileColumn(rows.map(r => r[col]));
+    cols[col] = profileColumn(rows.map(r => r?.[col]));
   }
 
   const seen = new Set();
   let duplicateRows = 0;
   for (const row of rows) {
-    const key = JSON.stringify(columns.map(c => row[c]));
+    const key = JSON.stringify(columns.map(c => row?.[c]));
     if (seen.has(key)) duplicateRows++;
     else seen.add(key);
   }

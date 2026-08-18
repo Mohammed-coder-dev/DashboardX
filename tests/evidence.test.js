@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { computeStats } from "../src/analytics/stats.js";
 import {
-  ANALYSIS_SCHEMA_VERSION, buildEvidence, EVIDENCE_ENGINE_VERSION,
+  ANALYSIS_SCHEMA_VERSION, buildEvidence, compareEvidence, EVIDENCE_ENGINE_VERSION,
 } from "../src/analytics/evidence.js";
 
 function evidenceFor(rows, columns, options) {
@@ -210,5 +210,52 @@ describe("buildEvidence", () => {
   it("exposes the schema and engine versions for exports", () => {
     expect(ANALYSIS_SCHEMA_VERSION).toMatch(/^\d+\.\d+$/);
     expect(EVIDENCE_ENGINE_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+});
+
+describe("compareEvidence", () => {
+  // Not every metric has a magnitude: period_volume_trend carries a word.
+  const strongest = { claim: "z high magnitude", strength: "moderate", value: 0.9 };
+  const weakest = { claim: "a low magnitude", strength: "moderate", value: 0.1 };
+  const trend = { claim: "m trend", strength: "moderate", value: "increasing" };
+
+  function permutations(items) {
+    if (items.length <= 1) return [items];
+    return items.flatMap((item, index) =>
+      permutations([...items.slice(0, index), ...items.slice(index + 1)])
+        .map((rest) => [item, ...rest]));
+  }
+
+  it("ranks the same items the same way whatever order they arrive in", () => {
+    // Math.abs("increasing") is NaN, `||` read that as "no opinion" and fell
+    // through to the claim text. The comparator stopped being transitive, and
+    // these three items sorted three different ways depending on the order
+    // buildEvidence happened to push them - one of those orders led with the
+    // weakest finding of the three.
+    const orders = permutations([strongest, weakest, trend])
+      .map((items) => items.sort(compareEvidence).map((item) => item.claim).join(" | "));
+    expect(new Set(orders).size).toBe(1);
+  });
+
+  it("keeps the larger magnitude ahead of the smaller at equal strength", () => {
+    const ranked = [weakest, trend, strongest].sort(compareEvidence);
+    expect(ranked.indexOf(strongest)).toBeLessThan(ranked.indexOf(weakest));
+  });
+
+  it("puts a magnitude-less finding after its numeric peers", () => {
+    const ranked = [trend, strongest, weakest].sort(compareEvidence);
+    expect(ranked[ranked.length - 1]).toBe(trend);
+  });
+
+  it("ranks two magnitude-less findings by claim, not by chance", () => {
+    const other = { claim: "b other trend", strength: "moderate", value: "decreasing" };
+    expect([trend, other].sort(compareEvidence)[0]).toBe(other);
+    expect([other, trend].sort(compareEvidence)[0]).toBe(other);
+  });
+
+  it("still puts strength ahead of magnitude", () => {
+    const weakButLarge = { claim: "big but weak", strength: "weak", value: 0.99 };
+    const strongButSmall = { claim: "small but strong", strength: "strong", value: 0.01 };
+    expect([weakButLarge, strongButSmall].sort(compareEvidence)[0]).toBe(strongButSmall);
   });
 });

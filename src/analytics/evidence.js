@@ -24,8 +24,28 @@ import { categoricalAssociation, detectLevelShift, welchMeanDifference } from ".
  * no evidence at all under 1.2.0 produces evidence here, and a column that
  * reported a mean over only the cells without separators now reports it over
  * the whole column.
+ *
+ * 1.4.0 — a batch of arithmetic corrections, each of which changes numbers
+ * 1.3.0 would have produced for the same file:
+ *
+ *  - Pearson is computed from centred deviations. On columns whose values dwarf
+ *    their spread (epoch milliseconds, account numbers, amounts in minor units)
+ *    the old shortcut lost the variance entirely and dropped a real correlation,
+ *    reported one with the wrong magnitude, or emitted a null coefficient.
+ *  - Statistics below the fourth decimal keep their significant digits instead
+ *    of rounding to 0, so a column of rates or probabilities reports a mean,
+ *    spread and interval rather than a row of zeroes. `min` and `max` are now
+ *    rounded like their siblings.
+ *  - Every date shape lands in one frame, so a US-format or timestamped column
+ *    reports the calendar day the cell names rather than one shifted by the
+ *    host's UTC offset.
+ *  - A cell is classified through the same coercion layer the statistics use,
+ *    so a currency column is numeric to the quality profile too — which changes
+ *    its type, its outlier count and the dataset's health score.
+ *  - Findings are ranked by a transitive comparator, so the order of the
+ *    evidence list — and, past the cap, its membership — can differ.
  */
-export const EVIDENCE_ENGINE_VERSION = "1.3.0";
+export const EVIDENCE_ENGINE_VERSION = "1.4.0";
 /**
  * Version of the saved/exported analysis payload shape.
  *
@@ -51,8 +71,13 @@ export const EVIDENCE_ENGINE_VERSION = "1.3.0";
  * still the authority on how many exist. Absent on payloads written before
  * 2.10, where the rows were identified but not kept — absence means "not
  * shipped by that version", never "none found".
+ *
+ * 2.11 — an entry in `meta.structure.unapplied` may carry `correction`, naming
+ * which correction did not apply. Only a rejected `headerRow` sets it today;
+ * an entry without it is an `includeRows` request, which is what every entry
+ * written before 2.11 was.
  */
-export const ANALYSIS_SCHEMA_VERSION = "2.10";
+export const ANALYSIS_SCHEMA_VERSION = "2.11";
 
 const MAX_EVIDENCE = 20;
 const MIN_GROUP = 3;
@@ -408,6 +433,38 @@ function anomalyEvidence(rows, columns, stats, target) {
 const STRENGTH_ORDER = { "very strong": 0, strong: 1, moderate: 2, weak: 3, negligible: 4 };
 
 /**
+ * Magnitude used for ranking. Not every metric has one: `period_volume_trend`
+ * carries a word ("increasing"), so `Math.abs` on it is NaN.
+ */
+function rankMagnitude(value) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.abs(value) : -Infinity;
+}
+
+/**
+ * Rank evidence: strongest first, then by magnitude, then by claim.
+ *
+ * The magnitude step compares two extracted numbers rather than subtracting
+ * `Math.abs(value)` directly. Subtracting produced NaN whenever either side
+ * carried a trend word; `||` reads NaN as "no opinion" and fell through to the
+ * claim text, which made the comparator non-transitive: with a trend item
+ * present, a |0.9| finding and a |0.1| finding could each be ranked above the
+ * other depending on which order they were pushed in. Measured on three items,
+ * the same three sorted three different ways, one of them leading with the
+ * weakest. Ranking decides both the headline order and, once there are more
+ * than `MAX_EVIDENCE` items, which findings survive the cut at all.
+ */
+export function compareEvidence(a, b) {
+  const byStrength = (STRENGTH_ORDER[a.strength] ?? 5) - (STRENGTH_ORDER[b.strength] ?? 5);
+  if (byStrength !== 0) return byStrength;
+  const magnitudeA = rankMagnitude(a.value);
+  const magnitudeB = rankMagnitude(b.value);
+  // Compared before subtracting, so two magnitude-less items are equal here
+  // rather than -Infinity − -Infinity, which is NaN all over again.
+  if (magnitudeA !== magnitudeB) return magnitudeB - magnitudeA;
+  return a.claim.localeCompare(b.claim);
+}
+
+/**
  * Build the evidence list for a dataset, optionally centred on a target column.
  *
  * Deterministic: same rows, columns, stats and target produce the same list in
@@ -434,11 +491,6 @@ export function buildEvidence(rows, columns, stats, { target = null, limit = MAX
   evidence.push(...dateEvidence(rows, columns, stats, target));
   evidence.push(...anomalyEvidence(rows, columns, stats, target));
 
-  const selected = evidence
-    .sort((a, b) =>
-      (STRENGTH_ORDER[a.strength] ?? 5) - (STRENGTH_ORDER[b.strength] ?? 5)
-      || Math.abs(b.value ?? 0) - Math.abs(a.value ?? 0)
-      || a.claim.localeCompare(b.claim))
-    .slice(0, limit);
+  const selected = evidence.sort(compareEvidence).slice(0, limit);
   return attachEvidenceProvenance(selected, rows, stats);
 }

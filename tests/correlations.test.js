@@ -231,4 +231,76 @@ describe("computeCorrelations", () => {
     expect(result.smallSample).toBe(false);
     expect(result.caveat).toBeNull();
   });
+
+describe("large-magnitude columns", () => {
+  // The textbook sum-of-squares form of Pearson computes n·Σx² − (Σx)², a
+  // difference between two enormous, nearly equal numbers. On columns whose
+  // values are large relative to their spread — epoch milliseconds, account
+  // numbers, amounts in minor units — that difference loses every significant
+  // digit: it collapses to 0 (read as "constant series, no relationship"), or
+  // goes negative (√negative = NaN, which slipped past the |r| < minReported
+  // filter and was reported as a null coefficient), or survives with the wrong
+  // magnitude entirely.
+  it("reports a perfect relationship between columns offset by a billion", () => {
+    const rows = Array.from({ length: 20 }, (_, i) => ({
+      a: 1_000_000_000 + i,
+      b: 1_000_000_000 + i * 2,
+    }));
+    const [result] = correlate(rows, ["a", "b"]);
+    expect(result.method).toBe("pearson");
+    expect(result.pearson).toBe(1);
+    expect(result.coefficient).toBe(1);
+  });
+
+  it("correlates epoch milliseconds against a small counter", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({
+      recordedAt: 1_700_000_000_000 + i * 1000,
+      sequence: i * 7 + 3,
+    }));
+    const [result] = correlate(rows, ["recordedAt", "sequence"]);
+    expect(result.pearson).toBe(1);
+  });
+
+  it("keeps the sign of a negative relationship at large magnitudes", () => {
+    const rows = Array.from({ length: 15 }, (_, i) => ({
+      a: 1e12 + i * 0.5,
+      b: 1e12 - i * 0.5,
+    }));
+    const [result] = correlate(rows, ["a", "b"]);
+    expect(result.pearson).toBe(-1);
+    expect(result.coefficient).toBeLessThan(0);
+  });
+
+  // NaN is not a coefficient. It compares false against every threshold, so an
+  // unguarded NaN passes the |r| >= minReported filter and lands in the results
+  // as `coefficient: null` — a finding with no number in it.
+  it("never emits a null or non-finite coefficient", () => {
+    const shapes = [
+      Array.from({ length: 10 }, (_, i) => ({ a: 1e8 + i * 0.01, b: 1e8 + i * 0.02 })),
+      Array.from({ length: 10 }, (_, i) => ({ a: 1e9 + i * 0.001, b: 1e9 - i * 0.002 })),
+      Array.from({ length: 10 }, (_, i) => ({ a: 1e14 + i, b: 1e14 + i * 3 })),
+    ];
+    for (const rows of shapes) {
+      for (const result of correlate(rows, ["a", "b"])) {
+        expect(Number.isFinite(result.coefficient)).toBe(true);
+        expect(Math.abs(result.coefficient)).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("agrees with the shifted-by-a-constant form of the same data", () => {
+    // Correlation is invariant under translation, so the coefficient for the
+    // small values and the coefficient for the same values plus a billion are
+    // the same number. Any disagreement is arithmetic, not data.
+    const base = [7, 13, 2, 19, 5, 23, 11, 31, 17, 3, 29, 41];
+    const other = [12, 9, 26, 4, 33, 8, 21, 2, 6, 37, 3, 1];
+    // minReported: 0 so the assertion is about the arithmetic, not about which
+    // side of the reporting threshold the pair lands on.
+    const options = { minReported: 0 };
+    const small = correlate(base.map((a, i) => ({ a, b: other[i] })), ["a", "b"], options);
+    const shifted = correlate(base.map((a, i) => ({ a: a + 1e9, b: other[i] + 1e9 })), ["a", "b"], options);
+    expect(small[0].pearson).not.toBe(0);
+    expect(shifted[0].pearson).toBeCloseTo(small[0].pearson, 9);
+  });
+});
 });

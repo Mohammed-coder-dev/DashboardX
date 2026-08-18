@@ -15,15 +15,40 @@ permissions:
 
 jobs:
   verify:
-    name: Lint, unit and API tests
+    # Every job here ran on Node 20, which package.json's engines field
+    # declares unsupported (">=22"). npm does not enforce engines by default,
+    # so CI passed on a runtime nothing actually runs: not the Dockerfile
+    # (node:24), not the platform, not a developer's machine. Green meant
+    # green somewhere nobody deploys.
+    name: Lint, unit and API tests (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The declared minimum and the version the container image ships.
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+
+      - name: Installed Node satisfies the engines field
+        run: |
+          node -e "
+            const { engines, name } = require('./package.json');
+            const required = engines?.node;
+            if (!required) { console.error('no engines.node declared'); process.exit(1); }
+            const minimum = Number(required.replace(/[^0-9.]/g, '').split('.')[0]);
+            const running = Number(process.versions.node.split('.')[0]);
+            if (running < minimum) {
+              console.error(\`::error::\${name} declares node \${required} but this job runs \${process.versions.node}\`);
+              process.exit(1);
+            }
+            console.log(\`node \${process.versions.node} satisfies \${required}\`);
+          "
 
       # Syntax gate for every shipped server file. public/app.js is a classic
       # script, so it is parsed with a script-goal parser inside the unit suite
@@ -72,7 +97,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
 
@@ -110,7 +135,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
@@ -134,7 +159,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Version is semver and has a changelog entry
         run: |
           VERSION=$(node -p "require('./package.json').version")

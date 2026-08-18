@@ -1,5 +1,6 @@
 import path from "path";
 import * as XLSX from "xlsx";
+import { decodeText } from "./encoding.js";
 import { inferStructure, isBlankRow } from "./structure.js";
 import { AppError } from "../errors.js";
 
@@ -81,7 +82,11 @@ function applyRenames(row, renames) {
 
 export function parseSpreadsheet(buffer, filename, sheet, overrides = {}) {
   const ext      = path.extname(filename).toLowerCase();
-  const input    = ext === ".csv" ? buffer.toString("utf-8") : buffer;
+  // decodeText, not buffer.toString: a leading byte-order mark would become
+  // part of the first column's name, and every later boundary matches on that
+  // name. Binary workbook formats carry their own encoding and are passed
+  // through as bytes.
+  const input    = ext === ".csv" ? decodeText(buffer) : buffer;
   const workbook = XLSX.read(input, { type: ext === ".csv" ? "string" : "buffer", cellDates: true });
   const sheets   = workbook.SheetNames;
 

@@ -207,8 +207,13 @@ function numericField(rawValues, total, totalRows) {
     missing,
     invalid,
     coverage: coveragePct(numbers.length, totalRows),
-    min: sorted[0],
-    max: sorted[sorted.length - 1],
+    // Rounded like every other statistic in this object. Reported raw, they
+    // leaked float representation noise into the report — a column whose
+    // largest value is 87.6/100 showed `max: 0.8759999999999999` beside
+    // `mean: 0.876`, which reads as a mean above the maximum. Rounding is
+    // monotonic, so min <= mean <= max survives it.
+    min: round(sorted[0]),
+    max: round(sorted[sorted.length - 1]),
     mean: round(mean),
     meanConfidence95: meanConfidenceInterval(numbers),
     median: round(quantile(sorted, 0.5)),
@@ -275,9 +280,16 @@ export function profileField(rawValues, totalRows = rawValues.length) {
 export function computeStats(rows, columns) {
   const stats = {};
   const totalRows = rows.length;
+  // Every column is profiled, including one named `line`. That name used to be
+  // skipped as "the synthetic row index the text parsers add" — but those
+  // parsers report `isTabular: false`, and both callers of this function only
+  // reach it on the tabular path, so their rows never arrive here. The skip
+  // protected nothing and silently dropped a real column: invoice line items,
+  // log line numbers, production line, line of business. The statistics panel
+  // then described a different set of columns than the quality panel, the
+  // column produced no evidence when chosen as the target, and a comparison
+  // reaching for its type crashed with a 500.
   for (const col of columns) {
-    // `line` is the synthetic row index added by the text parsers, not data.
-    if (col === "line") continue;
     stats[col] = profileField(rows.map((r) => r?.[col]), totalRows);
   }
   return stats;

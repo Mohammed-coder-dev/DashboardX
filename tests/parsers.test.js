@@ -234,3 +234,51 @@ describe("parseFile", () => {
     expect(err).toBeInstanceOf(AppError);
   });
 });
+
+describe("byte-order marks", () => {
+  // Excel's "CSV UTF-8 (Comma delimited)" export always writes a BOM, so this
+  // is the shape a large share of real spreadsheets arrive in.
+  const BOM = "\uFEFF";
+
+  it("does not leave a BOM glued to the first CSV column name", () => {
+    const parsed = parseSpreadsheet(Buffer.from(`${BOM}id,value\n1,10\n2,20\n`, "utf8"), "t.csv");
+    expect(parsed.columns).toEqual(["id", "value"]);
+    // The name is what every later boundary matches against: a target or a
+    // column selection naming "id" is rejected as unknown while the parsed key
+    // is "\uFEFFid".
+    expect(parsed.columns.includes("id")).toBe(true);
+    expect(parsed.rows[0].id).toBe(1);
+  });
+
+  it("parses a JSON file that starts with a BOM", async () => {
+    // JSON.parse rejects a leading BOM outright, so the whole file failed with
+    // a 422 rather than a column-naming quirk.
+    const parsed = parseJSON(Buffer.from(`${BOM}[{"a":1},{"a":2}]`, "utf8"));
+    expect(parsed.rows).toEqual([{ a: 1 }, { a: 2 }]);
+  });
+
+  it("strips it from a text file's first line", () => {
+    const parsed = parseText(Buffer.from(`${BOM}first\nsecond`, "utf8"));
+    expect(parsed.rows[0].content).toBe("first");
+    expect(parsed.rawText.startsWith("first")).toBe(true);
+  });
+
+  it("decodes a UTF-16LE spreadsheet instead of mangling it", () => {
+    // Excel's "Unicode Text" export writes UTF-16LE. Read as UTF-8 those bytes
+    // produce mojibake rather than an error, which is the failure mode that
+    // never gets reported.
+    const utf16 = Buffer.from(`﻿id,label
+1,north
+2,south
+`, "utf16le");
+    const parsed = parseSpreadsheet(utf16, "t.csv");
+    expect(parsed.columns).toEqual(["id", "label"]);
+    expect(parsed.rows).toEqual([{ id: 1, label: "north" }, { id: 2, label: "south" }]);
+  });
+
+  it("leaves a BOM in the middle of a file alone", () => {
+    // Only a leading mark is an encoding signature; elsewhere it is data.
+    const parsed = parseText(Buffer.from(`first\nse${BOM}cond`, "utf8"));
+    expect(parsed.rows[1].content).toBe(`se${BOM}cond`);
+  });
+});

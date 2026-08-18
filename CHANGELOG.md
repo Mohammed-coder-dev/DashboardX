@@ -4,6 +4,218 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+Correctness and hardening pass over the deterministic engine. Every fix below
+ships with a regression test that fails on the previous code, and each is a
+number or a behaviour a real file could have hit — the engine version moves to
+`1.4.0` and the payload version to `2.11` because an analysis saved before this
+work and one saved after it can legitimately disagree.
+
+### Fixed
+
+- **Correlations over large-magnitude columns.** Pearson was computed with the
+  `n·Σx² − (Σx)²` shortcut, which subtracts two enormous, nearly equal numbers.
+  On any column whose values dwarf their own spread — epoch milliseconds,
+  account numbers, amounts in minor units — the variance cancelled away
+  entirely, in three different directions: a denominator of exactly 0, read as
+  "constant series" and dropped, so a perfect relationship never appeared at
+  all; a negative radicand, so `Math.sqrt` returned `NaN`, which compares false
+  against every threshold and reached the results as a coefficient of `null`;
+  or a surviving but wrong magnitude (0.707 where the answer was 1). Pearson is
+  now computed from centred deviations, the roots are multiplied after being
+  taken so large squared deviations cannot overflow to `Infinity`, and the
+  ratio is clamped so rounding cannot carry an exact 1 past the boundary.
+
+- **A JSON array containing `null` returned a 500.** `[{"a":1}, null, {"a":2}]`
+  is a valid file, and a null element reaches the analytics layer as a row of
+  `null`. Every module reads cells as `row?.[column]` and counts such a row as
+  one whose values are all missing — except the quality profiler, which reached
+  in directly and threw. It now reads cells the same way as its siblings, so the
+  profile and the statistics agree on how much of a column is present.
+
+- **Excel's UTF-8 CSV export lost its first column.** A leading byte-order mark
+  became the first character of the first column's name, so the parsed key was
+  `﻿id` while the header on screen read `id` — and naming that column as a
+  target or in a column selection came back as `unknown_column`, a 400 on a name
+  copied off the reader's own file. A `.json` file starting with a mark did not
+  parse at all, because `JSON.parse` rejects one outright. Decoding now honours
+  the mark, and UTF-16 (Excel's "Unicode Text" export) is decoded rather than
+  read as UTF-8 mojibake.
+
+- **A currency column was two different types on one screen.** `values.js` has
+  read `$48,000`, `12.5%` and `(1,200)` as numbers since 1.3.0, but the quality
+  profiler still used bare `Number()`. The statistics panel reported a mean while
+  the quality panel labelled the column "text"; a column where only some cells
+  carried a thousands separator split across two types and was reported as a
+  high-severity *"mixes value types"* issue against a column holding nothing but
+  numbers; and the outlier count, gated on the profiled type, never ran on such
+  a column at all.
+
+- **Dates were read in whichever frame JavaScript happened to pick.**
+  `2024-03-01` parses as UTC midnight while `03/01/2024`, `Jan 5, 2024` and
+  `2024-03-01 00:30` parse as midnight in the *host's* zone, and everything
+  downstream formats with `toISOString()`. Measured at UTC+04:00, a column of
+  `03/01/2024`–`03/06/2024` reported `earliest: 2024-02-29`, with every period
+  bucket, gap and evidence claim shifted with it; the same file read correctly
+  under `TZ=UTC`. Vercel runs UTC and never saw it — a self-hosted deployment
+  anywhere else did. Every naive shape now lands in one frame; a value carrying
+  an explicit `Z` or offset is an absolute instant and is left alone.
+
+- **Statistics below the fourth decimal were rounded to zero.** `toFixed` counts
+  decimal places, not significant digits, so a column of rates, ppm
+  concentrations, probabilities or p-values reported mean 0, median 0, std 0,
+  every quantile 0, a confidence interval of `[0, 0]`, and a histogram whose
+  every bin ran from 0 to 0 — printed beside a min and max that were never
+  rounded and so still showed the real values. `min` and `max` are now rounded
+  like their siblings too, which also stops float noise such as
+  `max: 0.8759999999999999` appearing next to `mean: 0.876`.
+
+- **A weak finding could outrank a strong one.** `period_volume_trend` carries a
+  word rather than a number, and `Math.abs("increasing")` is `NaN`; the `||`
+  chain read that as "no opinion" and fell through to comparing claim text,
+  which made the ranking comparator non-transitive. With one such item present,
+  a |0.9| finding and a |0.1| finding could each be ranked above the other
+  depending only on the order they were built in. That decides the headline
+  order and, past the evidence cap, which findings survive at all.
+
+- **A header-row correction the file could not honour vanished.** An
+  out-of-range `headerRow` silently became "no override", and the report then
+  read `headerSource: "detected"` with an empty `unapplied` list — identical to
+  a request that was never sent. It is now reported like any other correction
+  that did not apply, which also makes the reading `uncertain`.
+
+- **PDFs were written to disk and parsed without a bound.** Every upload went to
+  `os.tmpdir()` and was unlinked inside two event handlers, so a parser that
+  neither errored nor completed left the file behind — and a warm serverless
+  instance keeps `/tmp` between invocations, making repeated malformed PDFs a
+  slow disk-exhaustion path. Such a parse also hung the request until the
+  platform killed the function, which returns no status, message or request id
+  at all. PDFs are now parsed from the uploaded bytes under a 45-second bound.
+
+- **A confidence interval could be silently too narrow.** The Student-*t*
+  critical value was found by bisection over a fixed `[0, 20]`, so any value
+  above 20 came back as exactly 20 — `t(1)` at 99% is 63.657, making the
+  interval about three times too narrow, in the direction that overstates how
+  well the data pins the mean down. Latent (no route asks for a confidence other
+  than 95%), but both `meanConfidenceInterval` and `welchMeanDifference` take it
+  as an argument.
+
+- **A binary fixture was corrupted by a Windows checkout.** `.gitattributes` had
+  only `* text=auto`, whose binary detection is a NUL-byte scan of the first
+  8 KB — which a small PDF can pass without containing one. Binary formats are
+  now declared explicitly rather than left to that heuristic.
+
+- **A column named `line` was thrown away.** `computeStats` skipped that name
+  unconditionally, on the grounds that it is the synthetic row index the text
+  parsers add — but those parsers report `isTabular: false` and their rows never
+  reach the statistics engine, so the skip only ever hit a real column. Invoice
+  line items, log line numbers, production line and line of business are all
+  ordinary headers. Measured on one six-row CSV: `/analyze` listed the column and
+  profiled it in the quality panel but had no statistics for it, so the two
+  panels described different columns of the same file; choosing it as the target
+  produced no evidence at all; and `/compare` returned **500**, because the
+  comparison reads `baseline.stats[column].type` for every shared column.
+
+- **A raw NUL byte in `public/app.js`.** The correlation matrix keys its `Map` on
+  one column name, a NUL separator and the other, and that separator sat in the
+  source as three literal `0x00` bytes rather than the escape that produces the
+  same character. ripgrep stops at the first NUL and reports "binary file
+  matches", so of the four `byPair` occurrences in the largest source file here,
+  only the first was findable by search. Runtime behaviour was never affected;
+  git was not either, which is why it survived.
+
+### Changed
+
+- CI runs on Node 22 and 24. Every job previously ran on Node 20, which
+  `package.json` declares unsupported (`">=22"`); npm does not enforce `engines`,
+  so CI passed on a runtime nothing here runs — not the container image
+  (`node:24`), not the platform, not a developer's machine. A step now compares
+  the running major against the `engines` field so the two cannot drift apart
+  silently again.
+
+- **The model is no longer sent the browser's drill-down data.** The prompt was
+  built by stringifying the computed stats and correlations wholesale, so every
+  field added for the UI became prompt content by accident — including
+  `outliers.rows` (up to 200 flagged rows per numeric column) and each
+  correlation's `scatter` (up to 500 paired observations). Measured on a
+  20,000-row, 12-column file the prompt reached ~365,000 characters, roughly
+  91,000 tokens, most of it serialised outlier rows, and it grew with the row
+  count without a ceiling — on the visitor's own key. It is now ~63,700
+  characters for the same file, and 5,000 rows and 20,000 rows cost about the
+  same, because the size follows the column count instead. Nothing the model
+  reasons about was removed: it keeps every count, fence, coefficient, `n`,
+  coverage, caveat, histogram and frequency table, and gains `rowsReported`.
+
+- **`docs/API.md` documents all 54 error codes**, grouped by where a failure
+  comes from and with the status each returns. It previously listed 15, in a
+  reference that opens by telling callers to match on `code`.
+
+- The privacy documents describe what the server does now. README.md promised
+  uploads are processed in memory while the PDF parser wrote them to disk, so
+  PRIVACY.md and the privacy page carried a carve-out the README never mentioned.
+  With the temporary file gone, all three say the same thing, and a test fails
+  if any parser starts writing to disk again.
+
+### Added
+
+- **A standing check that file contents are rendered as text, not markup.**
+  "Everything rendered goes through `esc()`" is a stated invariant of this
+  project and nothing tested it. A browser journey now uploads a file whose every
+  text field — column names, cell values, the filename — is an injection attempt,
+  and asserts that nothing executes, no element is injected, and the text is
+  still displayed. Both tests were verified by deleting the `esc()` on the path
+  they cover, which fails them.
+
+- Property-based tests over adversarially generated spreadsheets: 250 generated
+  files per property plus 300 single-column cases, asserting what must hold for
+  *any* input — a blank is never an observation, every cell lands in exactly one
+  of missing/invalid/valid, summary statistics stay inside their own min and
+  max, quantiles come out ordered, every value falls in exactly one histogram
+  bin, a flagged outlier is really outside the fences, a coefficient is finite
+  and within [-1, 1], provenance arithmetic adds up to the rows it read, and
+  running the pipeline twice returns the same numbers. The generator is seeded
+  and prints the seed and the failing file, so a break is reproducible. It found
+  the `min`/`max` rounding defect above on seed 47.
+
+- PDF parsing has tests: it previously had none at all — not the happy path, not
+  a malformed file — on one of the file types the product advertises. Includes a
+  regression test for a defect the new coverage exposed: pdf2json hands a Node
+  `Buffer`'s underlying `ArrayBuffer` to pdfjs without carrying its pool
+  `byteOffset` across, so it reads whatever else was in the pool and rejects a
+  good PDF as having an invalid XRef header — a failure that depends on how much
+  the process has already allocated, and so passes on a quiet run and appears
+  under load.
+
+### Verification
+
+- 565 unit and API tests pass (`npm test`), up from 470 before this work.
+- 80 of 80 Playwright journeys pass (`npm run test:browser`), desktop and a
+  Pixel 5 viewport, up from 78. During an earlier run on a machine with ten
+  other agent sessions live, the `/app` first-contentful-paint budget failed
+  once at the end of a full 6-minute pass and then passed in seven consecutive
+  isolated runs; the budget was not touched, and the final full run was green.
+- `npm audit`: 0 vulnerabilities. No dependency was added, removed or upgraded.
+- Every fix here was checked in both directions: the regression test was run
+  against the previous code and observed to fail for the stated reason before
+  being run against the fix.
+
+### Known limitations
+
+- 53 colour literals still sit outside `:root` in `public/styles.css`, against
+  the project's own "CSS variables only" rule. They are shadows and translucent
+  surfaces; converting them is a visual change and nothing in the suite renders
+  pixels, so the count is now held under a ratchet
+  (`tests/style-tokens.test.js`) rather than fixed.
+- Type checking is not enforced. `checkJs` with `strict` reports 612 errors,
+  almost all missing annotations rather than defects; without `strict` it
+  reports 19, and the one real contract error it found — `inferStructure`
+  documenting neither `unapplied` nor `warnings` — is fixed above. A gate would
+  need the annotations first.
+- Preview deployments sit behind Vercel Authentication, so the changes here were
+  verified against a local server running the same entry point the serverless
+  function loads (`api/index.js`), not against the preview URL over HTTP.
+
 ## [2.3.0] — 2026-08-17
 
 ### Security

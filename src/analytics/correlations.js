@@ -67,20 +67,50 @@ export function scatterData(xs, ys) {
   };
 }
 
+/**
+ * Pearson over the centred deviations, in two passes.
+ *
+ * Not the textbook `n·Σx² − (Σx)²` shortcut. That form subtracts two enormous,
+ * nearly equal numbers, and on any column whose values dwarf their own spread —
+ * epoch milliseconds, account numbers, amounts in minor units, coordinates —
+ * every significant digit of the variance cancels away. Measured on this
+ * engine: `1e9 + i` against `1e9 + 2i` (a perfect +1) produced a denominator of
+ * exactly 0, read as "constant series" and dropped; other spacings produced a
+ * negative radicand, so `Math.sqrt` returned NaN, which compares false against
+ * every threshold and travelled into the results as a coefficient of `null`;
+ * others survived with the wrong magnitude (0.707 where the answer was 1).
+ * Centring first costs one extra pass and makes all three impossible.
+ */
 function pearson(xs, ys) {
   const n = xs.length;
   if (n < 2) return null;
-  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+  let meanX = 0;
+  let meanY = 0;
+  for (let i = 0; i < n; i++) { meanX += xs[i]; meanY += ys[i]; }
+  meanX /= n;
+  meanY /= n;
+  let sumXY = 0, sumXX = 0, sumYY = 0;
   for (let i = 0; i < n; i++) {
-    const x = xs[i], y = ys[i];
-    sumX += x; sumY += y; sumXY += x * y; sumX2 += x * x; sumY2 += y * y;
+    const dx = xs[i] - meanX;
+    const dy = ys[i] - meanY;
+    sumXY += dx * dy;
+    sumXX += dx * dx;
+    sumYY += dy * dy;
   }
-  const numerator = n * sumXY - sumX * sumY;
-  const denominator = Math.sqrt((n * sumX2 - sumX ** 2) * (n * sumY2 - sumY ** 2));
-  // A zero denominator means at least one series is constant. There is no
-  // relationship to report, and 0 would falsely imply "measured, found none".
-  if (denominator === 0) return null;
-  return numerator / denominator;
+  // Multiplied after the roots, not before: squared deviations of a large
+  // column can overflow to Infinity when multiplied together, which would
+  // silently report r = 0.
+  const denominator = Math.sqrt(sumXX) * Math.sqrt(sumYY);
+  // `> 0` rather than `!== 0`: a zero denominator means at least one series is
+  // constant — there is no relationship to report, and 0 would falsely imply
+  // "measured, found none" — and the same test rejects a NaN denominator
+  // instead of letting it propagate into a finding.
+  if (!(denominator > 0)) return null;
+  const r = sumXY / denominator;
+  if (!Number.isFinite(r)) return null;
+  // Floating point can carry an exact ±1 a few ulps past the boundary. A
+  // coefficient outside [-1, 1] is not a coefficient.
+  return Math.min(1, Math.max(-1, r));
 }
 
 /**
@@ -126,9 +156,14 @@ export function classifyStrength(coefficient) {
 export function computeCorrelations(rows, columns, stats = {}, options = {}) {
   const { method = "both", minReported = MIN_REPORTED, limit = MAX_RESULTS } = options;
   const totalRows = rows.length;
+  // A column with no entry in `stats` is attempted rather than assumed
+  // non-numeric; it simply fails the MIN_PAIRS floor if it holds no numbers.
+  // `line` used to be excluded by name here for the same wrong reason it was
+  // skipped in computeStats — the text parsers that synthesise it never reach
+  // either function.
   const numericCols = columns.filter((c) => {
     const declared = stats?.[c]?.type;
-    return declared === undefined ? c !== "line" : declared === "numeric";
+    return declared === undefined || declared === "numeric";
   });
 
   const results = [];
