@@ -17,8 +17,48 @@ function renderSample(sample) {
 ${JSON.stringify(labelled, null, 2)}`;
 }
 
+/**
+ * The computed results minus the parts that exist only to be drawn.
+ *
+ * The payload a browser receives and the payload a model should read are not
+ * the same object, and rendering the first into a prompt made every field added
+ * for the UI into prompt content by accident. Two of them are unbounded in
+ * dataset size: `outliers.rows` ships up to 200 flagged rows per numeric column
+ * (schema 2.10, added for the column drill-down), and a correlation's `scatter`
+ * ships up to 500 paired observations (schema 2.9, added for plotting).
+ * Measured on a 20,000-row, 12-column file, the prompt reached ~365,000
+ * characters — roughly 91,000 tokens — of which 2,400 serialised outlier rows
+ * were the bulk. The visitor pays for that with their own key.
+ *
+ * The model is asked to explain evidence, not to plot it: it keeps the outlier
+ * count, the fences and the method, every coefficient with its n, coverage and
+ * caveats, the histogram shape and the category frequencies. Nothing it is
+ * asked to reason about is removed — only the row-level and point-level
+ * material it cannot use and was never meant to see.
+ */
+function forPrompt(stats, correlations) {
+  const leanStats = {};
+  for (const [column, field] of Object.entries(stats ?? {})) {
+    if (!field || typeof field !== "object" || !field.outliers?.rows) {
+      leanStats[column] = field;
+      continue;
+    }
+    const { rows: flaggedRows, rowsCap, ...outliers } = field.outliers;
+    leanStats[column] = { ...field, outliers: { ...outliers, rowsReported: flaggedRows.length } };
+  }
+  const leanCorrelations = (correlations ?? []).map((correlation) => {
+    if (!correlation?.scatter) return correlation;
+    const { scatter, ...rest } = correlation;
+    return rest;
+  });
+  return { stats: leanStats, correlations: leanCorrelations };
+}
+
 export function buildTabularPrompt(columns, stats, correlations, rows, question, profileSummary, evidence) {
+  // Sampled before the trim, deliberately: representativeSample picks outlier
+  // rows using the fences in the full stats object.
   const sample = Array.isArray(rows) ? representativeSample(rows, columns, stats) : rows;
+  ({ stats, correlations } = forPrompt(stats, correlations));
   return `You are Ridge, an expert data analyst. Explain this dataset's computed evidence.
 COLUMNS: ${columns.join(", ")}
 STATISTICS: ${JSON.stringify(stats, null, 2)}
