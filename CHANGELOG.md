@@ -106,6 +106,25 @@ work and one saved after it can legitimately disagree.
   8 KB — which a small PDF can pass without containing one. Binary formats are
   now declared explicitly rather than left to that heuristic.
 
+- **A column named `line` was thrown away.** `computeStats` skipped that name
+  unconditionally, on the grounds that it is the synthetic row index the text
+  parsers add — but those parsers report `isTabular: false` and their rows never
+  reach the statistics engine, so the skip only ever hit a real column. Invoice
+  line items, log line numbers, production line and line of business are all
+  ordinary headers. Measured on one six-row CSV: `/analyze` listed the column and
+  profiled it in the quality panel but had no statistics for it, so the two
+  panels described different columns of the same file; choosing it as the target
+  produced no evidence at all; and `/compare` returned **500**, because the
+  comparison reads `baseline.stats[column].type` for every shared column.
+
+- **A raw NUL byte in `public/app.js`.** The correlation matrix keys its `Map` on
+  one column name, a NUL separator and the other, and that separator sat in the
+  source as three literal `0x00` bytes rather than the escape that produces the
+  same character. ripgrep stops at the first NUL and reports "binary file
+  matches", so of the four `byPair` occurrences in the largest source file here,
+  only the first was findable by search. Runtime behaviour was never affected;
+  git was not either, which is why it survived.
+
 ### Changed
 
 - CI runs on Node 22 and 24. Every job previously ran on Node 20, which
@@ -115,6 +134,23 @@ work and one saved after it can legitimately disagree.
   the running major against the `engines` field so the two cannot drift apart
   silently again.
 
+- **The model is no longer sent the browser's drill-down data.** The prompt was
+  built by stringifying the computed stats and correlations wholesale, so every
+  field added for the UI became prompt content by accident — including
+  `outliers.rows` (up to 200 flagged rows per numeric column) and each
+  correlation's `scatter` (up to 500 paired observations). Measured on a
+  20,000-row, 12-column file the prompt reached ~365,000 characters, roughly
+  91,000 tokens, most of it serialised outlier rows, and it grew with the row
+  count without a ceiling — on the visitor's own key. It is now ~63,700
+  characters for the same file, and 5,000 rows and 20,000 rows cost about the
+  same, because the size follows the column count instead. Nothing the model
+  reasons about was removed: it keeps every count, fence, coefficient, `n`,
+  coverage, caveat, histogram and frequency table, and gains `rowsReported`.
+
+- **`docs/API.md` documents all 54 error codes**, grouped by where a failure
+  comes from and with the status each returns. It previously listed 15, in a
+  reference that opens by telling callers to match on `code`.
+
 - The privacy documents describe what the server does now. README.md promised
   uploads are processed in memory while the PDF parser wrote them to disk, so
   PRIVACY.md and the privacy page carried a carve-out the README never mentioned.
@@ -122,6 +158,14 @@ work and one saved after it can legitimately disagree.
   if any parser starts writing to disk again.
 
 ### Added
+
+- **A standing check that file contents are rendered as text, not markup.**
+  "Everything rendered goes through `esc()`" is a stated invariant of this
+  project and nothing tested it. A browser journey now uploads a file whose every
+  text field — column names, cell values, the filename — is an injection attempt,
+  and asserts that nothing executes, no element is injected, and the text is
+  still displayed. Both tests were verified by deleting the `esc()` on the path
+  they cover, which fails them.
 
 - Property-based tests over adversarially generated spreadsheets: 250 generated
   files per property plus 300 single-column cases, asserting what must hold for
@@ -145,12 +189,32 @@ work and one saved after it can legitimately disagree.
 
 ### Verification
 
-- 547 unit and API tests pass (`npm test`), up from 470 on the previous commit.
-- Playwright: 77 of 78 pass. The `/app` first-contentful-paint budget failed
-  once at the end of a full 6-minute run on a machine with ten other agent
-  sessions live, and passed in four consecutive isolated runs; the budget was
-  not touched.
-- `npm audit`: 0 vulnerabilities. No dependency was changed.
+- 565 unit and API tests pass (`npm test`), up from 470 before this work.
+- 80 of 80 Playwright journeys pass (`npm run test:browser`), desktop and a
+  Pixel 5 viewport, up from 78. During an earlier run on a machine with ten
+  other agent sessions live, the `/app` first-contentful-paint budget failed
+  once at the end of a full 6-minute pass and then passed in seven consecutive
+  isolated runs; the budget was not touched, and the final full run was green.
+- `npm audit`: 0 vulnerabilities. No dependency was added, removed or upgraded.
+- Every fix here was checked in both directions: the regression test was run
+  against the previous code and observed to fail for the stated reason before
+  being run against the fix.
+
+### Known limitations
+
+- 53 colour literals still sit outside `:root` in `public/styles.css`, against
+  the project's own "CSS variables only" rule. They are shadows and translucent
+  surfaces; converting them is a visual change and nothing in the suite renders
+  pixels, so the count is now held under a ratchet
+  (`tests/style-tokens.test.js`) rather than fixed.
+- Type checking is not enforced. `checkJs` with `strict` reports 612 errors,
+  almost all missing annotations rather than defects; without `strict` it
+  reports 19, and the one real contract error it found — `inferStructure`
+  documenting neither `unapplied` nor `warnings` — is fixed above. A gate would
+  need the annotations first.
+- Preview deployments sit behind Vercel Authentication, so the changes here were
+  verified against a local server running the same entry point the serverless
+  function loads (`api/index.js`), not against the preview URL over HTTP.
 
 ## [2.3.0] — 2026-08-17
 
