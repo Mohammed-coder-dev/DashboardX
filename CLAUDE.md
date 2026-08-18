@@ -9,7 +9,8 @@ deterministically, with **no API key required**. AI interpretation is an
 optional layer over that evidence, using the visitor's own Anthropic key.
 
 ## Stack
-Node 20+ ESM, Express 5, vanilla JS frontend (Chart.js), @anthropic-ai/sdk,
+Node 22+ ESM (`engines`, CI matrix and the container image all agree), Express 5,
+vanilla JS frontend (Chart.js), @anthropic-ai/sdk,
 @supabase/supabase-js, vitest, Playwright. Deployed on Vercel (static `public/`
 + serverless `api/index.js`).
 
