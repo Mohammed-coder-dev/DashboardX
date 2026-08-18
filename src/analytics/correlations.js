@@ -156,9 +156,14 @@ export function classifyStrength(coefficient) {
 export function computeCorrelations(rows, columns, stats = {}, options = {}) {
   const { method = "both", minReported = MIN_REPORTED, limit = MAX_RESULTS } = options;
   const totalRows = rows.length;
+  // A column with no entry in `stats` is attempted rather than assumed
+  // non-numeric; it simply fails the MIN_PAIRS floor if it holds no numbers.
+  // `line` used to be excluded by name here for the same wrong reason it was
+  // skipped in computeStats — the text parsers that synthesise it never reach
+  // either function.
   const numericCols = columns.filter((c) => {
     const declared = stats?.[c]?.type;
-    return declared === undefined ? c !== "line" : declared === "numeric";
+    return declared === undefined || declared === "numeric";
   });
 
   const results = [];

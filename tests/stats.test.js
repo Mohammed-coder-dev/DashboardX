@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { profileDataset } from "../src/analytics/profile.js";
 import {
   classifyCategoricalRole, computeStats, frequencyTable, profileField,
 } from "../src/analytics/stats.js";
@@ -215,9 +216,14 @@ describe("computeStats — general behaviour", () => {
     expect(s.coverage).toBe(0);
   });
 
-  it("skips the synthetic line column", () => {
+  it("profiles a column named line instead of skipping it", () => {
+    // This assertion is the reverse of the one it replaces. `line` was skipped
+    // as the synthetic row index the text parsers add - but those parsers set
+    // isTabular: false and their rows never reach computeStats, so the skip
+    // only ever hit a real column of the same name. Text-parser output is
+    // covered where it actually flows, by the route tests for a .txt upload.
     const stats = computeStats([{ line: 1, content: "hi" }], ["line", "content"]);
-    expect(stats.line).toBeUndefined();
+    expect(stats.line).toBeDefined();
     expect(stats.content).toBeDefined();
   });
 
@@ -307,5 +313,34 @@ describe("min and max are reported like every other statistic", () => {
     const field = profileField([100, 205, 48000]);
     expect(field.min).toBe(100);
     expect(field.max).toBe(48000);
+  });
+});
+
+describe("a column genuinely named \"line\"", () => {
+  // "line" is an ordinary header: invoice line items, log line numbers,
+  // production line, line of business. computeStats skipped it unconditionally,
+  // on the grounds that the text parsers synthesise a `line` index - but those
+  // parsers report isTabular: false, so their rows never reach computeStats at
+  // all. The skip protected nothing and silently dropped a real column.
+  const rows = [
+    { line: 1, amount: 120 }, { line: 2, amount: 340 }, { line: 3, amount: 210 },
+    { line: 4, amount: 455 }, { line: 5, amount: 180 }, { line: 6, amount: 390 },
+  ];
+
+  it("profiles it like any other column", () => {
+    const stats = computeStats(rows, ["line", "amount"]);
+    expect(Object.keys(stats)).toEqual(["line", "amount"]);
+    expect(stats.line.type).toBe("numeric");
+    expect(stats.line.validCount).toBe(6);
+    expect(stats.line.min).toBe(1);
+    expect(stats.line.max).toBe(6);
+  });
+
+  it("reports the same column set as the quality profile", () => {
+    // The two panels described different columns of the same file: the
+    // statistics table had no row for it, the quality table did.
+    const stats = computeStats(rows, ["line", "amount"]);
+    const profile = profileDataset(rows, ["line", "amount"]);
+    expect(Object.keys(stats).sort()).toEqual(Object.keys(profile.columns).sort());
   });
 });
