@@ -87,7 +87,7 @@ Response:
       "alternatives": [],         // other candidate header rows, when uncertain
       "version": "1.0.0"
     },
-    "schemaVersion": "2.10", "evidenceEngine": "1.3.0"
+    "schemaVersion": "2.11", "evidenceEngine": "1.4.0"
   },
   // A numeric column carries `formats` only when it was written in a
   // spreadsheet's own notation — "currency", "thousands", "percent",
