@@ -2917,8 +2917,8 @@ function buildCorrMatrixHtml(stats, correlations) {
   for (const c of correlations) {
     const a = c.columnA ?? c.colA;
     const b = c.columnB ?? c.colB;
-    byPair.set(`${a} ${b}`, c);
-    byPair.set(`${b} ${a}`, c);
+    byPair.set(`${a}\u0000${b}`, c);
+    byPair.set(`${b}\u0000${a}`, c);
   }
 
   const theme = chartTheme();
@@ -2926,7 +2926,7 @@ function buildCorrMatrixHtml(stats, correlations) {
   const body = shown.map((rowCol) => {
     const cells = shown.map((colCol) => {
       if (rowCol === colCol) return `<td class="corr-matrix-diag" aria-hidden="true"></td>`;
-      const pair = byPair.get(`${rowCol} ${colCol}`);
+      const pair = byPair.get(`${rowCol}\u0000${colCol}`);
       if (!pair) {
         return `<td class="corr-matrix-none" title="${esc(`${rowCol} ↔ ${colCol}: not reported — below the |0.3| bar or too few complete pairs`)}">·</td>`;
       }

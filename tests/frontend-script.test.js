@@ -33,6 +33,25 @@ describe("public/app.js", () => {
     expect(SOURCE).not.toMatch(/#2563eb|#f0ede6|#9e9b93|#16a34a|#d97706|#dc2626|#0891b2/i);
   });
 
+  it("writes control characters as escapes, not as raw bytes", () => {
+    // The correlation matrix keys its Map on one column name, a NUL separator
+    // and the other name. That separator was three literal 0x00 bytes sitting
+    // in the source rather than the escape that produces the same character.
+    // The string the engine builds is identical either way; the file is not.
+    // ripgrep stops at the first NUL and reports "binary file matches", so of
+    // the four `byPair` occurrences in the largest source file in this
+    // repository, only the first was findable by search. A raw NUL in a script
+    // served to browsers is also one middlebox or minifier away from silently
+    // truncating the file at that line.
+    const bytes = readFileSync(new URL("../public/app.js", import.meta.url));
+    const control = [...bytes].filter((byte) => byte < 9 || (byte > 13 && byte < 32));
+    expect(control).toEqual([]);
+    // Non-vacuous: the escape that replaced them is still there, so the
+    // separator was not simply deleted. Six characters in the file, one
+    // character at runtime.
+    expect(SOURCE).toContain("\\u0000");
+  });
+
   it("registers the storage migration before anything reads a key", () => {
     const migrationAt = SOURCE.indexOf("function migrateLegacyStorage");
     const firstRead = SOURCE.indexOf("sessionStorage.getItem(KEY_STORAGE)");
