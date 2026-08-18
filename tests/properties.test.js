@@ -65,6 +65,10 @@ const CELL_SHAPES = [
 const HEADER_SHAPES = [
   (r, i) => "col" + i,
   (r, i) => ["region", "revenue", "spend", "when", "id"][i % 5],
+  // Names the engine has treated as special rather than as data. `line` was
+  // skipped by the statistics engine outright; without it in this list the
+  // column-coverage property below passes whether or not the bug is present.
+  (r, i) => ["line", "content"][i % 2],
   () => "",
   () => "dup",
   () => "Column D",
@@ -150,6 +154,18 @@ describe("properties that hold for any spreadsheet", () => {
         if (!field || field.type === "date" || field.type === "empty") continue;
         expect(field.missing + field.invalid + field.validCount).toBe(rows.length);
       }
+    });
+  });
+
+  it("profiles exactly the columns it parsed, no more and no fewer", () => {
+    // Comparison reads baseline.stats[column].type for every shared column, so
+    // a column that is parsed but never profiled is a 500 waiting for someone
+    // to upload the same file twice. It happened: any column named "line" was
+    // skipped by name, and it also made the statistics panel and the quality
+    // panel describe different columns of one file.
+    forEachCase(({ columns, stats, profile }) => {
+      expect(Object.keys(stats).sort()).toEqual([...columns].sort());
+      expect(Object.keys(profile.columns).sort()).toEqual([...columns].sort());
     });
   });
 
