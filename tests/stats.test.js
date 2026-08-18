@@ -280,3 +280,32 @@ describe("columns of very small numbers", () => {
     expect(interval.upper).toBeGreaterThan(interval.lower);
   });
 });
+
+describe("min and max are reported like every other statistic", () => {
+  it("does not print float noise next to rounded siblings", () => {
+    // 87.6/100 is 0.8759999999999999 in binary floating point. Reported raw, a
+    // column holding it showed max: 0.8759999999999999 beside mean: 0.876 -
+    // which reads as a mean above the maximum.
+    const field = profileField([87.6 / 100, 0.4, 0.55]);
+    expect(field.max).toBe(0.876);
+    expect(String(field.max)).not.toContain("999999");
+  });
+
+  it("keeps the mean inside the range it reports", () => {
+    const field = profileField([87.6 / 100, 87.6 / 100, 87.6 / 100]);
+    expect(field.mean).toBeLessThanOrEqual(field.max);
+    expect(field.mean).toBeGreaterThanOrEqual(field.min);
+  });
+
+  it("still reports a small minimum rather than rounding it to zero", () => {
+    const field = profileField([0.000009, 0.000045, 0.000021]);
+    expect(field.min).toBe(0.000009);
+    expect(field.max).toBe(0.000045);
+  });
+
+  it("leaves ordinary values untouched", () => {
+    const field = profileField([100, 205, 48000]);
+    expect(field.min).toBe(100);
+    expect(field.max).toBe(48000);
+  });
+});

@@ -207,8 +207,13 @@ function numericField(rawValues, total, totalRows) {
     missing,
     invalid,
     coverage: coveragePct(numbers.length, totalRows),
-    min: sorted[0],
-    max: sorted[sorted.length - 1],
+    // Rounded like every other statistic in this object. Reported raw, they
+    // leaked float representation noise into the report — a column whose
+    // largest value is 87.6/100 showed `max: 0.8759999999999999` beside
+    // `mean: 0.876`, which reads as a mean above the maximum. Rounding is
+    // monotonic, so min <= mean <= max survives it.
+    min: round(sorted[0]),
+    max: round(sorted[sorted.length - 1]),
     mean: round(mean),
     meanConfidence95: meanConfidenceInterval(numbers),
     median: round(quantile(sorted, 0.5)),
